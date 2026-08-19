@@ -1,11 +1,20 @@
 import "./styles.css";
 import { DEFAULT_CENTER, DEFAULT_RADIUS, MAX_RADIUS, MIN_RADIUS } from "./config";
+import { clearWorldSeedCache } from "./data/cache";
 import { createDemoWorld } from "./data/demo";
 import { buildCity, type BuiltCity } from "./generation/city-builder";
 import { formatCoordinate, parseCoordinateInput } from "./geo/coordinates";
 import { ExploreControls } from "./interaction/explore-controls";
+import {
+  createAppOnlyUrl,
+  createSeedShareUrl,
+  hasPreciseSeedInUrl,
+  requestIsCoolingDown,
+} from "./privacy";
 import { WorldRenderer } from "./render/world-renderer";
 import type { ExploreMode, LonLat, WorldData, WorldStats, WorldStyle } from "./types";
+
+type ExportKind = "glb" | "kit";
 
 const canvas = required<HTMLCanvasElement>("#world-canvas");
 const renderer = new WorldRenderer(canvas);
@@ -20,6 +29,10 @@ let data: WorldData | null = null;
 let city: BuiltCity | null = null;
 let generation = 0;
 let abortController: AbortController | null = null;
+let lastLiveRequestAt = Number.NEGATIVE_INFINITY;
+let pendingExportKind: ExportKind | null = null;
+let clearingPrivateData = false;
+let locationRequestGeneration = 0;
 
 hydrateFromUrl();
 bindUi();
@@ -43,6 +56,18 @@ async function generateRealWorld(): Promise<void> {
     return;
   }
 
+  const requestedAt = performance.now();
+  if (requestIsCoolingDown(lastLiveRequestAt, requestedAt)) {
+    toast("Please wait a moment before another live request");
+    return;
+  }
+  lastLiveRequestAt = requestedAt;
+
+  if (hasPreciseSeedInUrl(location.href)) {
+    history.replaceState(null, "", createAppOnlyUrl(location.href));
+    updatePrivacyUrlStatus();
+  }
+
   center = parsed;
   radius = readRadius();
   input.value = formatCoordinate(center);
@@ -61,7 +86,6 @@ async function generateRealWorld(): Promise<void> {
     });
     if (run !== generation) return;
     await renderData(loaded, true);
-    updateUrl();
     setStatus("Live world ready", "ready");
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") return;
@@ -118,19 +142,53 @@ function bindUi(): void {
       style = selected;
       document.querySelectorAll("[data-style]").forEach((item) => item.classList.toggle("is-active", item === button));
       if (data) await renderData(data, !data.isDemo);
-      updateUrl();
     });
   });
   document.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((button) => {
     button.addEventListener("click", () => setMode(button.dataset.mode as ExploreMode));
   });
-  required("#locate-button").addEventListener("click", useLocation);
+  required("#locate-button").addEventListener("click", () => openDialog("location-dialog"));
+  required("#confirm-location").addEventListener("click", () => {
+    closeDialog("location-dialog");
+    requestDeviceLocation();
+  });
   required("#dismiss-hint").addEventListener("click", () => required("#control-hint").classList.add("is-hidden"));
   required("#error-dismiss").addEventListener("click", hideError);
   required("#snapshot-button").addEventListener("click", () => renderer.snapshot());
-  required("#share-button").addEventListener("click", copyShareLink);
-  required("#export-glb").addEventListener("click", () => void runExport("glb"));
-  required("#export-kit").addEventListener("click", () => void runExport("kit"));
+  required("#share-button").addEventListener("click", openShareDialog);
+  required("#copy-app-link").addEventListener("click", () => void copyLink(createAppOnlyUrl(location.href), "App-only link copied"));
+  required("#copy-seed-link").addEventListener("click", () => {
+    const worldCenter = data?.center ?? center;
+    const worldRadius = data?.radius ?? radius;
+    void copyLink(createSeedShareUrl(location.href, worldCenter, worldRadius, style), "Exact seed link copied");
+  });
+  required("#export-glb").addEventListener("click", () => openExportDialog("glb"));
+  required("#export-kit").addEventListener("click", () => openExportDialog("kit"));
+  required("#include-export-origin").addEventListener("change", updateExportButtonLabel);
+  required("#confirm-export").addEventListener("click", () => {
+    if (!pendingExportKind) return;
+    const kind = pendingExportKind;
+    const includeExactOrigin = required<HTMLInputElement>("#include-export-origin").checked;
+    closeDialog("export-dialog");
+    void runExport(kind, includeExactOrigin);
+  });
+  document.querySelectorAll<HTMLElement>("[data-open-dialog]").forEach((button) => {
+    button.addEventListener("click", () => openDialog(button.dataset.openDialog ?? ""));
+  });
+  document.querySelectorAll<HTMLElement>("[data-close-dialog]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const dialog = button.closest<HTMLDialogElement>("dialog");
+      if (dialog) closeDialog(dialog);
+    });
+  });
+  document.querySelectorAll<HTMLDialogElement>("dialog").forEach((dialog) => {
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) closeDialog(dialog);
+    });
+  });
+  required("#clear-local-data").addEventListener("click", () => void clearPrivateData());
+  required("#clear-private-data").addEventListener("click", () => void clearPrivateData());
+  updatePrivacyUrlStatus();
   setupStick(required("#move-stick"), (x, y) => explore.setMobileMove(x, y));
   setupStick(required("#look-stick"), (x, y) => explore.setMobileLook(x, y));
   window.addEventListener("keydown", (event) => {
@@ -159,14 +217,15 @@ function setMode(mode: ExploreMode): void {
   required("#mobile-sticks").classList.toggle("is-visible", mode !== "orbit");
 }
 
-async function runExport(kind: "glb" | "kit"): Promise<void> {
+async function runExport(kind: ExportKind, includeExactOrigin: boolean): Promise<void> {
   if (!data || !city) return;
   setStatus("Packaging world…", "busy");
   try {
     const { exportGlb, exportStarterKit } = await import("./export/world-kit");
-    if (kind === "glb") await exportGlb(city.group);
-    else await exportStarterKit(city.group, data, city.stats, style);
-    toast(kind === "glb" ? "GLB downloaded" : "Three.js starter kit downloaded");
+    if (kind === "glb") await exportGlb(city.group, includeExactOrigin);
+    else await exportStarterKit(city.group, data, city.stats, style, includeExactOrigin);
+    const privacyLabel = includeExactOrigin ? "with exact origin" : "without exact origin";
+    toast(`${kind === "glb" ? "GLB" : "Three.js kit"} downloaded ${privacyLabel}`);
   } catch (error) {
     showError(error instanceof Error ? error.message : "The export could not be created.");
   } finally {
@@ -199,18 +258,8 @@ function updateWorldUi(world: WorldData, stats: WorldStats): void {
   if (badgeLabel) badgeLabel.textContent = world.isDemo ? "DEMO DATA" : "LIVE OPEN DATA";
 
   const links = required("#attribution-links");
-  if (world.attributions.length === 0) {
-    links.textContent = "Synthetic demonstration data";
-  } else {
-    links.replaceChildren(...world.attributions.flatMap((source, index) => {
-      const anchor = document.createElement("a");
-      anchor.href = source.url;
-      anchor.target = "_blank";
-      anchor.rel = "noreferrer";
-      anchor.textContent = source.label;
-      return index === 0 ? [anchor] : [document.createTextNode(" + "), anchor];
-    }));
-  }
+  updateAttributionLinks(links, world, false);
+  updateAttributionLinks(required("#viewport-attribution"), world, true);
   const sourceDetails = required("#source-details");
   sourceDetails.textContent = world.sourceDetails && world.sourceDetails.length > 0
     ? `Footprint sources: ${world.sourceDetails.join(", ")}`
@@ -222,6 +271,9 @@ function setBusy(active: boolean, title = "Planting your seed", detail = "", pro
   const card = required<HTMLDivElement>("#loading-card");
   card.hidden = !active;
   document.body.classList.toggle("is-busy", active);
+  document.querySelectorAll<HTMLButtonElement>("#seed-button, #demo-button, #locate-button, [data-coordinate], [data-style], #export-glb, #export-kit").forEach((button) => {
+    button.disabled = active;
+  });
   if (!active) return;
   required("#loading-title").textContent = title;
   required("#loading-stage").textContent = detail;
@@ -243,20 +295,25 @@ function hideError(): void {
   required<HTMLDivElement>("#error-card").hidden = true;
 }
 
-function useLocation(): void {
+function requestDeviceLocation(): void {
   if (!navigator.geolocation) {
     showError("Geolocation is not available in this browser.");
     return;
   }
+  const request = ++locationRequestGeneration;
+  setBusy(true, "Waiting for location", "Your browser controls the permission prompt…", 8);
   setStatus("Finding your position…", "busy");
   navigator.geolocation.getCurrentPosition(
     (position) => {
+      if (request !== locationRequestGeneration) return;
       required<HTMLInputElement>("#coordinate-input").value = `${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`;
+      setBusy(false);
       void generateRealWorld();
     },
     () => {
+      if (request !== locationRequestGeneration) return;
       showError("Location permission was not granted. You can still paste a coordinate.");
-      setStatus(data?.isDemo ? "Demo world ready" : "Ready", "error");
+      setStatus(data?.isDemo ? "Demo world ready" : data ? "Live world ready" : "Ready", "error");
     },
     { enableHighAccuracy: true, timeout: 10_000 },
   );
@@ -287,23 +344,150 @@ function hydrateFromUrl(): void {
   }
 }
 
-function updateUrl(): void {
-  const url = new URL(location.href);
-  url.searchParams.set("lat", center[1].toFixed(6));
-  url.searchParams.set("lng", center[0].toFixed(6));
-  url.searchParams.set("r", String(radius));
-  url.searchParams.set("style", style);
-  history.replaceState(null, "", url);
+function openShareDialog(): void {
+  const worldCenter = data?.center ?? center;
+  required("#share-coordinate").textContent = formatCoordinate(worldCenter);
+  openDialog("share-dialog");
 }
 
-async function copyShareLink(): Promise<void> {
-  updateUrl();
+async function copyLink(url: string, message: string): Promise<void> {
   try {
-    await navigator.clipboard.writeText(location.href);
-    toast("Seed link copied");
+    await copyText(url);
+    closeDialog("share-dialog");
+    toast(message);
   } catch {
-    showError("The share link could not be copied. Copy it from the address bar instead.");
+    closeDialog("share-dialog");
+    showError("The link could not be copied. Check this browser’s clipboard permission and try again.");
   }
+}
+
+function openExportDialog(kind: ExportKind): void {
+  if (!data || !city) return;
+  pendingExportKind = kind;
+  const label = kind === "glb" ? "GLB scene" : "Three.js starter kit";
+  required("#export-dialog-title").textContent = `Export ${label}`;
+  required("#export-dialog-copy").textContent = `The privacy-safe default removes ${formatCoordinate(data.center)} from file metadata.`;
+  required<HTMLInputElement>("#include-export-origin").checked = false;
+  updateExportButtonLabel();
+  openDialog("export-dialog");
+}
+
+function updateExportButtonLabel(): void {
+  const includeExactOrigin = required<HTMLInputElement>("#include-export-origin").checked;
+  required("#confirm-export").textContent = includeExactOrigin ? "Export with exact origin" : "Export without origin";
+}
+
+function openDialog(id: string): void {
+  if (!id) return;
+  const next = required<HTMLDialogElement>(`#${id}`);
+  document.querySelectorAll<HTMLDialogElement>("dialog[open]").forEach((dialog) => {
+    if (dialog !== next) closeDialog(dialog);
+  });
+  if (!next.open) next.showModal();
+}
+
+function closeDialog(dialogOrId: HTMLDialogElement | string): void {
+  const dialog = typeof dialogOrId === "string"
+    ? required<HTMLDialogElement>(`#${dialogOrId}`)
+    : dialogOrId;
+  if (dialog.open) dialog.close();
+}
+
+async function clearPrivateData(): Promise<void> {
+  if (clearingPrivateData) return;
+  clearingPrivateData = true;
+  const clearButtons = [
+    required<HTMLButtonElement>("#clear-local-data"),
+    required<HTMLButtonElement>("#clear-private-data"),
+  ];
+  clearButtons.forEach((button) => { button.disabled = true; });
+  setStatus("Clearing local data…", "busy");
+  abortController?.abort();
+  locationRequestGeneration += 1;
+
+  try {
+    const [worldEntries, shellCaches] = await Promise.all([
+      clearWorldSeedCache(),
+      clearWorldSeedShellCaches(),
+    ]);
+    history.replaceState(null, "", createAppOnlyUrl(location.href));
+    center = DEFAULT_CENTER;
+    radius = DEFAULT_RADIUS;
+    style = "low-poly";
+    lastLiveRequestAt = Number.NEGATIVE_INFINITY;
+    required<HTMLInputElement>("#coordinate-input").value = formatCoordinate(center);
+    required<HTMLInputElement>("#radius-input").value = String(radius);
+    required<HTMLOutputElement>("#radius-output").value = `${radius} m`;
+    document.querySelectorAll<HTMLButtonElement>("[data-style]").forEach((button) => {
+      button.classList.toggle("is-active", button.dataset.style === style);
+    });
+    updateRadiusTrack();
+    hideError();
+    document.querySelectorAll<HTMLDialogElement>("dialog[open]").forEach((dialog) => closeDialog(dialog));
+    await showDemo();
+    updatePrivacyUrlStatus();
+    toast(`Cleared ${worldEntries} cached world entries and ${shellCaches} app caches`);
+  } finally {
+    clearingPrivateData = false;
+    clearButtons.forEach((button) => { button.disabled = false; });
+  }
+}
+
+async function clearWorldSeedShellCaches(): Promise<number> {
+  if (typeof caches === "undefined") return 0;
+  try {
+    const cacheNames = await caches.keys();
+    const worldSeedCaches = cacheNames.filter(
+      (name) => name.startsWith("worldseed-shell-") || name.startsWith("worldseed-sites-"),
+    );
+    await Promise.all(worldSeedCaches.map((name) => caches.delete(name)));
+    return worldSeedCaches.length;
+  } catch {
+    return 0;
+  }
+}
+
+function updatePrivacyUrlStatus(): void {
+  const status = required("#privacy-url-status");
+  const hasPreciseSeed = hasPreciseSeedInUrl(location.href);
+  status.classList.toggle("has-seed", hasPreciseSeed);
+  status.textContent = hasPreciseSeed
+    ? "This tab’s current URL contains exact seed coordinates. Use the clear action below to remove them."
+    : "This tab’s current URL contains no seed coordinates.";
+}
+
+function updateAttributionLinks(element: Element, world: WorldData, compactView: boolean): void {
+  if (world.attributions.length === 0) {
+    element.textContent = compactView ? "Synthetic demo · no map data" : "Synthetic demonstration data";
+    return;
+  }
+  const nodes: Node[] = compactView ? [document.createTextNode("Data: ")] : [];
+  world.attributions.forEach((source, index) => {
+    if (index > 0) nodes.push(document.createTextNode(" · "));
+    const anchor = document.createElement("a");
+    anchor.href = source.url;
+    anchor.target = "_blank";
+    anchor.rel = "noreferrer";
+    anchor.textContent = source.label;
+    nodes.push(anchor);
+  });
+  element.replaceChildren(...nodes);
+}
+
+async function copyText(value: string): Promise<void> {
+  if (navigator.clipboard) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+  const fallback = document.createElement("textarea");
+  fallback.value = value;
+  fallback.style.position = "fixed";
+  fallback.style.opacity = "0";
+  document.body.append(fallback);
+  fallback.select();
+  const copied = document.execCommand("copy");
+  fallback.remove();
+  if (!copied) throw new Error("Clipboard unavailable");
 }
 
 function setupStick(element: HTMLElement, listener: (x: number, y: number) => void): void {

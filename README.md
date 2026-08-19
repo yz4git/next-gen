@@ -11,7 +11,7 @@ Google Maps is only treated as an optional coordinate-input format. WorldSeed do
 
 ![WorldSeed generating a playable low-poly city](docs/worldseed-preview.png)
 
-## What works in v0.1
+## What works in v0.1.1
 
 - Overture Maps building footprints through its public PMTiles distribution
 - OpenStreetMap roads, rail, parks, forests, pedestrian areas, and water through Overpass
@@ -20,8 +20,9 @@ Google Maps is only treated as an optional coordinate-input format. WorldSeed do
 - Five views: Low poly, Anime, Cyber, Blueprint, and Data quality
 - Orbit, first-person walk with footprint collision, and free-flight modes
 - GLB download and a zipped, runnable Three.js starter project
-- Automatic attribution, provenance warnings, and a per-seed height-quality meter
-- IndexedDB request caching, service-worker shell caching, and an offline synthetic first-run demo
+- Always-visible viewport attribution, provenance warnings, and a per-seed height-quality meter
+- IndexedDB request caching, coordinate-safe service-worker shell caching, and an offline synthetic first-run demo
+- Just-in-time location disclosure, explicit share choices, privacy-safe export defaults, and local-data clearing
 
 ## Quick start
 
@@ -62,7 +63,23 @@ flowchart TD
   F --> G["Explore or export"]
 ```
 
-The Three.js scene uses a local tangent approximation: X points east, Y points up, and Z points south. This keeps GPU coordinates stable and makes the output convenient for games. The selected coordinate is stored as export metadata.
+The Three.js scene uses a local tangent approximation: X points east, Y points up, and Z points south. This keeps GPU coordinates stable and makes the output convenient for games. The selected coordinate is stored as export metadata only when the user explicitly opts in.
+
+## Public safety and privacy
+
+v0.1.1 makes coordinate disclosure an explicit action:
+
+- Generating or changing a world no longer writes coordinates into the browser URL.
+- **Use my location** explains the data flow before requesting browser permission.
+- Sharing offers an app-only URL or a clearly labeled exact-seed URL.
+- GLB and starter-kit exports omit the exact origin by default. An opt-in checkbox adds it when georeferencing is required.
+- A permanent overlay keeps data-provider attribution visible on the world itself.
+- **Clear local data & current URL** removes WorldSeed IndexedDB entries, WorldSeed shell caches, and coordinate parameters in the current tab.
+- Live requests have a client-side cooldown and relevant controls are disabled during generation.
+
+The app adds no accounts, analytics, advertising SDK, or WorldSeed API. Live generation does contact third parties: OpenStreetMap Overpass receives the exact center and radius, while requests to the Overture dataset hosted on Amazon S3 reveal the selected tile area. Providers and the site host can receive standard network metadata such as IP addresses. See [PRIVACY.md](PRIVACY.md) for the complete data-flow summary.
+
+Removing coordinate metadata does not anonymize recognizable street or building geometry. Review exports and screenshots before publishing them.
 
 ## Configuration
 
@@ -73,21 +90,21 @@ VITE_OVERTURE_RELEASE=2026-07-22.0
 VITE_OVERTURE_BUILDINGS_URL=https://.../buildings.pmtiles
 ```
 
-OpenStreetMap requests fall back between two public Overpass instances. Public services have fair-use limits; production deployments should add their own cached proxy or hosted data pipeline.
+OpenStreetMap requests fall back between two public Overpass instances. Public services have fair-use limits; the UI applies a short per-browser cooldown, but a high-traffic production deployment should add its own cached proxy or hosted data pipeline.
 
 ## Export contract
 
 The starter-kit ZIP contains:
 
 - `worldseed-city.glb`
-- `worldseed.json` with origin, radius, coordinate system, source and statistics
+- `worldseed.json` with optional origin, radius, coordinate system, source and statistics
 - `ATTRIBUTION.md` generated for that seed
 - a minimal Vite + Three.js viewer
 
-The output is intentionally scene-only in v0.1. Terrain, roof meshes, tiled streaming, PLATEAU LOD ingestion, and semantic game-object splitting are planned extensions.
+The output is intentionally scene-only in v0.1.1. Terrain, roof meshes, tiled streaming, PLATEAU LOD ingestion, and semantic game-object splitting are planned extensions.
 
 ## License and data
 
-WorldSeed source code is available under the [MIT License](LICENSE). Generated world data remains subject to its source licenses and attribution requirements. See [ATTRIBUTION.md](ATTRIBUTION.md) and the per-export attribution file. Overture features can carry source-specific licenses; check the Overture attribution guidance for your selected region and use case.
+WorldSeed source code is available under the [MIT License](LICENSE). Generated world data remains subject to its source licenses and attribution requirements. See [ATTRIBUTION.md](ATTRIBUTION.md), [PRIVACY.md](PRIVACY.md), and the per-export attribution file. Overture features can carry source-specific licenses; check the Overture attribution guidance for your selected region and use case.
 
 Contributions are welcome—see [CONTRIBUTING.md](CONTRIBUTING.md).
