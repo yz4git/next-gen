@@ -1,0 +1,13 @@
+{
+  "name": "WorldSeed",
+  "short_name": "WorldSeed",
+  "description": "Grow a playable Three.js city from any coordinate.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#101412",
+  "theme_color": "#101412",
+  "icons": [
+    { "src": "./worldseed-mark.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
+

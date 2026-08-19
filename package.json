@@ -1,0 +1,34 @@
+{
+  "name": "worldseed",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Turn any latitude and longitude into a playable, game-ready Three.js city.",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "check": "tsc -b --pretty false",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "validate": "npm run check && npm run test && npm run build && node scripts/validate-build.mjs",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "@mapbox/vector-tile": "^2.0.4",
+    "fflate": "^0.8.2",
+    "idb-keyval": "^6.2.2",
+    "pbf": "^4.0.1",
+    "pmtiles": "^4.3.0",
+    "three": "^0.179.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.179.0",
+    "@vitejs/plugin-basic-ssl": "^2.1.0",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.3",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
