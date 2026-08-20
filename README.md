@@ -2,7 +2,7 @@
   <img src="public/worldseed-mark.svg" width="84" alt="WorldSeed mark" />
   <h1>WorldSeed</h1>
   <p><strong>Grow a playable Three.js city from one coordinate.</strong></p>
-  <p>Overture buildings · OpenStreetMap streets and land · GLB + starter-kit export</p>
+  <p>Overture + OSM + terrain · local PLATEAU LOD1/LOD2 · GLB + semantic starter kit</p>
 </div>
 
 WorldSeed turns a WGS84 latitude and longitude into a local-meter, browser-generated 3D world. Paste coordinates (or a Google Maps URL containing coordinates), choose a 100–1,000 m radius, and immediately orbit, walk, or fly through the result.
@@ -11,10 +11,15 @@ Google Maps is only treated as an optional coordinate-input format. WorldSeed do
 
 ![WorldSeed generating a playable low-poly city](docs/worldseed-preview.png)
 
-## What works in v0.1.1
+## What works in v0.6.0
 
 - Overture Maps building footprints through its public PMTiles distribution
 - OpenStreetMap roads, rail, parks, forests, pedestrian areas, and water through Overpass
+- Browser-side terrain sampling from Mapzen Terrarium elevation tiles, with an offline procedural demo and flat fallback
+- Separate flat, gabled, hipped, and skillion roof meshes using provider shape, height, and color tags when available
+- Stable semantic layers and local-bound game-object records for terrain, areas, roads, buildings, and roofs
+- 300 m runtime world tiles with distance-based base/detail visibility in Walk and Fly modes and complete-tile export
+- Local-only Project PLATEAU CityGML import with EPSG:6697 coordinates and LOD1/LOD2 Ground, Wall, Roof, and Closure surfaces
 - Height resolution in order: supplied height → floor count → deterministic semantic inference
 - Bounded generation at 100–1,000 m with 2,500-building safety cap and merged geometry batches
 - Five views: Low poly, Anime, Cyber, Blueprint, and Data quality
@@ -50,16 +55,21 @@ npm run validate
 
 Touch devices get separate move and look sticks in Walk and Fly modes.
 
+Use **Import PLATEAU CityGML** for a local `.gml` or `.xml` building file up to 150 MB. The file is parsed in browser memory and is not uploaded or cached by WorldSeed. Standard-mesh files are recommended; worlds remain capped at a 1 km radius and 2,500 buildings.
+
 ## Data pipeline
 
 ```mermaid
 flowchart TD
   A["WGS84 seed + radius"] --> B["Overture PMTiles"]
   A --> C["OpenStreetMap Overpass"]
+  A --> T["Mapzen terrain tiles"]
+  P["Local PLATEAU CityGML"] --> D["Normalize + clip"]
   B --> D["Normalize + clip"]
   C --> D
-  D --> E["Resolve heights"]
-  E --> F["Batch Three.js geometry"]
+  T --> D
+  D --> E["Resolve elevation + roofs"]
+  E --> F["Semantic tiled geometry"]
   F --> G["Explore or export"]
 ```
 
@@ -77,7 +87,7 @@ v0.1.1 makes coordinate disclosure an explicit action:
 - **Clear local data & current URL** removes WorldSeed IndexedDB entries, WorldSeed shell caches, and coordinate parameters in the current tab.
 - Live requests have a client-side cooldown and relevant controls are disabled during generation.
 
-The app adds no accounts, analytics, advertising SDK, or WorldSeed API. Live generation does contact third parties: OpenStreetMap Overpass receives the exact center and radius, while requests to the Overture dataset hosted on Amazon S3 reveal the selected tile area. Providers and the site host can receive standard network metadata such as IP addresses. See [PRIVACY.md](PRIVACY.md) for the complete data-flow summary.
+The app adds no accounts, analytics, advertising SDK, or WorldSeed API. Live generation does contact third parties: OpenStreetMap Overpass receives the exact center and radius, while requests to the Overture and Mapzen terrain datasets hosted on Amazon S3 reveal the selected tile area. Local PLATEAU import makes no provider request. Providers and the site host can receive standard network metadata such as IP addresses. See [PRIVACY.md](PRIVACY.md) for the complete data-flow summary.
 
 Removing coordinate metadata does not anonymize recognizable street or building geometry. Review exports and screenshots before publishing them.
 
@@ -88,6 +98,7 @@ Copy `.env.example` to `.env.local` only if you need to pin a different public O
 ```dotenv
 VITE_OVERTURE_RELEASE=2026-07-22.0
 VITE_OVERTURE_BUILDINGS_URL=https://.../buildings.pmtiles
+VITE_TERRAIN_TILES_URL=https://.../terrarium/{z}/{x}/{y}.png
 ```
 
 OpenStreetMap requests fall back between two public Overpass instances. Public services have fair-use limits; the UI applies a short per-browser cooldown, but a high-traffic production deployment should add its own cached proxy or hosted data pipeline.
@@ -98,13 +109,16 @@ The starter-kit ZIP contains:
 
 - `worldseed-city.glb`
 - `worldseed.json` with optional origin, radius, coordinate system, source and statistics
+- `worldseed-objects.json` with privacy-safe stable IDs, semantic layers, properties, and local-meter bounds
 - `ATTRIBUTION.md` generated for that seed
 - a minimal Vite + Three.js viewer
 
-The output is intentionally scene-only in v0.1.1. Terrain, roof meshes, tiled streaming, PLATEAU LOD ingestion, and semantic game-object splitting are planned extensions.
+The original v0.x geometry roadmap—terrain, roof meshes, semantic game objects, tiled runtime streaming, and PLATEAU LOD ingestion—is complete in v0.6.0. Future work can focus on texture pipelines, larger out-of-core regions, and additional CityGML feature classes without changing the v0.6 export contract.
 
 ## License and data
 
 WorldSeed source code is available under the [MIT License](LICENSE). Generated world data remains subject to its source licenses and attribution requirements. See [ATTRIBUTION.md](ATTRIBUTION.md), [PRIVACY.md](PRIVACY.md), and the per-export attribution file. Overture features can carry source-specific licenses; check the Overture attribution guidance for your selected region and use case.
 
 Contributions are welcome—see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Release details are tracked in [CHANGELOG.md](CHANGELOG.md).

@@ -1,6 +1,6 @@
 # WorldSeed privacy and data flow
 
-This document describes WorldSeed v0.1.1 as shipped in this repository. WorldSeed is a browser-only client application. It adds no user account, analytics tracker, advertising SDK, or WorldSeed application server.
+This document describes WorldSeed v0.6.0 as shipped in this repository. WorldSeed is a browser-only client application. It adds no user account, analytics tracker, advertising SDK, or WorldSeed application server.
 
 ## When data leaves the browser
 
@@ -8,6 +8,7 @@ No live map request is made for the bundled synthetic demo. When a user chooses 
 
 - **OpenStreetMap Overpass:** receives the selected latitude, longitude, and search radius in the query body. WorldSeed tries two public Overpass instances for availability.
 - **Overture Maps dataset on Amazon S3:** PMTiles range and tile requests identify the map tiles covering the selected area. They do not use a WorldSeed proxy.
+- **Mapzen Terrain Tiles on Amazon S3:** Terrarium PNG requests identify the elevation tiles covering the selected area. They do not use a WorldSeed proxy.
 - **The site host/CDN:** serves the app and may receive the requested URL plus normal connection metadata.
 
 Those services can receive standard network metadata such as IP address, user agent, and request time under their own policies. WorldSeed sets a `no-referrer` policy so the current page URL is not sent as a referrer to external providers or links.
@@ -17,6 +18,11 @@ Relevant provider information:
 - [OpenStreetMap Foundation privacy policy](https://osmfoundation.org/wiki/Privacy_Policy)
 - [© OpenStreetMap contributors and licensing](https://www.openstreetmap.org/copyright)
 - [Overture Maps attribution guidance](https://docs.overturemaps.org/attribution/)
+- [Mapzen Terrain Tiles registry and attribution](https://registry.opendata.aws/terrain-tiles/)
+
+## Local PLATEAU imports
+
+Selecting **Import PLATEAU CityGML** reads the chosen `.gml` or `.xml` file into browser memory. WorldSeed does not upload the file, write it to IndexedDB, or send its contents to map providers. The imported model remains in the current page only and is discarded on reload or replacement. Exports created afterward can contain the imported geometry and its identifying attributes, so review them before redistribution and preserve the source dataset's required attribution.
 
 ## Browser storage
 

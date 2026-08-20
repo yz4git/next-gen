@@ -12,6 +12,7 @@ export interface WorldPalette {
   forest: number;
   pedestrian: number;
   buildings: number[];
+  roofs: number[];
   emissive: number;
   sun: number;
 }
@@ -28,6 +29,7 @@ export const WORLD_PALETTES: Record<WorldStyle, WorldPalette> = {
     forest: 0x557b58,
     pedestrian: 0xaaa38f,
     buildings: [0xe8dfc9, 0xcdbba2, 0xb6c0bd, 0xd2a891, 0xf0e9db, 0x9faeaa],
+    roofs: [0x8f6f61, 0x6f7a78, 0xa68b6a, 0x7b665f],
     emissive: 0x000000,
     sun: 0xfff2d1,
   },
@@ -42,6 +44,7 @@ export const WORLD_PALETTES: Record<WorldStyle, WorldPalette> = {
     forest: 0x44a965,
     pedestrian: 0xd6c7ad,
     buildings: [0xffead0, 0xf6b8aa, 0xb9daf4, 0xffd66d, 0xe6dcff, 0xbde0cf],
+    roofs: [0xd77878, 0x677f9d, 0xb99369, 0x716b8f],
     emissive: 0x140a18,
     sun: 0xfff0c8,
   },
@@ -56,6 +59,7 @@ export const WORLD_PALETTES: Record<WorldStyle, WorldPalette> = {
     forest: 0x0c2425,
     pedestrian: 0x25203e,
     buildings: [0x17213d, 0x23214d, 0x112f45, 0x2b1743, 0x182f36, 0x202b52],
+    roofs: [0x4b174f, 0x103c54, 0x34225a, 0x174a47],
     emissive: 0x3a0a67,
     sun: 0x7ab8ff,
   },
@@ -70,6 +74,7 @@ export const WORLD_PALETTES: Record<WorldStyle, WorldPalette> = {
     forest: 0x123e50,
     pedestrian: 0x1b4c69,
     buildings: [0x2d7196, 0x367ea1, 0x28688f, 0x3c88a8, 0x246083, 0x347796],
+    roofs: [0x4f9cba, 0x61abc4, 0x3f87a8, 0x78b6c9],
     emissive: 0x0b3d5b,
     sun: 0x9edcff,
   },
@@ -84,6 +89,7 @@ export const WORLD_PALETTES: Record<WorldStyle, WorldPalette> = {
     forest: 0x31573b,
     pedestrian: 0x706d65,
     buildings: [0x4bb3fd, 0x6fd08c, 0xffc857],
+    roofs: [0x4bb3fd, 0x6fd08c, 0xffc857],
     emissive: 0x000000,
     sun: 0xffffff,
   },
@@ -101,4 +107,3 @@ export function materialForStyle(style: WorldStyle, color: number): THREE.MeshSt
     flatShading: style !== "quality",
   });
 }
-

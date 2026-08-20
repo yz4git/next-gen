@@ -1,5 +1,5 @@
 import "./styles.css";
-import { DEFAULT_CENTER, DEFAULT_RADIUS, MAX_RADIUS, MIN_RADIUS } from "./config";
+import { DEFAULT_CENTER, DEFAULT_RADIUS, MAX_PLATEAU_FILE_BYTES, MAX_RADIUS, MIN_RADIUS } from "./config";
 import { clearWorldSeedCache } from "./data/cache";
 import { createDemoWorld } from "./data/demo";
 import { buildCity, type BuiltCity } from "./generation/city-builder";
@@ -21,6 +21,9 @@ const renderer = new WorldRenderer(canvas);
 const explore = new ExploreControls(renderer.camera, renderer.orbit, canvas);
 renderer.setUpdate((delta) => explore.update(delta));
 renderer.onFps((fps) => { required("#metric-fps").textContent = String(fps); });
+renderer.onStreaming(({ activeTiles, totalTiles }) => {
+  required("#metric-tiles").textContent = `${activeTiles}/${totalTiles}`;
+});
 
 let center: LonLat = DEFAULT_CENTER;
 let radius = DEFAULT_RADIUS;
@@ -45,6 +48,39 @@ async function showDemo(): Promise<void> {
   const demo = createDemoWorld(center, radius);
   await renderData(demo, false);
   setStatus("Demo world ready", "ready");
+}
+
+async function importPlateauFile(file: File): Promise<void> {
+  const input = required<HTMLInputElement>("#plateau-file");
+  if (file.size > MAX_PLATEAU_FILE_BYTES) {
+    input.value = "";
+    showError("That CityGML file is larger than the 150 MB browser import limit. Split it by standard mesh before importing.");
+    return;
+  }
+  abortController?.abort();
+  generation += 1;
+  setBusy(true, "Reading PLATEAU CityGML", "Parsing LOD1/LOD2 surfaces locally in this browser…", 18);
+  setStatus("Importing local CityGML…", "busy");
+  try {
+    const xml = await file.text();
+    setBusy(true, "Reading PLATEAU CityGML", "Building semantic surfaces and local-meter geometry…", 34);
+    const { createPlateauWorld } = await import("./data/plateau");
+    const world = createPlateauWorld(xml, file.name);
+    center = world.center;
+    radius = world.radius;
+    required<HTMLInputElement>("#coordinate-input").value = formatCoordinate(center);
+    required<HTMLInputElement>("#radius-input").value = String(radius);
+    required<HTMLOutputElement>("#radius-output").value = radius >= 1_000 ? "1 km" : `${radius} m`;
+    updateRadiusTrack();
+    await renderData(world, false);
+    setStatus("PLATEAU world ready", "ready");
+  } catch (error) {
+    showError(error instanceof Error ? error.message : "The CityGML file could not be imported.");
+    setStatus(data ? readyStatus(data) : "Ready", "error");
+  } finally {
+    input.value = "";
+    setBusy(false);
+  }
 }
 
 async function generateRealWorld(): Promise<void> {
@@ -111,7 +147,7 @@ async function renderData(nextData: WorldData, live: boolean): Promise<void> {
   city = built;
   renderer.setCity(built.group, nextData.radius);
   renderer.frameCity(nextData.radius);
-  explore.setCollision(built.collision);
+  explore.setCollision(built.collision, built.groundHeightAt);
   if (explore.getMode() !== "orbit") explore.reset();
   updateWorldUi(nextData, built.stats);
   setBusy(false);
@@ -123,6 +159,12 @@ function bindUi(): void {
     void generateRealWorld();
   });
   required("#demo-button").addEventListener("click", () => void showDemo());
+  required("#plateau-import-button").addEventListener("click", () => required<HTMLInputElement>("#plateau-file").click());
+  required<HTMLInputElement>("#plateau-file").addEventListener("change", (event) => {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) void importPlateauFile(file);
+  });
   required("#radius-input").addEventListener("input", () => {
     radius = readRadius();
     required<HTMLOutputElement>("#radius-output").value = radius >= 1_000 ? "1 km" : `${radius} m`;
@@ -203,6 +245,7 @@ function bindUi(): void {
 
 function setMode(mode: ExploreMode): void {
   explore.setMode(mode);
+  renderer.setExploreMode(mode);
   document.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.mode === mode);
   });
@@ -223,13 +266,13 @@ async function runExport(kind: ExportKind, includeExactOrigin: boolean): Promise
   try {
     const { exportGlb, exportStarterKit } = await import("./export/world-kit");
     if (kind === "glb") await exportGlb(city.group, includeExactOrigin);
-    else await exportStarterKit(city.group, data, city.stats, style, includeExactOrigin);
+    else await exportStarterKit(city.group, data, city.stats, style, city.manifest, includeExactOrigin);
     const privacyLabel = includeExactOrigin ? "with exact origin" : "without exact origin";
     toast(`${kind === "glb" ? "GLB" : "Three.js kit"} downloaded ${privacyLabel}`);
   } catch (error) {
     showError(error instanceof Error ? error.message : "The export could not be created.");
   } finally {
-    setStatus(data.isDemo ? "Demo world ready" : "Live world ready", "ready");
+    setStatus(readyStatus(data), "ready");
   }
 }
 
@@ -237,6 +280,10 @@ function updateWorldUi(world: WorldData, stats: WorldStats): void {
   required("#stat-buildings").textContent = compact(stats.buildings);
   required("#stat-roads").textContent = compact(stats.roads);
   required("#stat-triangles").textContent = compact(stats.triangles);
+  required("#stat-relief").textContent = `${stats.terrainRelief.toFixed(stats.terrainRelief < 10 ? 1 : 0)} m`;
+  required("#stat-roofs").textContent = compact(stats.shapedRoofs);
+  required("#stat-objects").textContent = compact(stats.semanticObjects);
+  required("#stat-tiles").textContent = compact(stats.tiles);
   required("#metric-draws").textContent = String(stats.drawCalls);
   required("#metric-radius").textContent = String(world.radius);
   required("#world-coordinate").textContent = cardinalCoordinate(world.center);
@@ -248,21 +295,26 @@ function updateWorldUi(world: WorldData, stats: WorldStats): void {
   required<HTMLElement>("#height-levels").style.width = `${(stats.levelHeights / total) * 100}%`;
   required<HTMLElement>("#height-inferred").style.width = `${(stats.inferredHeights / total) * 100}%`;
   const grade = required("#quality-grade");
-  grade.textContent = world.isDemo ? "DEMO" : known / total > 0.65 ? "STRONG" : known / total > 0.25 ? "MIXED" : "INFERRED";
-  grade.className = `quality-grade ${known / total > 0.65 ? "strong" : known / total > 0.25 ? "mixed" : "inferred"}`;
+  grade.textContent = world.isDemo
+    ? "DEMO"
+    : world.plateau
+      ? world.plateau.lod2Buildings > 0 ? "PLATEAU LOD2" : "PLATEAU LOD1"
+      : known / total > 0.65 ? "STRONG" : known / total > 0.25 ? "MIXED" : "INFERRED";
+  grade.className = `quality-grade ${world.plateau || known / total > 0.65 ? "strong" : known / total > 0.25 ? "mixed" : "inferred"}`;
 
   const badge = required("#data-badge");
   badge.classList.toggle("demo", Boolean(world.isDemo));
-  badge.classList.toggle("live", !world.isDemo);
+  badge.classList.toggle("live", !world.isDemo && !world.plateau);
+  badge.classList.toggle("plateau", Boolean(world.plateau));
   const badgeLabel = badge.querySelector("span");
-  if (badgeLabel) badgeLabel.textContent = world.isDemo ? "DEMO DATA" : "LIVE OPEN DATA";
+  if (badgeLabel) badgeLabel.textContent = world.isDemo ? "DEMO DATA" : world.plateau ? "LOCAL PLATEAU" : "LIVE OPEN DATA";
 
   const links = required("#attribution-links");
   updateAttributionLinks(links, world, false);
   updateAttributionLinks(required("#viewport-attribution"), world, true);
   const sourceDetails = required("#source-details");
   sourceDetails.textContent = world.sourceDetails && world.sourceDetails.length > 0
-    ? `Footprint sources: ${world.sourceDetails.join(", ")}`
+    ? `Sources: ${world.sourceDetails.join(", ")}`
     : "";
   required("#warning-text").textContent = world.warnings.join(" ");
 }
@@ -271,7 +323,7 @@ function setBusy(active: boolean, title = "Planting your seed", detail = "", pro
   const card = required<HTMLDivElement>("#loading-card");
   card.hidden = !active;
   document.body.classList.toggle("is-busy", active);
-  document.querySelectorAll<HTMLButtonElement>("#seed-button, #demo-button, #locate-button, [data-coordinate], [data-style], #export-glb, #export-kit").forEach((button) => {
+  document.querySelectorAll<HTMLButtonElement>("#seed-button, #demo-button, #plateau-import-button, #locate-button, [data-coordinate], [data-style], #export-glb, #export-kit").forEach((button) => {
     button.disabled = active;
   });
   if (!active) return;
@@ -538,6 +590,10 @@ function cardinalCoordinate(value: LonLat): string {
 
 function compact(value: number): string {
   return new Intl.NumberFormat("en", { notation: value >= 10_000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(value);
+}
+
+function readyStatus(world: WorldData): string {
+  return world.isDemo ? "Demo world ready" : world.plateau ? "PLATEAU world ready" : "Live world ready";
 }
 
 function toast(message: string): void {

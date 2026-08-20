@@ -75,8 +75,8 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 .range::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); border: 2px solid #253119; box-shadow: 0 0 0 2px var(--accent); cursor: grab; }
 .range-scale { display: flex; justify-content: space-between; color: #555f59; font-size: 8px; margin-top: 8px; }
 .presets { display: flex; gap: 6px; flex-wrap: wrap; margin: 18px 0 13px; }
-.presets button, .demo-button { border: 1px solid #313833; background: transparent; border-radius: 999px; color: #9aa49e; font-size: 9px; padding: 6px 10px; cursor: pointer; }
-.presets button:hover, .demo-button:hover { color: var(--ink); border-color: #68736c; }
+.presets button, .demo-button, .plateau-button { border: 1px solid #313833; background: transparent; border-radius: 999px; color: #9aa49e; font-size: 9px; padding: 6px 10px; cursor: pointer; }
+.presets button:hover, .demo-button:hover, .plateau-button:hover { color: var(--ink); border-color: #68736c; }
 .seed-button { width: 100%; height: 47px; border: 0; border-radius: 8px; padding: 0 17px; background: var(--accent); color: #141b0a; display: flex; align-items: center; justify-content: space-between; font-weight: 800; font-size: 11px; cursor: pointer; box-shadow: 0 10px 28px rgba(128,181,38,.12); transition: .2s ease; }
 .seed-button svg { width: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; }
 .seed-button:hover { background: #c9ff61; transform: translateY(-1px); box-shadow: 0 12px 34px rgba(128,181,38,.2); }
@@ -84,6 +84,9 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 .request-disclosure { margin: 8px 2px 0; color: #707a74; font-size: 8px; line-height: 1.45; }
 .request-disclosure button { display: inline; padding: 0; border: 0; background: none; color: #aeb9b2; text-decoration: underline; cursor: pointer; }
 .demo-button { width: 100%; border-radius: 7px; margin-top: 7px; padding: 8px; border-color: transparent; }
+.plateau-button { width: 100%; border-radius: 7px; margin-top: 3px; padding: 9px; border-style: dashed; }
+.local-file-note { margin: 5px 0 0; color: #69736d; font-size: 8px; text-align: center; }
+.local-file-note code { color: #aeb8b1; }
 
 .panel-section { border-top: 1px solid var(--line); margin-top: 26px; padding-top: 21px; }
 .section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 13px; }
@@ -142,7 +145,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 .mode-switch button.is-active { background: #eef1e8; color: #171b18; box-shadow: 0 2px 7px rgba(0,0,0,.28); }
 .data-badge { pointer-events: auto; display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; background: rgba(12,16,14,.82); border: 1px solid rgba(255,255,255,.13); backdrop-filter: blur(10px); border-radius: 999px; font-size: 8px; letter-spacing: .11em; font-weight: 800; }
 .data-badge i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
-.data-badge.demo i { background: #ffd05c; }.data-badge.live i { animation: pulse 1.6s infinite; }
+.data-badge.demo i { background: #ffd05c; }.data-badge.live i { animation: pulse 1.6s infinite; }.data-badge.plateau i { background: #5bd1ff; animation: none; }
 .compass { position: absolute; z-index: 3; top: 75px; right: 20px; color: rgba(22,31,27,.6); font-family: Georgia, serif; font-size: 10px; text-align: center; }
 .compass i { display: block; width: 1px; height: 21px; background: currentColor; position: relative; margin: 3px auto; }
 .compass i::before { content:""; position:absolute; top:-1px; left:-3px; border-left:3.5px solid transparent; border-right:3.5px solid transparent; border-bottom:6px solid currentColor; transform: rotate(180deg); }

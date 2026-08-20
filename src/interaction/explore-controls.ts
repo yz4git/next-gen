@@ -6,6 +6,7 @@ import { CollisionIndex } from "../generation/collision";
 export class ExploreControls {
   private mode: ExploreMode = "orbit";
   private collision: CollisionIndex | null = null;
+  private groundHeightAt: (x: number, z: number) => number = () => 0;
   private readonly keys = new Set<string>();
   private yaw = 0;
   private pitch = 0;
@@ -24,10 +25,14 @@ export class ExploreControls {
     canvas.addEventListener("click", this.onCanvasClick);
   }
 
-  setCollision(collision: CollisionIndex): void {
+  setCollision(
+    collision: CollisionIndex,
+    groundHeightAt: (x: number, z: number) => number = () => 0,
+  ): void {
     this.collision = collision;
+    this.groundHeightAt = groundHeightAt;
     const spawn = collision.findOpenSpawn();
-    this.spawn.set(spawn.x, 1.72, spawn.z);
+    this.spawn.set(spawn.x, this.groundHeightAt(spawn.x, spawn.z) + 1.72, spawn.z);
   }
 
   setMode(mode: ExploreMode): void {
@@ -103,7 +108,7 @@ export class ExploreControls {
     const candidate = this.camera.position.clone().add(movement);
 
     if (this.mode === "walk") {
-      candidate.y = 1.72;
+      candidate.y = this.groundHeightAt(candidate.x, candidate.z) + 1.72;
       if (this.collision?.canOccupy({ x: candidate.x, z: candidate.z }, 0.72) ?? true) {
         this.camera.position.copy(candidate);
       } else {
@@ -113,7 +118,8 @@ export class ExploreControls {
         if (this.collision?.canOccupy(slideZ, 0.72)) this.camera.position.z = candidate.z;
       }
     } else {
-      candidate.y = THREE.MathUtils.clamp(candidate.y, 1.5, 900);
+      const minimumHeight = this.groundHeightAt(candidate.x, candidate.z) + 1.5;
+      candidate.y = THREE.MathUtils.clamp(candidate.y, minimumHeight, 900);
       this.camera.position.copy(candidate);
     }
   }

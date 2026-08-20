@@ -24,12 +24,19 @@ const stats: WorldStats = {
   triangles: 0,
   drawCalls: 0,
   truncatedBuildings: 0,
+  terrainRelief: 0,
+  roofs: 0,
+  shapedRoofs: 0,
+  semanticObjects: 0,
+  tiles: 0,
+  plateauBuildings: 0,
+  plateauLod2Buildings: 0,
 };
 
 describe("privacy-safe exports", () => {
   it("omits the exact origin from metadata unless opted in", () => {
     expect(createWorldMetadata(world, stats, "low-poly", false)).toMatchObject({
-      generator: "WorldSeed 0.1.1",
+      generator: "WorldSeed 0.6.0",
       origin: null,
       exactOriginIncluded: false,
     });

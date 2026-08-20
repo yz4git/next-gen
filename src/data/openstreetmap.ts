@@ -118,6 +118,7 @@ export function parseOverpassResponse(
           facadeColor: normalizeColor(tags["building:colour"]),
           roofColor: normalizeColor(tags["roof:colour"]),
           roofShape: tags["roof:shape"],
+          roofHeight: parseLengthMeters(tags["roof:height"]),
           geometrySource: "OpenStreetMap",
           heightSource: tags.height ? "OpenStreetMap height" : undefined,
           source: "openstreetmap",

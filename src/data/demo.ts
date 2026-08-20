@@ -1,6 +1,7 @@
 import { fromLocalMeters } from "../geo/coordinates";
 import type { AreaFeature, BuildingFeature, LonLat, RoadFeature, WorldData } from "../types";
 import { seededUnit } from "../generation/height";
+import { createDemoElevationGrid } from "../terrain/elevation";
 
 export function createDemoWorld(center: LonLat, radius: number): WorldData {
   const buildings: BuildingFeature[] = [];
@@ -30,6 +31,9 @@ export function createDemoWorld(center: LonLat, radius: number): WorldData {
         height: buildingIndex % 5 === 0 ? 18 + seededUnit(`${id}:h`) * 54 : undefined,
         levels: buildingIndex % 3 === 0 ? 3 + Math.floor(seededUnit(`${id}:l`) * 8) : undefined,
         kind: buildingIndex % 4 === 0 ? "commercial" : "residential",
+        roofShape: buildingIndex % 7 === 0 ? "gabled" : buildingIndex % 11 === 0 ? "hipped" : "flat",
+        roofHeight: buildingIndex % 7 === 0 ? 3.5 : undefined,
+        roofColor: buildingIndex % 5 === 0 ? "#8d5f56" : undefined,
         source: "demo",
       });
     }
@@ -54,6 +58,7 @@ export function createDemoWorld(center: LonLat, radius: number): WorldData {
     providerLabel: "Bundled synthetic demo",
     generatedAt: new Date().toISOString(),
     warnings: ["This preview is synthetic demo data, not a model of the selected location."],
+    terrain: createDemoElevationGrid(radius),
     isDemo: true,
     attributions: [],
   };

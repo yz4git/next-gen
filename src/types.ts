@@ -1,10 +1,26 @@
 export type LonLat = readonly [longitude: number, latitude: number];
 export type PolygonRings = LonLat[][];
 export type MultiPolygon = PolygonRings[];
+export type PlateauVertex = readonly [longitude: number, latitude: number, elevation: number];
 
 export type HeightQuality = "provided" | "levels" | "inferred";
 export type WorldStyle = "low-poly" | "anime" | "cyber" | "blueprint" | "quality";
 export type ExploreMode = "orbit" | "walk" | "fly";
+export type SemanticLayer = "terrain" | "areas" | "roads" | "buildings" | "roofs";
+
+export interface ElevationGrid {
+  columns: number;
+  rows: number;
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+  heights: number[];
+  originElevation: number;
+  minimumElevation: number;
+  maximumElevation: number;
+  source: "mapzen" | "demo";
+}
 
 export interface Attribution {
   label: string;
@@ -24,9 +40,10 @@ export interface BuildingFeature {
   facadeColor?: string;
   roofColor?: string;
   roofShape?: string;
+  roofHeight?: number;
   geometrySource?: string;
   heightSource?: string;
-  source: "overture" | "openstreetmap" | "demo";
+  source: "overture" | "openstreetmap" | "demo" | "plateau";
 }
 
 export interface RoadFeature {
@@ -55,7 +72,33 @@ export interface WorldData {
   sourceDetails?: string[];
   generatedAt: string;
   warnings: string[];
+  terrain?: ElevationGrid;
+  plateau?: PlateauModel;
   isDemo?: boolean;
+}
+
+export type PlateauSurfaceKind = "roof" | "wall" | "ground" | "closure" | "other";
+
+export interface PlateauSurface {
+  kind: PlateauSurfaceKind;
+  vertices: PlateauVertex[];
+}
+
+export interface PlateauBuilding {
+  id: string;
+  name?: string;
+  lod: 1 | 2;
+  surfaces: PlateauSurface[];
+  minimumElevation: number;
+  maximumElevation: number;
+}
+
+export interface PlateauModel {
+  sourceName: string;
+  baseElevation: number;
+  buildings: PlateauBuilding[];
+  lod1Buildings: number;
+  lod2Buildings: number;
 }
 
 export interface ResolvedBuilding extends BuildingFeature {
@@ -74,6 +117,40 @@ export interface WorldStats {
   triangles: number;
   drawCalls: number;
   truncatedBuildings: number;
+  terrainRelief: number;
+  roofs: number;
+  shapedRoofs: number;
+  semanticObjects: number;
+  tiles: number;
+  plateauBuildings: number;
+  plateauLod2Buildings: number;
+}
+
+export interface SemanticBounds {
+  minimum: [x: number, y: number, z: number];
+  maximum: [x: number, y: number, z: number];
+}
+
+export interface SemanticObject {
+  id: string;
+  sourceId: string;
+  layer: SemanticLayer;
+  source: string;
+  kind?: string;
+  name?: string;
+  center: [x: number, y: number, z: number];
+  bounds: SemanticBounds;
+  properties: Record<string, string | number | boolean | null>;
+  tile?: string;
+}
+
+export interface WorldManifest {
+  schemaVersion: "1.0";
+  generator: string;
+  coordinateSystem: string;
+  radiusMeters: number;
+  layers: Record<SemanticLayer, number>;
+  objects: SemanticObject[];
 }
 
 export interface GenerationParams {

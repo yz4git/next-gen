@@ -16,7 +16,7 @@
         <a class="brand" href="./" aria-label="WorldSeed home">
           <img src="./worldseed-mark.svg" alt="" width="32" height="32" />
           <span>WorldSeed</span>
-          <small>v0.1.1</small>
+          <small>v0.6.0</small>
         </a>
         <div class="topbar__center" aria-live="polite">
           <span class="pulse" id="status-pulse"></span>
@@ -77,8 +77,11 @@
                 <span>Seed this world</span>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>
               </button>
-              <p class="request-disclosure">Live worlds request the selected area from Overture Maps and OpenStreetMap. <button type="button" data-open-dialog="privacy-dialog">Privacy &amp; data</button></p>
+              <p class="request-disclosure">Live worlds request the selected area from Overture Maps, OpenStreetMap, and open elevation tiles. <button type="button" data-open-dialog="privacy-dialog">Privacy &amp; data</button></p>
               <button class="demo-button" id="demo-button" type="button">Regenerate instant demo</button>
+              <button class="plateau-button" id="plateau-import-button" type="button">Import PLATEAU CityGML</button>
+              <input id="plateau-file" type="file" accept=".gml,.xml,application/gml+xml,text/xml" hidden />
+              <p class="local-file-note">LOD1/LOD2 <code>.gml</code> stays in this browser.</p>
             </form>
 
             <section class="panel-section">
@@ -99,6 +102,10 @@
                 <div><strong id="stat-roads">0</strong><span>roads</span></div>
                 <div><strong id="stat-triangles">0</strong><span>triangles</span></div>
                 <div><strong id="stat-height">0%</strong><span>known height</span></div>
+                <div><strong id="stat-roofs">0</strong><span>shaped roofs</span></div>
+                <div><strong id="stat-relief">0 m</strong><span>terrain relief</span></div>
+                <div><strong id="stat-objects">0</strong><span>game objects</span></div>
+                <div><strong id="stat-tiles">0</strong><span>world tiles</span></div>
               </div>
               <div class="height-bar" aria-label="Building height provenance">
                 <i id="height-provided"></i><i id="height-levels"></i><i id="height-inferred"></i>
@@ -151,7 +158,7 @@
             <span id="loading-stage">Reading open map data…</span>
             <strong id="loading-title">Planting your seed</strong>
             <div class="progress-track"><i id="progress-bar"></i></div>
-            <small id="loading-detail">Overture buildings + OpenStreetMap streets</small>
+            <small id="loading-detail">Buildings, streets, land + terrain elevation</small>
           </div>
 
           <div class="error-card" id="error-card" hidden>
@@ -175,6 +182,7 @@
               <span><i class="metric-dot"></i><strong id="metric-fps">—</strong> FPS</span>
               <span><strong id="metric-radius">500</strong> m radius</span>
               <span><strong id="metric-draws">—</strong> draws</span>
+              <span><strong id="metric-tiles">—/—</strong> tiles</span>
             </div>
           </footer>
         </section>
@@ -190,6 +198,7 @@
       <ul>
         <li>The exact center and radius are sent to public OpenStreetMap Overpass services.</li>
         <li>Overture tile requests, hosted on Amazon S3, reveal the selected map area.</li>
+        <li>Open terrain tile requests, also hosted on Amazon S3, reveal the selected map area.</li>
         <li>Results can be cached in this browser for up to 7 days.</li>
         <li>The app adds no account, analytics, or WorldSeed location server.</li>
       </ul>
@@ -242,11 +251,11 @@
       <div class="privacy-grid">
         <section>
           <h3>Live requests</h3>
-          <p>Overpass receives the selected center and radius. Overture’s Amazon S3 tile host receives requests that identify the selected area. Those providers and the site host may process IP addresses and other standard request metadata.</p>
+          <p>Overpass receives the selected center and radius. Overture and Mapzen terrain tile requests on Amazon S3 identify the selected area. Those providers and the site host may process IP addresses and other standard request metadata.</p>
         </section>
         <section>
           <h3>On this device</h3>
-          <p>World responses are cached in IndexedDB for up to 7 days. The offline app shell is stored separately without coordinate query strings.</p>
+          <p>World responses are cached in IndexedDB for up to 7 days. The offline app shell is stored separately without coordinate query strings. Selected PLATEAU CityGML files are parsed in memory, are not uploaded, and are not added to that cache.</p>
         </section>
         <section>
           <h3>WorldSeed itself</h3>
@@ -257,7 +266,7 @@
           <p>Coordinates enter a URL only when you choose “exact seed link.” Exports omit the origin by default, but recognizable geometry can still reveal a place.</p>
         </section>
       </div>
-      <p class="privacy-links"><a href="https://osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noreferrer">OpenStreetMap privacy</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a><a href="https://docs.overturemaps.org/attribution/" target="_blank" rel="noreferrer">Overture attribution</a></p>
+      <p class="privacy-links"><a href="https://osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noreferrer">OpenStreetMap privacy</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a><a href="https://docs.overturemaps.org/attribution/" target="_blank" rel="noreferrer">Overture attribution</a><a href="https://www.mlit.go.jp/plateau/" target="_blank" rel="noreferrer">Project PLATEAU</a></p>
       <div class="dialog-actions dialog-actions--split">
         <button class="button-danger" id="clear-private-data" type="button">Clear local data &amp; current URL</button>
         <button class="button-primary" type="button" data-close-dialog>Done</button>
