@@ -56,5 +56,6 @@ describe("semantic game-object manifest", () => {
     expect(manifest.objects.filter((object) => object.layer !== "terrain").every((object) => object.tile)).toBe(true);
     expect(JSON.stringify(manifest)).not.toContain("139.767125");
     expect(JSON.stringify(manifest)).not.toContain("35.681236");
+    expect(manifest.generator).toBe("WorldSeed 0.7.0 Drive Any City");
   });
 });

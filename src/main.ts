@@ -5,7 +5,7 @@ import { createDemoWorld } from "./data/demo";
 import { buildCity, type BuiltCity } from "./generation/city-builder";
 import { createDriveRoute } from "./generation/road-graph";
 import { formatCoordinate, parseCoordinateInput } from "./geo/coordinates";
-import { DriveController, type DriveButton } from "./interaction/drive-controller";
+import { clearDriveBestTimes, DriveController, type DriveButton } from "./interaction/drive-controller";
 import { ExploreControls } from "./interaction/explore-controls";
 import {
   createAppOnlyUrl,
@@ -349,7 +349,20 @@ async function runExport(kind: ExportKind, includeExactOrigin: boolean): Promise
   try {
     const { exportGlb, exportStarterKit } = await import("./export/world-kit");
     if (kind === "glb") await exportGlb(city.group, includeExactOrigin);
-    else await exportStarterKit(city.group, data, city.stats, style, city.manifest, includeExactOrigin);
+    else {
+      const walkSpawn = city.collision.findOpenSpawn();
+      await exportStarterKit(
+        city.group,
+        data,
+        city.stats,
+        style,
+        city.manifest,
+        city.roadGraph,
+        currentRoute,
+        { x: walkSpawn.x, y: city.groundHeightAt(walkSpawn.x, walkSpawn.z), z: walkSpawn.z },
+        includeExactOrigin,
+      );
+    }
     const privacyLabel = includeExactOrigin ? "with exact origin" : "without exact origin";
     toast(`${kind === "glb" ? "GLB" : "Three.js kit"} downloaded ${privacyLabel}`);
   } catch (error) {
@@ -549,10 +562,14 @@ async function clearPrivateData(): Promise<void> {
       clearWorldSeedCache(),
       clearWorldSeedShellCaches(),
     ]);
+    const driveTimes = clearDriveBestTimes();
     history.replaceState(null, "", createAppOnlyUrl(location.href));
     center = DEFAULT_CENTER;
     radius = DEFAULT_RADIUS;
     style = "low-poly";
+    requestedMode = "orbit";
+    requestedRouteSeed = null;
+    setMode("orbit");
     lastLiveRequestAt = Number.NEGATIVE_INFINITY;
     required<HTMLInputElement>("#coordinate-input").value = formatCoordinate(center);
     required<HTMLInputElement>("#radius-input").value = String(radius);
@@ -565,7 +582,7 @@ async function clearPrivateData(): Promise<void> {
     document.querySelectorAll<HTMLDialogElement>("dialog[open]").forEach((dialog) => closeDialog(dialog));
     await showDemo();
     updatePrivacyUrlStatus();
-    toast(`Cleared ${worldEntries} cached world entries and ${shellCaches} app caches`);
+    toast(`Cleared ${worldEntries} worlds, ${driveTimes} drive times, and ${shellCaches} app caches`);
   } finally {
     clearingPrivateData = false;
     clearButtons.forEach((button) => { button.disabled = false; });

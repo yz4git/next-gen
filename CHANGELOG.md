@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0 — Drive Any City
+
+- Added a routable local-meter road graph from Overture Transportation segments and connectors, with OpenStreetMap fallback.
+- Added arcade vehicle physics, a chase camera, keyboard and touch controls, collision handling, and off-road recovery.
+- Added deterministic time-attack routes, checkpoints, local best times, and explicit exact-route sharing.
+- Added tiled sidewalks, lane markings, crosswalks, street trees, lights, and signs.
+- Expanded the starter kit with separate terrain and collider GLBs plus road graph, spawn point, and drive route manifests.
+
 ## 0.6.0 — PLATEAU LOD import
 
 - Added local-only PLATEAU CityGML import for EPSG:6697 LOD1 solids and LOD2 semantic surfaces.

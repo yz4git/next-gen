@@ -1,6 +1,6 @@
 # WorldSeed privacy and data flow
 
-This document describes WorldSeed v0.6.0 as shipped in this repository. WorldSeed is a browser-only client application. It adds no user account, analytics tracker, advertising SDK, or WorldSeed application server.
+This document describes WorldSeed v0.7.0 as shipped in this repository. WorldSeed is a browser-only client application. It adds no user account, analytics tracker, advertising SDK, or WorldSeed application server.
 
 ## When data leaves the browser
 
@@ -26,14 +26,15 @@ Selecting **Import PLATEAU CityGML** reads the chosen `.gml` or `.xml` file into
 
 ## Browser storage
 
-Live provider results are cached in IndexedDB for up to 7 days. Cache keys contain coordinates rounded to five decimal places plus the selected radius. The service worker caches the same-origin application shell; navigation entries are normalized to `index.html` so coordinate query strings are not used as CacheStorage keys.
+Live provider results are cached in IndexedDB for up to 7 days. Cache keys contain coordinates rounded to five decimal places plus the selected radius. Time-attack best times are stored locally in `localStorage` under route-derived identifiers and contain no coordinates. The service worker caches the same-origin application shell; navigation entries are normalized to `index.html` so coordinate query strings are not used as CacheStorage keys.
 
 The **Clear local data & current URL** action:
 
 1. deletes IndexedDB entries whose keys belong to WorldSeed;
 2. deletes CacheStorage entries whose cache names belong to the WorldSeed shell;
-3. removes query parameters and fragments from the current tab URL; and
-4. replaces the current scene and input with the bundled synthetic demo defaults.
+3. deletes locally stored WorldSeed time-attack best times;
+4. removes query parameters and fragments from the current tab URL; and
+5. replaces the current scene and input with the bundled synthetic demo defaults.
 
 It cannot delete copies already retained by another service, recipient, browser history entry, screenshot, downloaded file, or backup.
 
@@ -42,7 +43,7 @@ It cannot delete copies already retained by another service, recipient, browser 
 - Browser geolocation is requested only after a just-in-time disclosure. A successful coordinate is rounded to six decimals, placed in the input, and used for live requests.
 - Normal generation and style changes do not add coordinates to the URL.
 - When an exact-seed link is opened, its parameters populate the controls; starting a live request then removes them from the current address bar.
-- An app-only share link contains no seed parameters. An exact seed link contains latitude, longitude, radius, and style and is copied only after an explicit choice.
+- An app-only share link contains no seed parameters. An exact seed link contains latitude, longitude, radius, style, and—when Drive mode is active—the deterministic route identifier; it is copied only after an explicit choice.
 - GLB and starter-kit exports omit the exact origin by default. Users can opt in when georeferencing is required.
 - Exported geometry and screenshots can remain recognizable even when coordinate metadata is removed. Metadata removal is not anonymization.
 

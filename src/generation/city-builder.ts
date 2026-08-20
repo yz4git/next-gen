@@ -20,7 +20,7 @@ import { CollisionIndex } from "./collision";
 import { resolveBuildingHeight, seededUnit } from "./height";
 import { createPlateauSurfaceGeometry } from "./plateau";
 import { resolveRoof, type RoofProfile } from "./roof";
-import { buildRoadGraph } from "./road-graph";
+import { buildRoadGraph, isDrivableRoad } from "./road-graph";
 import { materialForStyle, WORLD_PALETTES } from "./styles";
 import { tileForPoint, type WorldTile } from "./tiling";
 
@@ -37,6 +37,13 @@ interface RoadTileBucket {
   featureIds: string[];
   tile: WorldTile;
   vertex: number;
+}
+
+interface FurnitureBucket {
+  tile: WorldTile;
+  trees: THREE.Matrix4[];
+  lights: THREE.Matrix4[];
+  signs: THREE.Matrix4[];
 }
 
 export interface BuiltCity {
@@ -74,6 +81,8 @@ export async function buildCity(
   const roads = createRoads(data.roads, data, style);
   if (roads.length > 0) layers.roads.add(...roads);
   const roadGraph = buildRoadGraph(data.roads, data.center, data.radius, data.terrain);
+  const roadDecorations = createRoadDecorations(data.roads, roadGraph, data, style);
+  if (roadDecorations.length > 0) layers.roads.add(...roadDecorations);
 
   const allResolved = data.buildings.map(resolveBuildingHeight);
   const ranked = allResolved
@@ -588,6 +597,276 @@ function createRoads(roads: RoadFeature[], data: WorldData, style: WorldStyle): 
     };
     return mesh;
   });
+}
+
+function createRoadDecorations(
+  roads: RoadFeature[],
+  roadGraph: RoadGraph,
+  data: WorldData,
+  style: WorldStyle,
+): THREE.Object3D[] {
+  const markingBuckets = new Map<string, RoadTileBucket>();
+  const sidewalkBuckets = new Map<string, RoadTileBucket>();
+  let detailSegments = 0;
+  const maximumDetailSegments = 16_000;
+
+  for (const road of roads) {
+    if (!isDrivableRoad(road)) continue;
+    for (let index = 1; index < road.path.length && detailSegments < maximumDetailSegments; index += 1) {
+      const first = road.path[index - 1];
+      const second = road.path[index];
+      if (!first || !second) continue;
+      const clipped = clipSegmentToCircle(toLocalMeters(first, data.center), toLocalMeters(second, data.center), data.radius);
+      if (!clipped) continue;
+      const [start, end] = clipped;
+      const length = Math.hypot(end.x - start.x, end.z - start.z);
+      if (length < 2) continue;
+      const tile = tileForPoint((start.x + end.x) / 2, (start.z + end.z) / 2, WORLD_TILE_SIZE);
+      if (road.kind !== "motorway" && road.kind !== "trunk" && road.width >= 4) {
+        appendRoadStrip(sidewalkBuckets, tile, start, end, road.width / 2 + 0.72, 0.62, data, 0.18, road.id);
+        appendRoadStrip(sidewalkBuckets, tile, start, end, -(road.width / 2 + 0.72), 0.62, data, 0.18, road.id);
+        detailSegments += 2;
+      }
+      if (road.width >= 6.5 && !["living_street", "service", "track"].includes(road.kind)) {
+        for (let distance = 2.5; distance < length - 1 && detailSegments < maximumDetailSegments; distance += 9) {
+          const dashEnd = Math.min(length - 0.5, distance + 3.5);
+          const dashStartPoint = interpolateSegment(start, end, distance / length);
+          const dashEndPoint = interpolateSegment(start, end, dashEnd / length);
+          appendRoadStrip(markingBuckets, tile, dashStartPoint, dashEndPoint, 0, 0.09, data, 0.22, road.id);
+          detailSegments += 1;
+        }
+      }
+    }
+  }
+
+  const edgeById = new Map(roadGraph.edges.map((edge) => [edge.id, edge]));
+  for (const node of roadGraph.nodes) {
+    if (node.edgeIds.length < 3 || detailSegments >= maximumDetailSegments) continue;
+    const edge = edgeById.get(node.edgeIds[0] ?? "");
+    const next = edge?.path.find((point) => Math.hypot(point.x - node.x, point.z - node.z) > 0.5);
+    if (!edge || !next) continue;
+    const dx = next.x - node.x;
+    const dz = next.z - node.z;
+    const length = Math.max(0.001, Math.hypot(dx, dz));
+    const acrossX = -dz / length;
+    const acrossZ = dx / length;
+    const tile = tileForPoint(node.x, node.z, WORLD_TILE_SIZE);
+    for (let stripe = -2; stripe <= 2; stripe += 1) {
+      const alongX = (dx / length) * stripe * 0.85;
+      const alongZ = (dz / length) * stripe * 0.85;
+      const half = edge.widthMeters * 0.48;
+      appendRoadStrip(
+        markingBuckets,
+        tile,
+        { x: node.x + alongX - acrossX * half, z: node.z + alongZ - acrossZ * half },
+        { x: node.x + alongX + acrossX * half, z: node.z + alongZ + acrossZ * half },
+        0,
+        0.2,
+        data,
+        0.23,
+        `crosswalk:${node.id}`,
+      );
+      detailSegments += 1;
+    }
+  }
+
+  const markingColor = style === "cyber" ? 0x5cecff : style === "blueprint" ? 0x8fdbff : 0xf4edcf;
+  const sidewalkColor = style === "cyber" ? 0x282d43 : style === "blueprint" ? 0x18486b : 0x9da49d;
+  const objects: THREE.Object3D[] = [
+    ...roadBucketMeshes(markingBuckets, markingColor, "Road markings", style, true),
+    ...roadBucketMeshes(sidewalkBuckets, sidewalkColor, "Sidewalks", style, false),
+    ...createRoadFurniture(roadGraph, data, style),
+  ];
+  return objects;
+}
+
+function appendRoadStrip(
+  buckets: Map<string, RoadTileBucket>,
+  tile: WorldTile,
+  start: LocalPoint,
+  end: LocalPoint,
+  offset: number,
+  halfWidth: number,
+  data: WorldData,
+  heightOffset: number,
+  featureId: string,
+): void {
+  const dx = end.x - start.x;
+  const dz = end.z - start.z;
+  const length = Math.hypot(dx, dz);
+  if (length < 0.05) return;
+  const nx = -dz / length;
+  const nz = dx / length;
+  const startX = start.x + nx * offset;
+  const startZ = start.z + nz * offset;
+  const endX = end.x + nx * offset;
+  const endZ = end.z + nz * offset;
+  const startHeight = elevationAt(data.terrain, startX, startZ) + heightOffset;
+  const endHeight = elevationAt(data.terrain, endX, endZ) + heightOffset;
+  const bucket = buckets.get(tile.id) ?? { positions: [], indices: [], featureIds: [], tile, vertex: 0 };
+  bucket.positions.push(
+    startX + nx * halfWidth, startHeight, startZ + nz * halfWidth,
+    startX - nx * halfWidth, startHeight, startZ - nz * halfWidth,
+    endX + nx * halfWidth, endHeight, endZ + nz * halfWidth,
+    endX - nx * halfWidth, endHeight, endZ - nz * halfWidth,
+  );
+  bucket.indices.push(
+    bucket.vertex, bucket.vertex + 1, bucket.vertex + 2,
+    bucket.vertex + 2, bucket.vertex + 1, bucket.vertex + 3,
+  );
+  bucket.vertex += 4;
+  bucket.featureIds.push(featureId);
+  buckets.set(tile.id, bucket);
+}
+
+function roadBucketMeshes(
+  buckets: Map<string, RoadTileBucket>,
+  color: number,
+  name: string,
+  style: WorldStyle,
+  unlit: boolean,
+): THREE.Mesh[] {
+  return [...buckets.values()].map((bucket) => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(bucket.positions, 3));
+    geometry.setIndex(bucket.indices);
+    geometry.computeVertexNormals();
+    const material = unlit
+      ? new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide })
+      : materialForStyle(style, color);
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = `${name} ${bucket.tile.id}`;
+    mesh.receiveShadow = !unlit;
+    mesh.userData = {
+      worldseedLayer: "roads",
+      featureIds: [...new Set(bucket.featureIds)],
+      worldseedTile: bucket.tile,
+      worldseedDetail: true,
+    };
+    return mesh;
+  });
+}
+
+function createRoadFurniture(roadGraph: RoadGraph, data: WorldData, style: WorldStyle): THREE.InstancedMesh[] {
+  const buckets = new Map<string, FurnitureBucket>();
+  const edgeById = new Map(roadGraph.edges.map((edge) => [edge.id, edge]));
+  let treeCount = 0;
+  let junctionCount = 0;
+  for (const edge of roadGraph.edges) {
+    if (treeCount >= 420 || edge.lengthMeters < 30 || ["motorway", "trunk"].includes(edge.class)) continue;
+    const first = edge.path[0];
+    const last = edge.path.at(-1);
+    if (!first || !last) continue;
+    const dx = last.x - first.x;
+    const dz = last.z - first.z;
+    const length = Math.hypot(dx, dz);
+    if (length < 1) continue;
+    const side = seededUnit(`${edge.id}:tree-side`) > 0.5 ? 1 : -1;
+    for (let distance = 22; distance < length - 8 && treeCount < 420; distance += 42) {
+      const amount = distance / length;
+      const offset = edge.widthMeters / 2 + 3.2;
+      const x = first.x + dx * amount + (-dz / length) * offset * side;
+      const z = first.z + dz * amount + (dx / length) * offset * side;
+      if (Math.hypot(x, z) > data.radius - 4) continue;
+      const bucket = furnitureBucket(buckets, x, z);
+      bucket.trees.push(instanceMatrix(x, elevationAt(data.terrain, x, z), z, seededUnit(`${edge.id}:${distance}`) * Math.PI * 2, 0.82 + seededUnit(`${edge.id}:${distance}:scale`) * 0.45));
+      treeCount += 1;
+    }
+  }
+  for (const node of roadGraph.nodes) {
+    if (junctionCount >= 180 || node.edgeIds.length < 3 || Math.hypot(node.x, node.z) > data.radius - 5) continue;
+    const edge = edgeById.get(node.edgeIds[0] ?? "");
+    const next = edge?.path.find((point) => Math.hypot(point.x - node.x, point.z - node.z) > 0.5);
+    if (!edge || !next) continue;
+    const dx = next.x - node.x;
+    const dz = next.z - node.z;
+    const length = Math.max(0.001, Math.hypot(dx, dz));
+    const offset = edge.widthMeters / 2 + 2.1;
+    const x = node.x + (-dz / length) * offset;
+    const z = node.z + (dx / length) * offset;
+    const bucket = furnitureBucket(buckets, x, z);
+    const ground = elevationAt(data.terrain, x, z);
+    bucket.lights.push(instanceMatrix(x, ground, z, Math.atan2(dx, dz), 1));
+    if (junctionCount % 2 === 0) bucket.signs.push(instanceMatrix(x + dx / length, ground, z + dz / length, Math.atan2(dx, dz), 1));
+    junctionCount += 1;
+  }
+
+  const treeGeometry = mergedPrimitive([
+    translated(new THREE.CylinderGeometry(0.2, 0.26, 2.5, 7), 0, 1.25, 0),
+    translated(new THREE.ConeGeometry(1.35, 3.1, 7), 0, 3.45, 0),
+  ]);
+  const lightGeometry = mergedPrimitive([
+    translated(new THREE.CylinderGeometry(0.09, 0.13, 4.8, 7), 0, 2.4, 0),
+    translated(new THREE.BoxGeometry(0.75, 0.18, 0.24), 0.28, 4.72, 0),
+  ]);
+  const signGeometry = mergedPrimitive([
+    translated(new THREE.CylinderGeometry(0.07, 0.09, 2.4, 7), 0, 1.2, 0),
+    translated(new THREE.BoxGeometry(0.9, 0.62, 0.12), 0, 2.35, 0),
+  ]);
+  const treeColor = style === "cyber" ? 0x25aeb0 : style === "blueprint" ? 0x4c9bc5 : 0x4f7f55;
+  const metalColor = style === "cyber" ? 0x6ae5ef : style === "blueprint" ? 0x8bd8ff : 0x3d4741;
+  const signColor = style === "cyber" ? 0xff55ca : style === "blueprint" ? 0x79c8f2 : 0xd9c96b;
+  const objects: THREE.InstancedMesh[] = [];
+  for (const bucket of buckets.values()) {
+    if (bucket.trees.length > 0) objects.push(instancedDetail(treeGeometry, bucket.trees, treeColor, `Street trees ${bucket.tile.id}`, bucket.tile));
+    if (bucket.lights.length > 0) objects.push(instancedDetail(lightGeometry, bucket.lights, metalColor, `Street lights ${bucket.tile.id}`, bucket.tile));
+    if (bucket.signs.length > 0) objects.push(instancedDetail(signGeometry, bucket.signs, signColor, `Road signs ${bucket.tile.id}`, bucket.tile));
+  }
+  treeGeometry.dispose();
+  lightGeometry.dispose();
+  signGeometry.dispose();
+  return objects;
+}
+
+function furnitureBucket(buckets: Map<string, FurnitureBucket>, x: number, z: number): FurnitureBucket {
+  const tile = tileForPoint(x, z, WORLD_TILE_SIZE);
+  const bucket = buckets.get(tile.id) ?? { tile, trees: [], lights: [], signs: [] };
+  buckets.set(tile.id, bucket);
+  return bucket;
+}
+
+function instanceMatrix(x: number, y: number, z: number, yaw: number, scale: number): THREE.Matrix4 {
+  return new THREE.Matrix4().compose(
+    new THREE.Vector3(x, y, z),
+    new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw),
+    new THREE.Vector3(scale, scale, scale),
+  );
+}
+
+function instancedDetail(
+  baseGeometry: THREE.BufferGeometry,
+  matrices: THREE.Matrix4[],
+  color: number,
+  name: string,
+  tile: WorldTile,
+): THREE.InstancedMesh {
+  const mesh = new THREE.InstancedMesh(
+    baseGeometry.clone(),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.76, metalness: 0.04, flatShading: true }),
+    matrices.length,
+  );
+  matrices.forEach((matrix, index) => mesh.setMatrixAt(index, matrix));
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.name = name;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData = { worldseedLayer: "roads", worldseedTile: tile, worldseedDetail: true };
+  return mesh;
+}
+
+function mergedPrimitive(geometries: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  const merged = mergeGeometries(geometries, false) ?? new THREE.BufferGeometry();
+  geometries.forEach((geometry) => geometry.dispose());
+  return merged;
+}
+
+function translated(geometry: THREE.BufferGeometry, x: number, y: number, z: number): THREE.BufferGeometry {
+  geometry.translate(x, y, z);
+  return geometry;
+}
+
+function interpolateSegment(start: LocalPoint, end: LocalPoint, amount: number): LocalPoint {
+  return { x: start.x + (end.x - start.x) * amount, z: start.z + (end.z - start.z) * amount };
 }
 
 function applyTerrainToGeometry(

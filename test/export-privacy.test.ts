@@ -39,7 +39,7 @@ const stats: WorldStats = {
 describe("privacy-safe exports", () => {
   it("omits the exact origin from metadata unless opted in", () => {
     expect(createWorldMetadata(world, stats, "low-poly", false)).toMatchObject({
-      generator: "WorldSeed 0.6.0",
+      generator: "WorldSeed 0.7.0 Drive Any City",
       origin: null,
       exactOriginIncluded: false,
     });

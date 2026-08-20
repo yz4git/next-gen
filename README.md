@@ -1,20 +1,24 @@
 <div align="center">
   <img src="public/worldseed-mark.svg" width="84" alt="WorldSeed mark" />
   <h1>WorldSeed</h1>
-  <p><strong>Grow a playable Three.js city from one coordinate.</strong></p>
-  <p>Overture + OSM + terrain · local PLATEAU LOD1/LOD2 · GLB + semantic starter kit</p>
+  <p><strong>Drive a playable Three.js city from one coordinate.</strong></p>
+  <p>Overture buildings + routable streets · arcade driving · game-ready GLB + data kit</p>
 </div>
 
-WorldSeed turns a WGS84 latitude and longitude into a local-meter, browser-generated 3D world. Paste coordinates (or a Google Maps URL containing coordinates), choose a 100–1,000 m radius, and immediately orbit, walk, or fly through the result.
+WorldSeed turns a WGS84 latitude and longitude into a local-meter, browser-generated 3D world. Paste coordinates (or a Google Maps URL containing coordinates), choose a 100–1,000 m radius, and immediately orbit, walk, fly, or drive through the result.
 
 Google Maps is only treated as an optional coordinate-input format. WorldSeed does not request, scrape, trace, or derive geometry from Google Maps. World geometry comes from public open-data providers.
 
 ![WorldSeed generating a playable low-poly city](docs/worldseed-preview.png)
 
-## What works in v0.6.0
+## What works in v0.7.0 — Drive Any City
 
 - Overture Maps building footprints through its public PMTiles distribution
-- OpenStreetMap roads, rail, parks, forests, pedestrian areas, and water through Overpass
+- A routable road graph built from Overture Transportation segments and connectors, with OpenStreetMap road fallback
+- Arcade vehicle handling, chase camera, keyboard and touch controls, building collision, off-road drag, and recovery assist
+- Deterministic checkpoint routes, time attack, per-route local best times, and opt-in exact route sharing
+- Tiled sidewalks, lane markings, crosswalks, trees, lights, and signs generated along drivable streets
+- OpenStreetMap rail, parks, forests, pedestrian areas, and water through Overpass
 - Browser-side terrain sampling from Mapzen Terrarium elevation tiles, with an offline procedural demo and flat fallback
 - Separate flat, gabled, hipped, and skillion roof meshes using provider shape, height, and color tags when available
 - Stable semantic layers and local-bound game-object records for terrain, areas, roads, buildings, and roofs
@@ -23,8 +27,8 @@ Google Maps is only treated as an optional coordinate-input format. WorldSeed do
 - Height resolution in order: supplied height → floor count → deterministic semantic inference
 - Bounded generation at 100–1,000 m with 2,500-building safety cap and merged geometry batches
 - Five views: Low poly, Anime, Cyber, Blueprint, and Data quality
-- Orbit, first-person walk with footprint collision, and free-flight modes
-- GLB download and a zipped, runnable Three.js starter project
+- Orbit, first-person walk with footprint collision, free-flight, and Drive modes
+- GLB download and a zipped Three.js game kit with separated terrain, colliders, road graph, route, and spawn points
 - Always-visible viewport attribution, provenance warnings, and a per-seed height-quality meter
 - IndexedDB request caching, coordinate-safe service-worker shell caching, and an offline synthetic first-run demo
 - Just-in-time location disclosure, explicit share choices, privacy-safe export defaults, and local-data clearing
@@ -51,9 +55,10 @@ npm run validate
 | Orbit | Drag to rotate, wheel to zoom, right-drag to pan |
 | Walk | Click the world, then `WASD`; mouse to look; `Shift` to run |
 | Fly | Click the world, then `WASD`; `Q/E` or `Ctrl/Space` for altitude |
-| Any first-person mode | `R` resets; `1`, `2`, `3` switch Orbit/Walk/Fly |
+| Drive | `W/S` throttle and brake/reverse; `A/D` steer; `R` resets the car |
+| Any explore mode | `1`, `2`, `3`, `4` switch Orbit/Walk/Fly/Drive |
 
-Touch devices get separate move and look sticks in Walk and Fly modes.
+Touch devices get separate move and look sticks in Walk and Fly modes, plus steer and pedal controls in Drive mode.
 
 Use **Import PLATEAU CityGML** for a local `.gml` or `.xml` building file up to 150 MB. The file is parsed in browser memory and is not uploaded or cached by WorldSeed. Standard-mesh files are recommended; worlds remain capped at a 1 km radius and 2,500 buildings.
 
@@ -61,15 +66,17 @@ Use **Import PLATEAU CityGML** for a local `.gml` or `.xml` building file up to 
 
 ```mermaid
 flowchart TD
-  A["WGS84 seed + radius"] --> B["Overture PMTiles"]
+  A["WGS84 seed + radius"] --> B["Overture buildings"]
+  A --> R["Overture transportation"]
   A --> C["OpenStreetMap Overpass"]
   A --> T["Mapzen terrain tiles"]
   P["Local PLATEAU CityGML"] --> D["Normalize + clip"]
   B --> D["Normalize + clip"]
+  R --> D
   C --> D
   T --> D
   D --> E["Resolve elevation + roofs"]
-  E --> F["Semantic tiled geometry"]
+  E --> F["Semantic city + road graph"]
   F --> G["Explore or export"]
 ```
 
@@ -96,8 +103,9 @@ Removing coordinate metadata does not anonymize recognizable street or building 
 Copy `.env.example` to `.env.local` only if you need to pin a different public Overture release or PMTiles endpoint.
 
 ```dotenv
-VITE_OVERTURE_RELEASE=2026-07-22.0
+VITE_OVERTURE_RELEASE=2026-08-19.0
 VITE_OVERTURE_BUILDINGS_URL=https://.../buildings.pmtiles
+VITE_OVERTURE_TRANSPORTATION_URL=https://.../transportation.pmtiles
 VITE_TERRAIN_TILES_URL=https://.../terrarium/{z}/{x}/{y}.png
 ```
 
@@ -107,13 +115,18 @@ OpenStreetMap requests fall back between two public Overpass instances. Public s
 
 The starter-kit ZIP contains:
 
-- `worldseed-city.glb`
+- `city.glb`, the complete rendered world
+- `terrain.glb`, the terrain-only mesh
+- `colliders.glb`, merged building collision boxes
 - `worldseed.json` with optional origin, radius, coordinate system, source and statistics
 - `worldseed-objects.json` with privacy-safe stable IDs, semantic layers, properties, and local-meter bounds
+- `road-graph.json` with connector topology, direction, road class, surface, width, and speed
+- `spawn-points.json` with collision-safe vehicle and pedestrian starts
+- `drive-route.json` with the current deterministic time-attack route
 - `ATTRIBUTION.md` generated for that seed
 - a minimal Vite + Three.js viewer
 
-The original v0.x geometry roadmap—terrain, roof meshes, semantic game objects, tiled runtime streaming, and PLATEAU LOD ingestion—is complete in v0.6.0. Future work can focus on texture pipelines, larger out-of-core regions, and additional CityGML feature classes without changing the v0.6 export contract.
+The “Drive Any City” concept was originally described as v0.2, but the repository had already used versions 0.2–0.6 for terrain, roofs, semantic objects, streaming, and PLATEAU import. It therefore ships as v0.7.0 without rewriting release history.
 
 ## License and data
 

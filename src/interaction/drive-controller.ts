@@ -22,6 +22,17 @@ export interface DriveChallengeTelemetry {
   routeLengthMeters: number;
 }
 
+export function clearDriveBestTimes(): number {
+  try {
+    const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
+      .filter((key): key is string => Boolean(key?.startsWith("worldseed-drive-best:")));
+    keys.forEach((key) => localStorage.removeItem(key));
+    return keys.length;
+  } catch {
+    return 0;
+  }
+}
+
 interface RoadMatch {
   edge: RoadGraphEdge;
   x: number;

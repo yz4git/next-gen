@@ -72,7 +72,15 @@ export function createWorldManifest(
       kind: road.kind,
       center: centerOf(bounds),
       bounds,
-      properties: { widthMeters: road.width },
+      properties: compactProperties({
+        widthMeters: road.width,
+        name: road.name,
+        subclass: road.subclass,
+        surface: road.surface,
+        oneWay: road.oneWay,
+        speedLimitKph: road.speedLimitKph,
+        connectorCount: road.connectors?.length,
+      }),
     });
   }
 
@@ -181,7 +189,7 @@ export function createWorldManifest(
 
   return {
     schemaVersion: "1.0",
-    generator: "WorldSeed 0.6.0",
+    generator: "WorldSeed 0.7.0 Drive Any City",
     coordinateSystem: "local meters; X east, Y up, Z south",
     radiusMeters: data.radius,
     layers: countLayers(objects),

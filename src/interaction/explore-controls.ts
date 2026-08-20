@@ -84,7 +84,7 @@ export class ExploreControls {
   }
 
   update(delta: number): void {
-    if (this.mode === "orbit") return;
+    if (this.mode === "orbit" || this.mode === "drive") return;
     const lookSpeed = 1.65;
     this.yaw -= this.mobileLook.x * delta * lookSpeed;
     this.pitch -= this.mobileLook.y * delta * lookSpeed;
@@ -150,7 +150,7 @@ export class ExploreControls {
   };
 
   private onMouseMove = (event: MouseEvent): void => {
-    if (document.pointerLockElement !== this.canvas || this.mode === "orbit") return;
+    if (document.pointerLockElement !== this.canvas || this.mode === "orbit" || this.mode === "drive") return;
     this.yaw -= event.movementX * 0.0022;
     this.pitch -= event.movementY * 0.0022;
     this.pitch = THREE.MathUtils.clamp(this.pitch, -Math.PI * 0.47, Math.PI * 0.47);
@@ -158,7 +158,7 @@ export class ExploreControls {
   };
 
   private onCanvasClick = (): void => {
-    if (this.mode !== "orbit" && document.pointerLockElement !== this.canvas) {
+    if ((this.mode === "walk" || this.mode === "fly") && document.pointerLockElement !== this.canvas) {
       void this.canvas.requestPointerLock();
     }
   };
