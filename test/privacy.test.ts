@@ -31,6 +31,19 @@ describe("privacy-safe URLs", () => {
     expect(hasPreciseSeedInUrl("https://worldseed.example/?lat=35")).toBe(true);
     expect(hasPreciseSeedInUrl("https://worldseed.example/?style=anime")).toBe(false);
   });
+
+  it("adds drive mode and a deterministic route only to an explicit exact-seed link", () => {
+    const shared = new URL(createSeedShareUrl(
+      "https://worldseed.example/app",
+      [139.7, 35.6],
+      500,
+      "cyber",
+      { mode: "drive", routeSeed: 8472 },
+    ));
+    expect(shared.searchParams.get("mode")).toBe("drive");
+    expect(shared.searchParams.get("route")).toBe("8472");
+    expect(createAppOnlyUrl(shared.toString())).toBe("https://worldseed.example/app");
+  });
 });
 
 describe("live request cooldown", () => {

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { CollisionIndex } from "../generation/collision";
-import { findNearestRoadPoint } from "../generation/road-graph";
-import type { DriveSpawn, RoadGraph, RoadGraphEdge } from "../types";
+import { driveSpawnForRoute, findNearestRoadPoint } from "../generation/road-graph";
+import type { DriveRoute, DriveSpawn, RoadGraph, RoadGraphEdge } from "../types";
 import { stepDrivePhysics, type DrivePhysicsState } from "./drive-physics";
 
 export type DriveButton = "left" | "right" | "throttle" | "brake";
@@ -11,6 +11,15 @@ export interface DriveTelemetry {
   roadName: string;
   offRoad: boolean;
   distanceFromRoad: number;
+}
+
+export interface DriveChallengeTelemetry {
+  status: "ready" | "running" | "finished";
+  elapsedSeconds: number;
+  bestSeconds: number | null;
+  checkpoint: number;
+  checkpointCount: number;
+  routeLengthMeters: number;
 }
 
 interface RoadMatch {
@@ -23,6 +32,7 @@ interface RoadMatch {
 
 export class DriveController {
   private readonly vehicle = createVehicle();
+  private readonly routeGroup = new THREE.Group();
   private readonly keys = new Set<string>();
   private readonly touchButtons = new Set<DriveButton>();
   private readonly cameraTarget = new THREE.Vector3();
@@ -35,14 +45,22 @@ export class DriveController {
   private accumulator = 0;
   private state: DrivePhysicsState = { x: 0, z: 0, heading: 0, speed: 0, steering: 0 };
   private telemetryListener?: (telemetry: DriveTelemetry) => void;
+  private challengeListener?: (telemetry: DriveChallengeTelemetry) => void;
   private telemetryElapsed = 0;
+  private route: DriveRoute | null = null;
+  private challengeStatus: DriveChallengeTelemetry["status"] = "ready";
+  private challengeElapsed = 0;
+  private nextCheckpoint = 1;
+  private bestSeconds: number | null = null;
 
   constructor(
     private readonly scene: THREE.Scene,
     private readonly camera: THREE.PerspectiveCamera,
   ) {
     this.vehicle.visible = false;
-    this.scene.add(this.vehicle);
+    this.routeGroup.name = "WorldSeed Drive Route";
+    this.routeGroup.visible = false;
+    this.scene.add(this.vehicle, this.routeGroup);
     window.addEventListener("keydown", this.onKeyDown);
     window.addEventListener("keyup", this.onKeyUp);
     window.addEventListener("blur", this.onBlur);
@@ -59,6 +77,20 @@ export class DriveController {
     this.collision = collision;
     this.groundHeightAt = groundHeightAt;
     this.spawn = preferredSpawn ?? findNearestRoadPoint(graph);
+    this.setRoute(null);
+    this.reset();
+  }
+
+  setRoute(route: DriveRoute | null): void {
+    disposeGroup(this.routeGroup);
+    this.route = route;
+    if (route) {
+      this.routeGroup.add(createRouteVisual(route));
+      this.spawn = driveSpawnForRoute(route) ?? this.spawn;
+      this.bestSeconds = readBestTime(route.id);
+    } else {
+      this.bestSeconds = null;
+    }
     this.reset();
   }
 
@@ -71,6 +103,7 @@ export class DriveController {
   setActive(active: boolean): void {
     this.active = active && Boolean(this.graph && this.spawn);
     this.vehicle.visible = this.active;
+    this.routeGroup.visible = this.active && Boolean(this.route);
     this.touchButtons.clear();
     this.accumulator = 0;
     if (this.active) {
@@ -92,6 +125,10 @@ export class DriveController {
     this.telemetryListener = listener;
   }
 
+  onChallenge(listener: (telemetry: DriveChallengeTelemetry) => void): void {
+    this.challengeListener = listener;
+  }
+
   reset(): void {
     if (!this.spawn) return;
     this.state = {
@@ -101,6 +138,11 @@ export class DriveController {
       speed: 0,
       steering: 0,
     };
+    this.challengeStatus = "ready";
+    this.challengeElapsed = 0;
+    this.nextCheckpoint = Math.min(1, Math.max(0, (this.route?.checkpoints.length ?? 1) - 1));
+    this.updateChallengeVisuals();
+    this.publishChallenge();
     this.accumulator = 0;
     this.updateVisuals(1);
   }
@@ -117,6 +159,7 @@ export class DriveController {
     if (this.telemetryElapsed >= 0.1) {
       this.telemetryElapsed = 0;
       this.publishTelemetry();
+      if (this.challengeStatus === "running") this.publishChallenge();
     }
   }
 
@@ -125,6 +168,8 @@ export class DriveController {
     window.removeEventListener("keyup", this.onKeyUp);
     window.removeEventListener("blur", this.onBlur);
     this.scene.remove(this.vehicle);
+    this.scene.remove(this.routeGroup);
+    disposeGroup(this.routeGroup);
     this.vehicle.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
       object.geometry.dispose();
@@ -159,6 +204,7 @@ export class DriveController {
     } else {
       this.state = { ...previous, speed: Math.min(0, -Math.abs(previous.speed) * 0.14), steering: candidate.steering };
     }
+    this.updateChallenge(delta);
   }
 
   private updateVisuals(delta: number): void {
@@ -179,6 +225,53 @@ export class DriveController {
     this.camera.position.lerp(desired, cameraAmount);
     this.cameraTarget.lerp(target, targetAmount);
     this.camera.lookAt(this.cameraTarget);
+  }
+
+  private updateChallenge(delta: number): void {
+    if (!this.route || this.route.checkpoints.length < 2) return;
+    if (this.challengeStatus === "ready" && Math.abs(this.state.speed) > 1.2) {
+      this.challengeStatus = "running";
+      this.publishChallenge();
+    }
+    if (this.challengeStatus !== "running") return;
+    this.challengeElapsed += delta;
+    const target = this.route.checkpoints[this.nextCheckpoint];
+    if (target && Math.hypot(this.state.x - target.x, this.state.z - target.z) <= 9) {
+      this.nextCheckpoint += 1;
+      if (this.nextCheckpoint >= this.route.checkpoints.length) {
+        this.challengeStatus = "finished";
+        if (this.bestSeconds === null || this.challengeElapsed < this.bestSeconds) {
+          this.bestSeconds = this.challengeElapsed;
+          writeBestTime(this.route.id, this.bestSeconds);
+        }
+      }
+      this.updateChallengeVisuals();
+      this.publishChallenge();
+    }
+  }
+
+  private updateChallengeVisuals(): void {
+    this.routeGroup.traverse((object) => {
+      const index = object.userData["checkpointIndex"] as number | undefined;
+      if (index === undefined || !(object instanceof THREE.Mesh)) return;
+      const material = object.material as THREE.MeshBasicMaterial;
+      if (this.challengeStatus === "finished" || index < this.nextCheckpoint) material.color.setHex(0x56625b);
+      else if (index === this.nextCheckpoint) material.color.setHex(0xffd05c);
+      else material.color.setHex(0xb8f34b);
+      material.opacity = index === this.nextCheckpoint ? 0.94 : 0.58;
+    });
+  }
+
+  private publishChallenge(): void {
+    if (!this.challengeListener || !this.route) return;
+    this.challengeListener({
+      status: this.challengeStatus,
+      elapsedSeconds: this.challengeElapsed,
+      bestSeconds: this.bestSeconds,
+      checkpoint: Math.min(this.nextCheckpoint, this.route.checkpoints.length - 1),
+      checkpointCount: Math.max(1, this.route.checkpoints.length - 1),
+      routeLengthMeters: this.route.lengthMeters,
+    });
   }
 
   private publishTelemetry(): void {
@@ -314,4 +407,52 @@ function createVehicle(): THREE.Group {
   }
   root.userData["wheels"] = wheels;
   return root;
+}
+
+function createRouteVisual(route: DriveRoute): THREE.Group {
+  const root = new THREE.Group();
+  const linePoints = route.points.map((point) => new THREE.Vector3(point.x, point.y + 0.32, point.z));
+  const lineGeometry = new THREE.BufferGeometry().setFromPoints(linePoints);
+  const lineMaterial = new THREE.LineBasicMaterial({ color: 0xb8f34b, transparent: true, opacity: 0.48 });
+  const line = new THREE.Line(lineGeometry, lineMaterial);
+  line.name = "Drive route line";
+  root.add(line);
+  route.checkpoints.forEach((checkpoint, index) => {
+    if (index === 0) return;
+    const material = new THREE.MeshBasicMaterial({ color: index === 1 ? 0xffd05c : 0xb8f34b, transparent: true, opacity: index === 1 ? 0.94 : 0.58, depthWrite: false });
+    const marker = new THREE.Mesh(new THREE.TorusGeometry(5.1, 0.38, 6, 24), material);
+    marker.rotation.x = Math.PI / 2;
+    marker.position.set(checkpoint.x, checkpoint.y + 0.46, checkpoint.z);
+    marker.userData["checkpointIndex"] = index;
+    marker.name = `Checkpoint ${index}`;
+    root.add(marker);
+  });
+  return root;
+}
+
+function disposeGroup(root: THREE.Group): void {
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh || object instanceof THREE.Line)) return;
+    object.geometry.dispose();
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    materials.forEach((material) => material.dispose());
+  });
+  root.clear();
+}
+
+function readBestTime(routeId: string): number | null {
+  try {
+    const value = Number(localStorage.getItem(`worldseed-drive-best:${routeId}`));
+    return Number.isFinite(value) && value > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeBestTime(routeId: string, seconds: number): void {
+  try {
+    localStorage.setItem(`worldseed-drive-best:${routeId}`, seconds.toFixed(3));
+  } catch {
+    // Time-attack progress remains playable when storage is unavailable.
+  }
 }

@@ -3,6 +3,7 @@ import { DEFAULT_CENTER, DEFAULT_RADIUS, MAX_PLATEAU_FILE_BYTES, MAX_RADIUS, MIN
 import { clearWorldSeedCache } from "./data/cache";
 import { createDemoWorld } from "./data/demo";
 import { buildCity, type BuiltCity } from "./generation/city-builder";
+import { createDriveRoute } from "./generation/road-graph";
 import { formatCoordinate, parseCoordinateInput } from "./geo/coordinates";
 import { DriveController, type DriveButton } from "./interaction/drive-controller";
 import { ExploreControls } from "./interaction/explore-controls";
@@ -13,7 +14,7 @@ import {
   requestIsCoolingDown,
 } from "./privacy";
 import { WorldRenderer } from "./render/world-renderer";
-import type { ExploreMode, LonLat, WorldData, WorldStats, WorldStyle } from "./types";
+import type { DriveRoute, ExploreMode, LonLat, WorldData, WorldStats, WorldStyle } from "./types";
 
 type ExportKind = "glb" | "kit";
 
@@ -36,6 +37,14 @@ drive.onTelemetry(({ speedKph, roadName, offRoad }) => {
   state.textContent = offRoad ? "OFF ROAD · AUTO ASSIST" : "ON ROAD";
   state.classList.toggle("off-road", offRoad);
 });
+drive.onChallenge(({ status, elapsedSeconds, bestSeconds, checkpoint, checkpointCount, routeLengthMeters }) => {
+  required("#drive-time").textContent = formatTime(elapsedSeconds);
+  required("#drive-best").textContent = bestSeconds === null ? "—" : formatTime(bestSeconds);
+  required("#drive-checkpoint").textContent = `${checkpoint}/${checkpointCount}`;
+  required("#drive-route-length").textContent = `${Math.round(routeLengthMeters)} m`;
+  required("#drive-challenge-state").textContent = status === "ready" ? "PRESS DRIVE" : status === "running" ? "TIME ATTACK" : "FINISH";
+  required("#drive-challenge").classList.toggle("is-finished", status === "finished");
+});
 
 let center: LonLat = DEFAULT_CENTER;
 let radius = DEFAULT_RADIUS;
@@ -48,6 +57,11 @@ let lastLiveRequestAt = Number.NEGATIVE_INFINITY;
 let pendingExportKind: ExportKind | null = null;
 let clearingPrivateData = false;
 let locationRequestGeneration = 0;
+let requestedMode: ExploreMode = "orbit";
+let requestedRouteSeed: number | null = null;
+let currentRouteSeed = 1;
+let currentRoute: DriveRoute | null = null;
+let initialModeApplied = false;
 
 hydrateFromUrl();
 bindUi();
@@ -59,6 +73,10 @@ async function showDemo(): Promise<void> {
   radius = readRadius();
   const demo = createDemoWorld(center, radius);
   await renderData(demo, false);
+  if (!initialModeApplied) {
+    initialModeApplied = true;
+    setMode(requestedMode);
+  }
   setStatus("Demo world ready", "ready");
 }
 
@@ -161,6 +179,9 @@ async function renderData(nextData: WorldData, live: boolean): Promise<void> {
   renderer.frameCity(nextData.radius);
   explore.setCollision(built.collision, built.groundHeightAt);
   drive.setWorld(built.roadGraph, built.collision, built.groundHeightAt);
+  currentRouteSeed = requestedRouteSeed ?? routeSeedForWorld(nextData);
+  currentRoute = createDriveRoute(built.roadGraph, currentRouteSeed);
+  drive.setRoute(currentRoute);
   const driveButton = required<HTMLButtonElement>('[data-mode="drive"]');
   driveButton.disabled = !drive.isAvailable();
   driveButton.title = drive.isAvailable() ? "Drive this city" : "No drivable road network is available";
@@ -206,6 +227,15 @@ function bindUi(): void {
     button.addEventListener("click", () => setMode(button.dataset.mode as ExploreMode));
   });
   required("#drive-reset").addEventListener("click", () => drive.reset());
+  required("#drive-restart").addEventListener("click", () => drive.reset());
+  required("#drive-new-route").addEventListener("click", () => {
+    if (!city) return;
+    currentRouteSeed = nextRouteSeed(currentRouteSeed);
+    requestedRouteSeed = currentRouteSeed;
+    currentRoute = createDriveRoute(city.roadGraph, currentRouteSeed);
+    drive.setRoute(currentRoute);
+    toast("New time-attack route ready");
+  });
   document.querySelectorAll<HTMLButtonElement>("[data-drive-button]").forEach((button) => {
     const control = button.dataset.driveButton as DriveButton;
     const release = (): void => {
@@ -235,7 +265,10 @@ function bindUi(): void {
   required("#copy-seed-link").addEventListener("click", () => {
     const worldCenter = data?.center ?? center;
     const worldRadius = data?.radius ?? radius;
-    void copyLink(createSeedShareUrl(location.href, worldCenter, worldRadius, style), "Exact seed link copied");
+    void copyLink(createSeedShareUrl(location.href, worldCenter, worldRadius, style, {
+      mode: explore.getMode(),
+      routeSeed: currentRouteSeed,
+    }), "Exact seed link copied");
   });
   required("#export-glb").addEventListener("click", () => openExportDialog("glb"));
   required("#export-kit").addEventListener("click", () => openExportDialog("kit"));
@@ -430,6 +463,8 @@ function hydrateFromUrl(): void {
   const longitude = longitudeParam === null ? Number.NaN : Number(longitudeParam);
   const requestedRadius = radiusParam === null ? Number.NaN : Number(radiusParam);
   const requestedStyle = params.get("style") as WorldStyle | null;
+  const modeParam = params.get("mode") as ExploreMode | null;
+  const routeParam = Number(params.get("route"));
   if (Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180) {
     center = [longitude, latitude];
     required<HTMLInputElement>("#coordinate-input").value = formatCoordinate(center);
@@ -444,6 +479,8 @@ function hydrateFromUrl(): void {
     style = requestedStyle!;
     document.querySelectorAll<HTMLButtonElement>("[data-style]").forEach((button) => button.classList.toggle("is-active", button.dataset.style === style));
   }
+  if (["orbit", "walk", "fly", "drive"].includes(modeParam ?? "")) requestedMode = modeParam!;
+  if (Number.isSafeInteger(routeParam) && routeParam > 0) requestedRouteSeed = routeParam;
 }
 
 function openShareDialog(): void {
@@ -651,6 +688,26 @@ function toast(message: string): void {
   element.textContent = message;
   element.classList.add("is-visible");
   setTimeout(() => element.classList.remove("is-visible"), 2_200);
+}
+
+function formatTime(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds - minutes * 60;
+  return `${minutes}:${remainder.toFixed(2).padStart(5, "0")}`;
+}
+
+function routeSeedForWorld(world: WorldData): number {
+  const key = `${world.center[0].toFixed(5)}:${world.center[1].toFixed(5)}:${world.radius}`;
+  let hash = 2_166_136_261;
+  for (let index = 0; index < key.length; index += 1) {
+    hash ^= key.charCodeAt(index);
+    hash = Math.imul(hash, 16_777_619);
+  }
+  return (hash >>> 0) || 1;
+}
+
+function nextRouteSeed(seed: number): number {
+  return ((Math.imul(seed >>> 0, 1_664_525) + 1_013_904_223) >>> 0) || 1;
 }
 
 function required<T extends Element = HTMLElement>(selector: string): T {

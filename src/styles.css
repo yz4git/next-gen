@@ -193,6 +193,17 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 .drive-road span.off-road { color: #ffb05c; }
 .drive-hud > button { height: 31px; padding: 0 10px; border: 1px solid rgba(255,255,255,.14); border-radius: 7px; background: #1b211d; color: #c5cdc7; font-size: 8px; cursor: pointer; }
 .drive-hud kbd { margin-left: 4px; color: #7f8b83; font: inherit; }
+.drive-challenge { display: none; position: absolute; z-index: 6; top: 66px; right: 17px; width: 168px; padding: 11px; border: 1px solid rgba(255,255,255,.16); border-radius: 11px; background: rgba(10,14,12,.86); backdrop-filter: blur(14px); color: #eff3ec; box-shadow: 0 12px 34px rgba(0,0,0,.2); }
+.is-driving .drive-challenge { display: block; }
+.drive-challenge.is-finished { border-color: rgba(184,243,75,.65); box-shadow: 0 0 0 2px rgba(184,243,75,.12), 0 12px 34px rgba(0,0,0,.2); }
+.drive-challenge__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--accent); font-size: 7px; font-weight: 850; letter-spacing: .1em; }
+.drive-challenge__head small { color: #7f8a83; font-size: 7px; letter-spacing: 0; }
+.drive-challenge > strong { display: block; margin-top: 6px; font: 750 22px/1 "SFMono-Regular", Consolas, monospace; letter-spacing: -.07em; }
+.drive-challenge__stats { display: flex; gap: 10px; margin-top: 8px; color: #77827b; font-size: 6px; letter-spacing: .08em; }
+.drive-challenge__stats b { display: block; margin-top: 2px; color: #e6ebe4; font: 700 8px "SFMono-Regular", Consolas, monospace; letter-spacing: 0; }
+.drive-challenge__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 9px; }
+.drive-challenge__actions button { height: 27px; border: 1px solid rgba(255,255,255,.13); border-radius: 6px; background: #1b211d; color: #b9c2bc; font-size: 7px; cursor: pointer; }
+.drive-challenge__actions button:hover { border-color: rgba(184,243,75,.5); color: #f2f5ef; }
 .drive-touch { display: none; position: absolute; z-index: 7; left: 15px; right: 15px; bottom: 66px; justify-content: space-between; align-items: flex-end; pointer-events: none; }
 .drive-steer, .drive-pedals { display: flex; gap: 8px; pointer-events: auto; }
 .drive-touch button { width: 68px; height: 62px; border: 1px solid rgba(255,255,255,.28); border-radius: 16px; background: rgba(10,14,12,.58); color: #eef2eb; font-weight: 820; font-size: 20px; touch-action: none; user-select: none; -webkit-user-select: none; backdrop-filter: blur(8px); }
@@ -272,6 +283,10 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
   .drive-speed strong { font-size: 21px; }
   .drive-road strong { max-width: 110px; font-size: 8px; }
   .drive-hud > button { display: none; }
+  .drive-challenge { top: calc(min(48%, 430px) + 65px); right: 9px; width: 142px; padding: 8px; }
+  .drive-challenge > strong { font-size: 17px; }
+  .drive-challenge__actions { margin-top: 6px; }
+  .drive-challenge__actions button { height: 25px; }
 }
 
 @media (hover: none) and (pointer: coarse) {
@@ -287,6 +302,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
   .world-id strong { font-size: 7px; }
   .world-metrics { gap: 8px; }
   .style-grid { gap: 4px; }
+  .drive-challenge { top: calc(min(45%, 390px) + 64px); }
   .safety-dialog { padding: 20px; }
   .privacy-grid { grid-template-columns: 1fr; }
   .dialog-actions--split { align-items: stretch; flex-direction: column-reverse; }

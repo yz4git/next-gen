@@ -1,4 +1,4 @@
-import type { LonLat, WorldStyle } from "./types";
+import type { ExploreMode, LonLat, WorldStyle } from "./types";
 
 export const LIVE_REQUEST_COOLDOWN_MS = 2_500;
 
@@ -7,6 +7,7 @@ export function createSeedShareUrl(
   center: LonLat,
   radius: number,
   style: WorldStyle,
+  options: { mode?: ExploreMode; routeSeed?: number } = {},
 ): string {
   const url = new URL(currentHref);
   url.search = "";
@@ -15,6 +16,10 @@ export function createSeedShareUrl(
   url.searchParams.set("lng", center[0].toFixed(6));
   url.searchParams.set("r", String(Math.round(radius)));
   url.searchParams.set("style", style);
+  if (options.mode && options.mode !== "orbit") url.searchParams.set("mode", options.mode);
+  if (options.mode === "drive" && Number.isFinite(options.routeSeed)) {
+    url.searchParams.set("route", String(Math.trunc(options.routeSeed!)));
+  }
   return url.toString();
 }
 

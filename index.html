@@ -179,6 +179,19 @@
             <button id="drive-reset" type="button">Reset car <kbd>R</kbd></button>
           </div>
 
+          <div class="drive-challenge" id="drive-challenge">
+            <div class="drive-challenge__head"><span id="drive-challenge-state">PRESS DRIVE</span><small id="drive-route-length">— m</small></div>
+            <strong id="drive-time">0:00.00</strong>
+            <div class="drive-challenge__stats">
+              <span>CHECKPOINT <b id="drive-checkpoint">0/0</b></span>
+              <span>BEST <b id="drive-best">—</b></span>
+            </div>
+            <div class="drive-challenge__actions">
+              <button id="drive-restart" type="button">Restart</button>
+              <button id="drive-new-route" type="button">New route</button>
+            </div>
+          </div>
+
           <div class="drive-touch" id="drive-touch" aria-label="Touch driving controls">
             <div class="drive-steer" role="group" aria-label="Steering">
               <button type="button" data-drive-button="left" aria-label="Steer left">←</button>
