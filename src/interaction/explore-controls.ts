@@ -42,6 +42,10 @@ export class ExploreControls {
       if (document.pointerLockElement === this.canvas) document.exitPointerLock();
       return;
     }
+    if (mode === "drive") {
+      if (document.pointerLockElement === this.canvas) document.exitPointerLock();
+      return;
+    }
     if (mode === "walk") {
       this.camera.position.copy(this.spawn);
       this.pitch = 0;
@@ -72,7 +76,7 @@ export class ExploreControls {
   }
 
   reset(): void {
-    if (this.mode === "orbit") return;
+    if (this.mode === "orbit" || this.mode === "drive") return;
     this.camera.position.copy(this.spawn);
     this.pitch = 0;
     this.yaw = 0;

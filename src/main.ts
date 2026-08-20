@@ -4,6 +4,7 @@ import { clearWorldSeedCache } from "./data/cache";
 import { createDemoWorld } from "./data/demo";
 import { buildCity, type BuiltCity } from "./generation/city-builder";
 import { formatCoordinate, parseCoordinateInput } from "./geo/coordinates";
+import { DriveController, type DriveButton } from "./interaction/drive-controller";
 import { ExploreControls } from "./interaction/explore-controls";
 import {
   createAppOnlyUrl,
@@ -19,10 +20,21 @@ type ExportKind = "glb" | "kit";
 const canvas = required<HTMLCanvasElement>("#world-canvas");
 const renderer = new WorldRenderer(canvas);
 const explore = new ExploreControls(renderer.camera, renderer.orbit, canvas);
-renderer.setUpdate((delta) => explore.update(delta));
+const drive = new DriveController(renderer.scene, renderer.camera);
+renderer.setUpdate((delta) => {
+  explore.update(delta);
+  drive.update(delta);
+});
 renderer.onFps((fps) => { required("#metric-fps").textContent = String(fps); });
 renderer.onStreaming(({ activeTiles, totalTiles }) => {
   required("#metric-tiles").textContent = `${activeTiles}/${totalTiles}`;
+});
+drive.onTelemetry(({ speedKph, roadName, offRoad }) => {
+  required("#drive-speed").textContent = String(speedKph);
+  required("#drive-road-name").textContent = roadName;
+  const state = required("#drive-road-state");
+  state.textContent = offRoad ? "OFF ROAD · AUTO ASSIST" : "ON ROAD";
+  state.classList.toggle("off-road", offRoad);
 });
 
 let center: LonLat = DEFAULT_CENTER;
@@ -117,7 +129,7 @@ async function generateRealWorld(): Promise<void> {
     const { WorldDataService } = await import("./data/world-data");
     const service = new WorldDataService();
     const loaded = await service.load(center, radius, abortController.signal, ({ stage, message }) => {
-      const progress = stage === "buildings" ? 10 : stage === "map" ? 24 : 38;
+      const progress = stage === "buildings" ? 8 : stage === "transportation" ? 18 : stage === "map" ? 27 : stage === "terrain" ? 36 : 40;
       setBusy(true, stage === "assemble" ? "Preparing geometry" : "Gathering open data", message, progress);
     });
     if (run !== generation) return;
@@ -148,6 +160,10 @@ async function renderData(nextData: WorldData, live: boolean): Promise<void> {
   renderer.setCity(built.group, nextData.radius);
   renderer.frameCity(nextData.radius);
   explore.setCollision(built.collision, built.groundHeightAt);
+  drive.setWorld(built.roadGraph, built.collision, built.groundHeightAt);
+  const driveButton = required<HTMLButtonElement>('[data-mode="drive"]');
+  driveButton.disabled = !drive.isAvailable();
+  driveButton.title = drive.isAvailable() ? "Drive this city" : "No drivable road network is available";
   if (explore.getMode() !== "orbit") explore.reset();
   updateWorldUi(nextData, built.stats);
   setBusy(false);
@@ -188,6 +204,23 @@ function bindUi(): void {
   });
   document.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((button) => {
     button.addEventListener("click", () => setMode(button.dataset.mode as ExploreMode));
+  });
+  required("#drive-reset").addEventListener("click", () => drive.reset());
+  document.querySelectorAll<HTMLButtonElement>("[data-drive-button]").forEach((button) => {
+    const control = button.dataset.driveButton as DriveButton;
+    const release = (): void => {
+      button.classList.remove("is-pressed");
+      drive.setButton(control, false);
+    };
+    button.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      button.setPointerCapture(event.pointerId);
+      button.classList.add("is-pressed");
+      drive.setButton(control, true);
+    });
+    button.addEventListener("pointerup", release);
+    button.addEventListener("pointercancel", release);
+    button.addEventListener("lostpointercapture", release);
   });
   required("#locate-button").addEventListener("click", () => openDialog("location-dialog"));
   required("#confirm-location").addEventListener("click", () => {
@@ -238,14 +271,21 @@ function bindUi(): void {
     if (event.code === "Digit1") setMode("orbit");
     if (event.code === "Digit2") setMode("walk");
     if (event.code === "Digit3") setMode("fly");
+    if (event.code === "Digit4") setMode("drive");
     if (event.code === "KeyR") explore.reset();
   });
   if ("serviceWorker" in navigator) window.addEventListener("load", () => void navigator.serviceWorker.register("./sw.js"));
 }
 
 function setMode(mode: ExploreMode): void {
+  if (mode === "drive" && !drive.isAvailable()) {
+    toast("No connected vehicle road is available in this world");
+    return;
+  }
   explore.setMode(mode);
+  drive.setActive(mode === "drive");
   renderer.setExploreMode(mode);
+  document.body.classList.toggle("is-driving", mode === "drive");
   document.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.mode === mode);
   });
@@ -253,11 +293,21 @@ function setMode(mode: ExploreMode): void {
   const title = hint.querySelector("strong");
   const detail = hint.querySelector("small");
   if (title && detail) {
-    title.textContent = mode === "orbit" ? "DRAG TO ORBIT" : mode === "walk" ? "CLICK WORLD · WASD TO WALK" : "CLICK WORLD · WASD + Q/E TO FLY";
-    detail.textContent = mode === "orbit" ? "Scroll to zoom · Right-drag to pan" : "Mouse to look · Shift to boost · R to reset";
+    title.textContent = mode === "orbit"
+      ? "DRAG TO ORBIT"
+      : mode === "walk"
+        ? "CLICK WORLD · WASD TO WALK"
+        : mode === "fly"
+          ? "CLICK WORLD · WASD + Q/E TO FLY"
+          : "WASD / ARROWS TO DRIVE";
+    detail.textContent = mode === "orbit"
+      ? "Scroll to zoom · Right-drag to pan"
+      : mode === "drive"
+        ? "Space to brake · R to return to the road"
+        : "Mouse to look · Shift to boost · R to reset";
   }
   hint.classList.remove("is-hidden");
-  required("#mobile-sticks").classList.toggle("is-visible", mode !== "orbit");
+  required("#mobile-sticks").classList.toggle("is-visible", mode === "walk" || mode === "fly");
 }
 
 async function runExport(kind: ExportKind, includeExactOrigin: boolean): Promise<void> {

@@ -141,6 +141,7 @@
               <button class="is-active" type="button" data-mode="orbit"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M4 12a8 4 0 0 0 16 0M12 4a4 8 0 0 0 0 16"/></svg><span>Orbit</span></button>
               <button type="button" data-mode="walk"><svg viewBox="0 0 24 24"><circle cx="13" cy="5" r="2"/><path d="m10 22 1-7-3-3 3-4 4 2 3 4M6 22l3-6m3-4 3 3"/></svg><span>Walk</span></button>
               <button type="button" data-mode="fly"><svg viewBox="0 0 24 24"><path d="m3 13 8-2 2-8 2 8 6 2-6 2-2 6-2-6-8-2Z"/></svg><span>Fly</span></button>
+              <button type="button" data-mode="drive"><svg viewBox="0 0 24 24"><path d="m5 15 1.7-5h10.6l1.7 5M4 15h16v4H4zM7 19v2m10-2v2"/><circle cx="8" cy="16" r="1"/><circle cx="16" cy="16" r="1"/></svg><span>Drive</span></button>
             </div>
             <div class="data-badge demo" id="data-badge"><i></i><span>DEMO DATA</span></div>
           </div>
@@ -170,6 +171,23 @@
           <div class="mobile-sticks" id="mobile-sticks">
             <div class="stick" id="move-stick"><i></i><span>MOVE</span></div>
             <div class="stick" id="look-stick"><i></i><span>LOOK</span></div>
+          </div>
+
+          <div class="drive-hud" id="drive-hud" aria-live="polite">
+            <div class="drive-speed"><strong id="drive-speed">0</strong><span>km/h</span></div>
+            <div class="drive-road"><small>NOW DRIVING</small><strong id="drive-road-name">Ready road</strong><span id="drive-road-state">ON ROAD</span></div>
+            <button id="drive-reset" type="button">Reset car <kbd>R</kbd></button>
+          </div>
+
+          <div class="drive-touch" id="drive-touch" aria-label="Touch driving controls">
+            <div class="drive-steer" role="group" aria-label="Steering">
+              <button type="button" data-drive-button="left" aria-label="Steer left">←</button>
+              <button type="button" data-drive-button="right" aria-label="Steer right">→</button>
+            </div>
+            <div class="drive-pedals" role="group" aria-label="Pedals">
+              <button class="drive-brake" type="button" data-drive-button="brake">BRAKE</button>
+              <button class="drive-throttle" type="button" data-drive-button="throttle">DRIVE</button>
+            </div>
           </div>
 
           <div class="viewport-attribution" id="viewport-attribution" aria-label="Map data attribution">

@@ -181,6 +181,25 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 .world-metrics strong { color: #edf0e9; font-weight: 650; }
 .metric-dot { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); margin-right: 4px; }
 .mobile-sticks { display: none; }
+.drive-hud { display: none; position: absolute; z-index: 6; left: 50%; bottom: 68px; transform: translateX(-50%); align-items: center; gap: 14px; min-width: 360px; padding: 9px 11px; border: 1px solid rgba(255,255,255,.16); border-radius: 11px; background: rgba(10,14,12,.86); backdrop-filter: blur(14px); box-shadow: 0 12px 34px rgba(0,0,0,.24); }
+.is-driving .drive-hud { display: flex; }
+.drive-speed { min-width: 71px; padding-right: 12px; border-right: 1px solid rgba(255,255,255,.12); text-align: right; }
+.drive-speed strong { font: 760 27px/1 "SFMono-Regular", Consolas, monospace; letter-spacing: -.08em; color: var(--accent); }
+.drive-speed span { display: block; margin-top: 2px; color: #89948d; font-size: 7px; letter-spacing: .1em; text-transform: uppercase; }
+.drive-road { min-width: 0; flex: 1; }
+.drive-road small { display: block; color: #7e8982; font-size: 6px; letter-spacing: .14em; }
+.drive-road strong { display: block; max-width: 180px; margin-top: 3px; overflow: hidden; color: #f1f4ed; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.drive-road span { display: inline-block; margin-top: 3px; color: var(--accent); font-size: 6px; font-weight: 850; letter-spacing: .12em; }
+.drive-road span.off-road { color: #ffb05c; }
+.drive-hud > button { height: 31px; padding: 0 10px; border: 1px solid rgba(255,255,255,.14); border-radius: 7px; background: #1b211d; color: #c5cdc7; font-size: 8px; cursor: pointer; }
+.drive-hud kbd { margin-left: 4px; color: #7f8b83; font: inherit; }
+.drive-touch { display: none; position: absolute; z-index: 7; left: 15px; right: 15px; bottom: 66px; justify-content: space-between; align-items: flex-end; pointer-events: none; }
+.drive-steer, .drive-pedals { display: flex; gap: 8px; pointer-events: auto; }
+.drive-touch button { width: 68px; height: 62px; border: 1px solid rgba(255,255,255,.28); border-radius: 16px; background: rgba(10,14,12,.58); color: #eef2eb; font-weight: 820; font-size: 20px; touch-action: none; user-select: none; -webkit-user-select: none; backdrop-filter: blur(8px); }
+.drive-touch button.is-pressed { transform: translateY(2px); background: rgba(184,243,75,.84); color: #152009; border-color: var(--accent); }
+.drive-pedals button { width: 72px; font-size: 8px; letter-spacing: .08em; }
+.drive-pedals .drive-throttle { height: 82px; border-color: rgba(184,243,75,.48); }
+.drive-pedals .drive-brake { height: 58px; border-color: rgba(255,118,80,.48); }
 .toast { position: fixed; z-index: 50; top: 75px; left: 50%; transform: translate(-50%,-12px); opacity: 0; pointer-events: none; background: #f0f2eb; color: #171b18; padding: 9px 14px; border-radius: 999px; font-size: 9px; font-weight: 750; transition: .2s; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
 .toast.is-visible { opacity: 1; transform: translate(-50%,0); }
 
@@ -247,6 +266,16 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
   .stick { --stick-x: 0px; --stick-y: 0px; width: 74px; height: 74px; border: 1px solid rgba(255,255,255,.3); background: rgba(12,16,14,.32); border-radius: 50%; position: relative; pointer-events: auto; touch-action: none; }
   .stick i { position: absolute; left: 50%; top: 50%; width: 33px; height: 33px; border-radius: 50%; background: rgba(240,244,235,.76); transform: translate(calc(-50% + var(--stick-x)),calc(-50% + var(--stick-y))); }
   .stick span { position: absolute; bottom: -15px; width: 100%; text-align: center; color: rgba(255,255,255,.65); font-size: 7px; letter-spacing: .12em; }
+  .is-driving .drive-touch { display: flex; }
+  .drive-hud { min-width: 0; width: min(310px, calc(100% - 190px)); bottom: 65px; padding: 7px 9px; gap: 8px; }
+  .drive-speed { min-width: 54px; padding-right: 8px; }
+  .drive-speed strong { font-size: 21px; }
+  .drive-road strong { max-width: 110px; font-size: 8px; }
+  .drive-hud > button { display: none; }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .is-driving .drive-touch { display: flex; }
 }
 
 @media (max-width: 520px) {
