@@ -10,6 +10,7 @@ import type {
   PolygonRings,
   ResolvedBuilding,
   RoadFeature,
+  RoadGraph,
   WorldData,
   WorldManifest,
   WorldStats,
@@ -19,6 +20,7 @@ import { CollisionIndex } from "./collision";
 import { resolveBuildingHeight, seededUnit } from "./height";
 import { createPlateauSurfaceGeometry } from "./plateau";
 import { resolveRoof, type RoofProfile } from "./roof";
+import { buildRoadGraph } from "./road-graph";
 import { materialForStyle, WORLD_PALETTES } from "./styles";
 import { tileForPoint, type WorldTile } from "./tiling";
 
@@ -44,6 +46,7 @@ export interface BuiltCity {
   resolvedBuildings: ResolvedBuilding[];
   groundHeightAt: (x: number, z: number) => number;
   manifest: WorldManifest;
+  roadGraph: RoadGraph;
 }
 
 export async function buildCity(
@@ -70,6 +73,7 @@ export async function buildCity(
   if (areas.length > 0) layers.areas.add(...areas);
   const roads = createRoads(data.roads, data, style);
   if (roads.length > 0) layers.roads.add(...roads);
+  const roadGraph = buildRoadGraph(data.roads, data.center, data.radius, data.terrain);
 
   const allResolved = data.buildings.map(resolveBuildingHeight);
   const ranked = allResolved
@@ -253,6 +257,7 @@ export async function buildCity(
     new Set(manifest.objects.flatMap((object) => object.tile ? [object.tile] : [])).size,
     ranked.filter((building) => plateauBuildings.has(building.id)).length,
     ranked.filter((building) => plateauBuildings.get(building.id)?.lod === 2).length,
+    roadGraph,
   );
   onProgress?.(1, "City ready");
   return {
@@ -262,6 +267,7 @@ export async function buildCity(
     resolvedBuildings: ranked,
     groundHeightAt: (x, z) => elevationAt(data.terrain, x, z),
     manifest,
+    roadGraph,
   };
 }
 
@@ -643,6 +649,7 @@ function collectStats(
   tiles: number,
   plateauBuildings: number,
   plateauLod2Buildings: number,
+  roadGraph: RoadGraph,
 ): WorldStats {
   let triangles = 0;
   let drawCalls = 0;
@@ -671,6 +678,9 @@ function collectStats(
     tiles,
     plateauBuildings,
     plateauLod2Buildings,
+    roadNodes: roadGraph.nodes.length,
+    roadEdges: roadGraph.edges.length,
+    drivableRoadMeters: Math.round(roadGraph.edges.reduce((total, edge) => total + edge.lengthMeters, 0)),
   };
 }
 

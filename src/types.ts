@@ -5,7 +5,7 @@ export type PlateauVertex = readonly [longitude: number, latitude: number, eleva
 
 export type HeightQuality = "provided" | "levels" | "inferred";
 export type WorldStyle = "low-poly" | "anime" | "cyber" | "blueprint" | "quality";
-export type ExploreMode = "orbit" | "walk" | "fly";
+export type ExploreMode = "orbit" | "walk" | "fly" | "drive";
 export type SemanticLayer = "terrain" | "areas" | "roads" | "buildings" | "roofs";
 
 export interface ElevationGrid {
@@ -51,7 +51,19 @@ export interface RoadFeature {
   path: LonLat[];
   kind: string;
   width: number;
-  source: "openstreetmap" | "demo";
+  name?: string;
+  surface?: string;
+  subclass?: string;
+  oneWay?: "forward" | "backward" | "both";
+  speedLimitKph?: number;
+  connectors?: RoadConnectorReference[];
+  source: "overture" | "openstreetmap" | "demo";
+}
+
+export interface RoadConnectorReference {
+  id: string;
+  at: number;
+  position?: LonLat;
 }
 
 export interface AreaFeature {
@@ -124,6 +136,59 @@ export interface WorldStats {
   tiles: number;
   plateauBuildings: number;
   plateauLod2Buildings: number;
+  roadNodes: number;
+  roadEdges: number;
+  drivableRoadMeters: number;
+}
+
+export interface RoadGraphPoint {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface RoadGraphNode extends RoadGraphPoint {
+  id: string;
+  edgeIds: string[];
+}
+
+export interface RoadGraphEdge {
+  id: string;
+  roadId: string;
+  from: string;
+  to: string;
+  path: RoadGraphPoint[];
+  lengthMeters: number;
+  class: string;
+  subclass?: string;
+  name?: string;
+  widthMeters: number;
+  surface: string;
+  oneWay: "forward" | "backward" | "both";
+  speedLimitKph: number;
+}
+
+export interface RoadGraph {
+  schemaVersion: "1.0";
+  generator: string;
+  coordinateSystem: string;
+  nodes: RoadGraphNode[];
+  edges: RoadGraphEdge[];
+}
+
+export interface DriveSpawn {
+  edgeId: string;
+  position: RoadGraphPoint;
+  headingRadians: number;
+}
+
+export interface DriveRoute {
+  id: string;
+  seed: number;
+  edgeIds: string[];
+  points: RoadGraphPoint[];
+  checkpoints: RoadGraphPoint[];
+  lengthMeters: number;
 }
 
 export interface SemanticBounds {

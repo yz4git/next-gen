@@ -31,6 +31,9 @@ const stats: WorldStats = {
   tiles: 0,
   plateauBuildings: 0,
   plateauLod2Buildings: 0,
+  roadNodes: 0,
+  roadEdges: 0,
+  drivableRoadMeters: 0,
 };
 
 describe("privacy-safe exports", () => {
