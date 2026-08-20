@@ -11,7 +11,7 @@ Google Maps is only treated as an optional coordinate-input format. WorldSeed do
 
 ![WorldSeed generating a playable low-poly city](docs/worldseed-preview.png)
 
-## What works in v0.8.1 — Drive Any City
+## What works in v0.8.2 — Drive Any City
 
 - Overture Maps building footprints through its public PMTiles distribution
 - A routable road graph built from Overture Transportation segments and connectors, with OpenStreetMap road fallback

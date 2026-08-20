@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.2 — Mobile WORLD panel visibility
+
+- Moved the panel toggle into the mobile workspace layer so the green CLOSE button stays above the open WORLD panel.
+- Kept the WORLD reopen control visible after closing the panel.
+
 ## 0.8.1 — Drive controls and cinematic Drone
 
 - Made the WORLD settings panel independently closable and reopenable in every explore mode.
