@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.1 — Mobile Drive polish
+
+- Added an iPhone Drive focus mode that hides the large world panel while driving, with a compact toggle to reopen it.
+- Enlarged and repositioned touch steering and pedal controls for thumb-sized targets and safe-area insets.
+- Corrected left/right steering direction for both touch buttons and keyboard arrows/A-D input.
+- Bumped the service-worker shell cache so mobile clients receive the updated controls.
+
 ## 0.7.0 — Drive Any City
 
 - Added a routable local-meter road graph from Overture Transportation segments and connectors, with OpenStreetMap fallback.

@@ -22,6 +22,16 @@ export interface DriveChallengeTelemetry {
   routeLengthMeters: number;
 }
 
+/**
+ * Map the driver's left/right intent to the vehicle's visual turn direction.
+ * The vehicle's forward axis is +Z, so the sign is intentionally left-minus-right.
+ */
+export function getDriveSteeringInput(keys: ReadonlySet<string>, touchButtons: ReadonlySet<DriveButton>): number {
+  const left = keys.has("KeyA") || keys.has("ArrowLeft") || touchButtons.has("left");
+  const right = keys.has("KeyD") || keys.has("ArrowRight") || touchButtons.has("right");
+  return Number(left) - Number(right);
+}
+
 export function clearDriveBestTimes(): number {
   try {
     const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
@@ -192,8 +202,7 @@ export class DriveController {
   private fixedUpdate(delta: number): void {
     const throttle = Number(this.keys.has("KeyW") || this.keys.has("ArrowUp") || this.touchButtons.has("throttle"))
       - Number(this.keys.has("KeyS") || this.keys.has("ArrowDown"));
-    const steering = Number(this.keys.has("KeyD") || this.keys.has("ArrowRight") || this.touchButtons.has("right"))
-      - Number(this.keys.has("KeyA") || this.keys.has("ArrowLeft") || this.touchButtons.has("left"));
+    const steering = getDriveSteeringInput(this.keys, this.touchButtons);
     const brake = this.keys.has("Space") || this.touchButtons.has("brake");
     const previous = this.state;
     const candidate = stepDrivePhysics(previous, { throttle, steering, brake }, delta);

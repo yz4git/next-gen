@@ -226,6 +226,9 @@ function bindUi(): void {
   document.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((button) => {
     button.addEventListener("click", () => setMode(button.dataset.mode as ExploreMode));
   });
+  required<HTMLButtonElement>("#drive-panel-toggle").addEventListener("click", () => {
+    setDrivePanelOpen(!document.body.classList.contains("drive-panel-open"));
+  });
   required("#drive-reset").addEventListener("click", () => drive.reset());
   required("#drive-restart").addEventListener("click", () => drive.reset());
   required("#drive-new-route").addEventListener("click", () => {
@@ -319,6 +322,7 @@ function setMode(mode: ExploreMode): void {
   drive.setActive(mode === "drive");
   renderer.setExploreMode(mode);
   document.body.classList.toggle("is-driving", mode === "drive");
+  if (mode !== "drive") setDrivePanelOpen(false);
   document.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.mode === mode);
   });
@@ -341,6 +345,16 @@ function setMode(mode: ExploreMode): void {
   }
   hint.classList.remove("is-hidden");
   required("#mobile-sticks").classList.toggle("is-visible", mode === "walk" || mode === "fly");
+}
+
+function setDrivePanelOpen(open: boolean): void {
+  const toggle = required<HTMLButtonElement>("#drive-panel-toggle");
+  const isOpen = open && document.body.classList.contains("is-driving");
+  document.body.classList.toggle("drive-panel-open", isOpen);
+  toggle.setAttribute("aria-expanded", String(isOpen));
+  toggle.setAttribute("aria-label", isOpen ? "Close world settings" : "Open world settings");
+  const label = toggle.querySelector("strong");
+  if (label) label.textContent = isOpen ? "CLOSE" : "WORLD";
 }
 
 async function runExport(kind: ExportKind, includeExactOrigin: boolean): Promise<void> {

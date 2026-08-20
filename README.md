@@ -11,7 +11,7 @@ Google Maps is only treated as an optional coordinate-input format. WorldSeed do
 
 ![WorldSeed generating a playable low-poly city](docs/worldseed-preview.png)
 
-## What works in v0.7.0 — Drive Any City
+## What works in v0.7.1 — Drive Any City
 
 - Overture Maps building footprints through its public PMTiles distribution
 - A routable road graph built from Overture Transportation segments and connectors, with OpenStreetMap road fallback
@@ -32,6 +32,7 @@ Google Maps is only treated as an optional coordinate-input format. WorldSeed do
 - Always-visible viewport attribution, provenance warnings, and a per-seed height-quality meter
 - IndexedDB request caching, coordinate-safe service-worker shell caching, and an offline synthetic first-run demo
 - Just-in-time location disclosure, explicit share choices, privacy-safe export defaults, and local-data clearing
+- iPhone Drive focus mode, enlarged touch steering controls, and consistent left/right steering direction across touch and keyboard input
 
 ## Quick start
 
@@ -126,7 +127,7 @@ The starter-kit ZIP contains:
 - `ATTRIBUTION.md` generated for that seed
 - a minimal Vite + Three.js viewer
 
-The “Drive Any City” concept was originally described as v0.2, but the repository had already used versions 0.2–0.6 for terrain, roofs, semantic objects, streaming, and PLATEAU import. It therefore ships as v0.7.0 without rewriting release history.
+The “Drive Any City” concept was originally described as v0.2, but the repository had already used versions 0.2–0.6 for terrain, roofs, semantic objects, streaming, and PLATEAU import. It therefore ships as v0.7.x without rewriting release history.
 
 ## License and data
 
