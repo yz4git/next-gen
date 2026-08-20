@@ -231,7 +231,7 @@ function bindUi(): void {
     button.addEventListener("click", () => setMode(button.dataset.mode as ExploreMode));
   });
   required<HTMLButtonElement>("#drive-panel-toggle").addEventListener("click", () => {
-    setDrivePanelOpen(!document.body.classList.contains("drive-panel-open"));
+    setWorldPanelOpen(!document.body.classList.contains("world-panel-open"));
   });
   bindSteeringPad();
   required("#drive-reset").addEventListener("click", () => drive.reset());
@@ -309,6 +309,7 @@ function bindUi(): void {
   setupStick(required("#look-stick"), (x, y) => explore.setMobileLook(x, y));
   window.addEventListener("keydown", (event) => {
     if (event.target instanceof HTMLInputElement) return;
+    if (event.code === "Escape" && document.body.classList.contains("world-panel-open")) setWorldPanelOpen(false);
     if (event.code === "Digit1") setMode("orbit");
     if (event.code === "Digit2") setMode("walk");
     if (event.code === "Digit3") setMode("fly");
@@ -324,13 +325,14 @@ function setMode(mode: ExploreMode): void {
     toast("No connected vehicle road is available in this world");
     return;
   }
+  const previousMode = explore.getMode();
   explore.setMode(mode);
   drive.setActive(mode === "drive");
   drone.setActive(mode === "drone");
   renderer.setExploreMode(mode);
   document.body.classList.toggle("is-driving", mode === "drive");
   document.body.classList.toggle("is-drone", mode === "drone");
-  if (mode !== "drive") setDrivePanelOpen(false);
+  if (mode === "drive" && previousMode !== "drive") setWorldPanelOpen(false);
   document.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.mode === mode);
   });
@@ -399,12 +401,12 @@ function bindSteeringPad(): void {
   pad.addEventListener("keydown", (event) => {
     if (event.code === "ArrowLeft" || event.code === "KeyA") {
       event.preventDefault();
-      drive.setSteering(1);
-      render(1);
-    } else if (event.code === "ArrowRight" || event.code === "KeyD") {
-      event.preventDefault();
       drive.setSteering(-1);
       render(-1);
+    } else if (event.code === "ArrowRight" || event.code === "KeyD") {
+      event.preventDefault();
+      drive.setSteering(1);
+      render(1);
     }
   });
   pad.addEventListener("keyup", (event) => {
@@ -413,10 +415,10 @@ function bindSteeringPad(): void {
   window.addEventListener("blur", release);
 }
 
-function setDrivePanelOpen(open: boolean): void {
+function setWorldPanelOpen(open: boolean): void {
   const toggle = required<HTMLButtonElement>("#drive-panel-toggle");
-  const isOpen = open && document.body.classList.contains("is-driving");
-  document.body.classList.toggle("drive-panel-open", isOpen);
+  const isOpen = open;
+  document.body.classList.toggle("world-panel-open", isOpen);
   toggle.setAttribute("aria-expanded", String(isOpen));
   toggle.setAttribute("aria-label", isOpen ? "Close world settings" : "Open world settings");
   const label = toggle.querySelector("strong");

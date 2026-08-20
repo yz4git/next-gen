@@ -24,12 +24,13 @@ export interface DriveChallengeTelemetry {
 
 /**
  * Map the driver's left/right intent to the vehicle's visual turn direction.
- * The vehicle's forward axis is +Z, so the sign is intentionally left-minus-right.
+ * The vehicle's forward axis is +Z and the requested control direction is
+ * right-minus-left, so dragging the pad left turns the car left on screen.
  */
 export function getDriveSteeringInput(keys: ReadonlySet<string>, touchButtons: ReadonlySet<DriveButton>): number {
   const left = keys.has("KeyA") || keys.has("ArrowLeft") || touchButtons.has("left");
   const right = keys.has("KeyD") || keys.has("ArrowRight") || touchButtons.has("right");
-  return Number(left) - Number(right);
+  return Number(right) - Number(left);
 }
 
 export function clearDriveBestTimes(): number {

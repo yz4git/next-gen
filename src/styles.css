@@ -283,14 +283,14 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
   .world-footer { padding: 0 10px; }
   .viewport-attribution { right: 8px; bottom: 57px; max-width: calc(100% - 16px); }
   .panel-section { margin-top: 21px; }
-  body.is-driving:not(.drive-panel-open) .seed-panel { display: none; }
-  body.is-driving:not(.drive-panel-open) .viewport-top { top: 8px; left: 9px; right: 9px; }
-  body.is-driving:not(.drive-panel-open) .drive-challenge { top: 8px; right: 9px; }
-  body.is-driving:not(.drive-panel-open) .compass { top: 72px; }
+  body:not(.world-panel-open) .seed-panel { display: none; }
+  body:not(.world-panel-open) .viewport-top { top: 8px; left: 9px; right: 9px; }
+  body:not(.world-panel-open) .drive-challenge { top: 8px; right: 9px; }
+  body:not(.world-panel-open) .compass { top: 72px; }
   .drive-panel-toggle { align-items: center; justify-content: center; gap: 6px; position: absolute; z-index: 12; top: 57px; left: 8px; min-width: 74px; height: 32px; padding: 0 10px; border: 1px solid rgba(255,255,255,.18); border-radius: 8px; background: rgba(12,16,14,.86); color: #eef2eb; box-shadow: 0 8px 24px rgba(0,0,0,.22); font-size: 8px; font-weight: 800; letter-spacing: .1em; cursor: pointer; }
   .drive-panel-toggle span { color: var(--accent); font-size: 14px; line-height: 1; }
-  body.is-driving .drive-panel-toggle { display: flex; }
-  body.is-driving.drive-panel-open .drive-panel-toggle { background: var(--accent); color: #152009; }
+  body.world-panel-open .drive-panel-toggle { top: 16px; left: calc(min(335px, calc(100% - 16px)) - 88px); background: var(--accent); color: #152009; }
+  .drive-panel-toggle { display: flex; }
   .mobile-sticks.is-visible { display: flex; position: absolute; z-index: 5; left: 16px; right: 16px; bottom: 67px; justify-content: space-between; pointer-events: none; }
   .stick { --stick-x: 0px; --stick-y: 0px; width: 74px; height: 74px; border: 1px solid rgba(255,255,255,.3); background: rgba(12,16,14,.32); border-radius: 50%; position: relative; pointer-events: auto; touch-action: none; }
   .stick i { position: absolute; left: 50%; top: 50%; width: 33px; height: 33px; border-radius: 50%; background: rgba(240,244,235,.76); transform: translate(calc(-50% + var(--stick-x)),calc(-50% + var(--stick-y))); }
@@ -303,7 +303,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
   .drive-pedals { gap: 8px; max-width: 164px; }
   .drive-pedals button { width: 78px; }
   .drive-pedals .drive-throttle { height: 88px; }
-  .drive-pedals .drive-brake { height: 68px; }
+  .drive-pedals .drive-brake { height: 68px; line-height: 1.2; }
   .drive-hud { min-width: 0; width: min(310px, calc(100% - 190px)); bottom: 65px; padding: 7px 9px; gap: 8px; }
   .drive-speed { min-width: 54px; padding-right: 8px; }
   .drive-speed strong { font-size: 21px; }

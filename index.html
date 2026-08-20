@@ -10,13 +10,13 @@
     <link rel="icon" href="./worldseed-mark.svg" type="image/svg+xml" />
     <title>WorldSeed — Drive Any City</title>
   </head>
-  <body>
+  <body class="world-panel-open">
     <div id="app">
       <header class="topbar">
         <a class="brand" href="./" aria-label="WorldSeed home">
           <img src="./worldseed-mark.svg" alt="" width="32" height="32" />
           <span>WorldSeed</span>
-          <small>v0.8.0</small>
+          <small>v0.8.1</small>
         </a>
         <div class="topbar__center" aria-live="polite">
           <span class="pulse" id="status-pulse"></span>
@@ -212,12 +212,12 @@
               </div>
             </div>
             <div class="drive-pedals" role="group" aria-label="Pedals">
-              <button class="drive-brake" type="button" data-drive-button="brake">BRAKE</button>
+              <button class="drive-brake" type="button" data-drive-button="brake">BRAKE<br />REVERSE</button>
               <button class="drive-throttle" type="button" data-drive-button="throttle">DRIVE</button>
             </div>
           </div>
-          <button class="drive-panel-toggle" id="drive-panel-toggle" type="button" aria-expanded="false" aria-controls="seed-panel" aria-label="Open world settings">
-            <span aria-hidden="true">☷</span><strong>WORLD</strong>
+          <button class="drive-panel-toggle" id="drive-panel-toggle" type="button" aria-expanded="true" aria-controls="seed-panel" aria-label="Close world settings">
+            <span aria-hidden="true">☷</span><strong>CLOSE</strong>
           </button>
 
           <div class="viewport-attribution" id="viewport-attribution" aria-label="Map data attribution">

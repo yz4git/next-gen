@@ -46,7 +46,10 @@ export function stepDrivePhysics(
   let speed = state.speed;
 
   if (input.brake) {
-    speed = approach(speed, 0, tuning.brakeDeceleration * dt);
+    // The brake pedal doubles as reverse: keep braking while moving forward,
+    // then continue holding it to ease the car backwards from a full stop.
+    if (speed > 0) speed = approach(speed, 0, tuning.brakeDeceleration * dt);
+    else speed -= tuning.reverseAcceleration * 0.9 * dt;
   } else if (throttle > 0) {
     speed += throttle * tuning.forwardAcceleration * dt;
   } else if (throttle < 0) {

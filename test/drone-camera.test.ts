@@ -6,8 +6,10 @@ describe("automatic drone camera", () => {
     const first = droneCameraPose(0, 500);
     const later = droneCameraPose(12, 500);
     expect(first.y).toBeGreaterThan(90);
-    expect(Math.hypot(first.x, first.z)).toBeGreaterThan(450);
+    expect(Math.hypot(first.x, first.z)).toBeGreaterThan(170);
     expect(Math.hypot(later.x - first.x, later.z - first.z)).toBeGreaterThan(1);
+    expect(Math.abs(later.targetX - first.targetX) + Math.abs(later.targetZ - first.targetZ)).toBeGreaterThan(1);
+    expect(later.fov).not.toBe(first.fov);
     expect(first.targetY).toBeGreaterThan(0);
   });
 

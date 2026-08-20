@@ -11,7 +11,7 @@ Google Maps is only treated as an optional coordinate-input format. WorldSeed do
 
 ![WorldSeed generating a playable low-poly city](docs/worldseed-preview.png)
 
-## What works in v0.8.0 — Drive Any City
+## What works in v0.8.1 — Drive Any City
 
 - Overture Maps building footprints through its public PMTiles distribution
 - A routable road graph built from Overture Transportation segments and connectors, with OpenStreetMap road fallback
@@ -34,7 +34,9 @@ Google Maps is only treated as an optional coordinate-input format. WorldSeed do
 - Just-in-time location disclosure, explicit share choices, privacy-safe export defaults, and local-data clearing
 - iPhone Drive focus mode, enlarged touch steering controls, and consistent left/right steering direction across touch and keyboard input
 - Landmark presets for Tokyo Tower, Osaka Castle, Kiyomizu-dera, the Eiffel Tower, the Statue of Liberty, Big Ben, and more
-- Automatic Drone camera mode for a hands-free aerial tour of the generated city
+- A closable WORLD settings panel that can be reopened from every explore mode
+- A cinematic Drone camera mode with swoops, altitude changes, moving focus, banking, and FOV changes
+- Reversed steering mapping for the virtual pad and keyboard controls, plus hold-to-reverse braking after a full stop
 
 ## Quick start
 
@@ -58,9 +60,9 @@ npm run validate
 | Orbit | Drag to rotate, wheel to zoom, right-drag to pan |
 | Walk | Click the world, then `WASD`; mouse to look; `Shift` to run |
 | Fly | Click the world, then `WASD`; `Q/E` or `Ctrl/Space` for altitude |
-| Drive | `W/S` throttle and brake/reverse; virtual steering pad or `A/D`; `R` resets the car |
-| Drone | Automatic aerial camera tour; select another mode to stop |
-| Any explore mode | `1`, `2`, `3`, `4` switch Orbit/Walk/Fly/Drive |
+| Drive | `W/S` throttle; virtual steering pad or `A/D`; hold `BRAKE / REVERSE` after stopping to back up; `R` resets the car |
+| Drone | Cinematic automatic aerial tour; select another mode to stop |
+| Any explore mode | `1`, `2`, `3`, `4`, `5` switch Orbit/Walk/Fly/Drive/Drone |
 
 Touch devices get separate move and look sticks in Walk and Fly modes, plus steer and pedal controls in Drive mode.
 

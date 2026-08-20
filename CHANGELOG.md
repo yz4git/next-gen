@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.1 — Drive controls and cinematic Drone
+
+- Made the WORLD settings panel independently closable and reopenable in every explore mode.
+- Reversed the virtual-pad and keyboard steering mapping to match the requested visual turn direction.
+- Made holding BRAKE / REVERSE after the car stops engage bounded reverse motion.
+- Replaced the slow Drone orbit with cinematic swoops, altitude changes, moving focus, banking, and FOV drift.
+
 ## 0.8.0 — Landmark presets and Drone camera
 
 - Replaced mobile left/right steering buttons with a continuous virtual steering pad and thumb-sized control.
