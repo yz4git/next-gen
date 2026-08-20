@@ -14,7 +14,7 @@ for (const marker of [
   "WorldSeed",
   "type=\"module\"",
   "v0.1.1 PUBLIC SAFETY",
-  "v0.7.1",
+  "v0.8.0",
   "id=\"privacy-dialog\"",
   "id=\"viewport-attribution\"",
   "id=\"plateau-import-button\"",

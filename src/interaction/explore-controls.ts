@@ -46,6 +46,10 @@ export class ExploreControls {
       if (document.pointerLockElement === this.canvas) document.exitPointerLock();
       return;
     }
+    if (mode === "drone") {
+      if (document.pointerLockElement === this.canvas) document.exitPointerLock();
+      return;
+    }
     if (mode === "walk") {
       this.camera.position.copy(this.spawn);
       this.pitch = 0;
@@ -76,7 +80,7 @@ export class ExploreControls {
   }
 
   reset(): void {
-    if (this.mode === "orbit" || this.mode === "drive") return;
+    if (this.mode === "orbit" || this.mode === "drive" || this.mode === "drone") return;
     this.camera.position.copy(this.spawn);
     this.pitch = 0;
     this.yaw = 0;
@@ -84,7 +88,7 @@ export class ExploreControls {
   }
 
   update(delta: number): void {
-    if (this.mode === "orbit" || this.mode === "drive") return;
+    if (this.mode === "orbit" || this.mode === "drive" || this.mode === "drone") return;
     const lookSpeed = 1.65;
     this.yaw -= this.mobileLook.x * delta * lookSpeed;
     this.pitch -= this.mobileLook.y * delta * lookSpeed;
@@ -150,7 +154,7 @@ export class ExploreControls {
   };
 
   private onMouseMove = (event: MouseEvent): void => {
-    if (document.pointerLockElement !== this.canvas || this.mode === "orbit" || this.mode === "drive") return;
+    if (document.pointerLockElement !== this.canvas || this.mode === "orbit" || this.mode === "drive" || this.mode === "drone") return;
     this.yaw -= event.movementX * 0.0022;
     this.pitch -= event.movementY * 0.0022;
     this.pitch = THREE.MathUtils.clamp(this.pitch, -Math.PI * 0.47, Math.PI * 0.47);

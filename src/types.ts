@@ -5,7 +5,7 @@ export type PlateauVertex = readonly [longitude: number, latitude: number, eleva
 
 export type HeightQuality = "provided" | "levels" | "inferred";
 export type WorldStyle = "low-poly" | "anime" | "cyber" | "blueprint" | "quality";
-export type ExploreMode = "orbit" | "walk" | "fly" | "drive";
+export type ExploreMode = "orbit" | "walk" | "fly" | "drive" | "drone";
 export type SemanticLayer = "terrain" | "areas" | "roads" | "buildings" | "roofs";
 
 export interface ElevationGrid {

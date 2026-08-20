@@ -6,6 +6,7 @@ import { buildCity, type BuiltCity } from "./generation/city-builder";
 import { createDriveRoute } from "./generation/road-graph";
 import { formatCoordinate, parseCoordinateInput } from "./geo/coordinates";
 import { clearDriveBestTimes, DriveController, type DriveButton } from "./interaction/drive-controller";
+import { DroneCameraController } from "./interaction/drone-camera";
 import { ExploreControls } from "./interaction/explore-controls";
 import {
   createAppOnlyUrl,
@@ -22,9 +23,11 @@ const canvas = required<HTMLCanvasElement>("#world-canvas");
 const renderer = new WorldRenderer(canvas);
 const explore = new ExploreControls(renderer.camera, renderer.orbit, canvas);
 const drive = new DriveController(renderer.scene, renderer.camera);
+const drone = new DroneCameraController(renderer.camera);
 renderer.setUpdate((delta) => {
   explore.update(delta);
   drive.update(delta);
+  drone.update(delta);
 });
 renderer.onFps((fps) => { required("#metric-fps").textContent = String(fps); });
 renderer.onStreaming(({ activeTiles, totalTiles }) => {
@@ -177,6 +180,7 @@ async function renderData(nextData: WorldData, live: boolean): Promise<void> {
   city = built;
   renderer.setCity(built.group, nextData.radius);
   renderer.frameCity(nextData.radius);
+  drone.setWorld(nextData.radius);
   explore.setCollision(built.collision, built.groundHeightAt);
   drive.setWorld(built.roadGraph, built.collision, built.groundHeightAt);
   currentRouteSeed = requestedRouteSeed ?? routeSeedForWorld(nextData);
@@ -229,6 +233,7 @@ function bindUi(): void {
   required<HTMLButtonElement>("#drive-panel-toggle").addEventListener("click", () => {
     setDrivePanelOpen(!document.body.classList.contains("drive-panel-open"));
   });
+  bindSteeringPad();
   required("#drive-reset").addEventListener("click", () => drive.reset());
   required("#drive-restart").addEventListener("click", () => drive.reset());
   required("#drive-new-route").addEventListener("click", () => {
@@ -308,6 +313,7 @@ function bindUi(): void {
     if (event.code === "Digit2") setMode("walk");
     if (event.code === "Digit3") setMode("fly");
     if (event.code === "Digit4") setMode("drive");
+    if (event.code === "Digit5") setMode("drone");
     if (event.code === "KeyR") explore.reset();
   });
   if ("serviceWorker" in navigator) window.addEventListener("load", () => void navigator.serviceWorker.register("./sw.js"));
@@ -320,8 +326,10 @@ function setMode(mode: ExploreMode): void {
   }
   explore.setMode(mode);
   drive.setActive(mode === "drive");
+  drone.setActive(mode === "drone");
   renderer.setExploreMode(mode);
   document.body.classList.toggle("is-driving", mode === "drive");
+  document.body.classList.toggle("is-drone", mode === "drone");
   if (mode !== "drive") setDrivePanelOpen(false);
   document.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.mode === mode);
@@ -335,16 +343,74 @@ function setMode(mode: ExploreMode): void {
       : mode === "walk"
         ? "CLICK WORLD · WASD TO WALK"
         : mode === "fly"
-          ? "CLICK WORLD · WASD + Q/E TO FLY"
-          : "WASD / ARROWS TO DRIVE";
+        ? "CLICK WORLD · WASD + Q/E TO FLY"
+          : mode === "drive"
+            ? "WASD / ARROWS TO DRIVE"
+            : "AUTO DRONE CAMERA";
     detail.textContent = mode === "orbit"
       ? "Scroll to zoom · Right-drag to pan"
       : mode === "drive"
         ? "Space to brake · R to return to the road"
-        : "Mouse to look · Shift to boost · R to reset";
+        : mode === "drone"
+          ? "Automatic aerial tour · select another mode to stop"
+          : "Mouse to look · Shift to boost · R to reset";
   }
   hint.classList.remove("is-hidden");
   required("#mobile-sticks").classList.toggle("is-visible", mode === "walk" || mode === "fly");
+}
+
+function bindSteeringPad(): void {
+  const pad = required<HTMLDivElement>("#drive-steer-pad");
+  const thumb = required<HTMLSpanElement>("#drive-steer-thumb");
+  let activePointerId: number | null = null;
+
+  const render = (value: number): void => {
+    const rect = pad.getBoundingClientRect();
+    const maxTravel = Math.max(24, rect.width * 0.37);
+    thumb.style.transform = `translate(calc(-50% + ${value * maxTravel}px), -50%)`;
+    pad.setAttribute("aria-valuenow", value.toFixed(2));
+  };
+  const setFromPointer = (event: PointerEvent): void => {
+    const rect = pad.getBoundingClientRect();
+    const value = Math.max(-1, Math.min(1, ((event.clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1));
+    drive.setSteering(value);
+    render(value);
+  };
+  const release = (): void => {
+    activePointerId = null;
+    drive.setSteering(0);
+    render(0);
+  };
+
+  pad.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    activePointerId = event.pointerId;
+    pad.setPointerCapture(event.pointerId);
+    setFromPointer(event);
+  });
+  pad.addEventListener("pointermove", (event) => {
+    if (event.pointerId === activePointerId) setFromPointer(event);
+  });
+  pad.addEventListener("pointerup", (event) => {
+    if (event.pointerId === activePointerId) release();
+  });
+  pad.addEventListener("pointercancel", release);
+  pad.addEventListener("lostpointercapture", release);
+  pad.addEventListener("keydown", (event) => {
+    if (event.code === "ArrowLeft" || event.code === "KeyA") {
+      event.preventDefault();
+      drive.setSteering(1);
+      render(1);
+    } else if (event.code === "ArrowRight" || event.code === "KeyD") {
+      event.preventDefault();
+      drive.setSteering(-1);
+      render(-1);
+    }
+  });
+  pad.addEventListener("keyup", (event) => {
+    if (["ArrowLeft", "ArrowRight", "KeyA", "KeyD"].includes(event.code)) release();
+  });
+  window.addEventListener("blur", release);
 }
 
 function setDrivePanelOpen(open: boolean): void {
@@ -506,7 +572,7 @@ function hydrateFromUrl(): void {
     style = requestedStyle!;
     document.querySelectorAll<HTMLButtonElement>("[data-style]").forEach((button) => button.classList.toggle("is-active", button.dataset.style === style));
   }
-  if (["orbit", "walk", "fly", "drive"].includes(modeParam ?? "")) requestedMode = modeParam!;
+  if (["orbit", "walk", "fly", "drive", "drone"].includes(modeParam ?? "")) requestedMode = modeParam!;
   if (Number.isSafeInteger(routeParam) && routeParam > 0) requestedRouteSeed = routeParam;
 }
 

@@ -16,7 +16,7 @@
         <a class="brand" href="./" aria-label="WorldSeed home">
           <img src="./worldseed-mark.svg" alt="" width="32" height="32" />
           <span>WorldSeed</span>
-          <small>v0.7.1</small>
+          <small>v0.8.0</small>
         </a>
         <div class="topbar__center" aria-live="polite">
           <span class="pulse" id="status-pulse"></span>
@@ -66,11 +66,20 @@
               <input id="radius-input" class="range" type="range" min="100" max="1000" step="50" value="500" />
               <div class="range-scale"><span>100 m</span><span>1 km</span></div>
 
-              <div class="presets" aria-label="Location presets">
-                <button type="button" data-coordinate="35.681236, 139.767125">Tokyo</button>
-                <button type="button" data-coordinate="40.706100, -74.009200">New York</button>
-                <button type="button" data-coordinate="48.858370, 2.294481">Paris</button>
-                <button type="button" data-coordinate="51.500729, -0.124625">London</button>
+              <div class="preset-caption">LANDMARK PRESETS</div>
+              <div class="presets" aria-label="Landmark presets">
+                <button type="button" data-coordinate="35.658581, 139.745433">東京タワー</button>
+                <button type="button" data-coordinate="35.659500, 139.700500">渋谷スクランブル</button>
+                <button type="button" data-coordinate="34.687300, 135.526200">大阪城</button>
+                <button type="button" data-coordinate="34.994856, 135.785046">清水寺</button>
+                <button type="button" data-coordinate="43.062095, 141.354376">札幌時計台</button>
+                <button type="button" data-coordinate="48.858370, 2.294481">エッフェル塔</button>
+                <button type="button" data-coordinate="40.689249, -74.044500">自由の女神</button>
+                <button type="button" data-coordinate="51.500729, -0.124625">ビッグ・ベン</button>
+                <button type="button" data-coordinate="-33.856784, 151.215297">オペラハウス</button>
+                <button type="button" data-coordinate="41.890210, 12.492231">コロッセオ</button>
+                <button type="button" data-coordinate="25.197197, 55.274290">ブルジュ・ハリファ</button>
+                <button type="button" data-coordinate="27.175144, 78.042142">タージ・マハル</button>
               </div>
 
               <button class="seed-button" id="seed-button" type="submit">
@@ -142,6 +151,7 @@
               <button type="button" data-mode="walk"><svg viewBox="0 0 24 24"><circle cx="13" cy="5" r="2"/><path d="m10 22 1-7-3-3 3-4 4 2 3 4M6 22l3-6m3-4 3 3"/></svg><span>Walk</span></button>
               <button type="button" data-mode="fly"><svg viewBox="0 0 24 24"><path d="m3 13 8-2 2-8 2 8 6 2-6 2-2 6-2-6-8-2Z"/></svg><span>Fly</span></button>
               <button type="button" data-mode="drive"><svg viewBox="0 0 24 24"><path d="m5 15 1.7-5h10.6l1.7 5M4 15h16v4H4zM7 19v2m10-2v2"/><circle cx="8" cy="16" r="1"/><circle cx="16" cy="16" r="1"/></svg><span>Drive</span></button>
+              <button type="button" data-mode="drone"><svg viewBox="0 0 24 24"><path d="M7 8h10v8H7zM4 6h3m10 0h3M4 18h3m10 0h3M5 4v3m14-3v3M5 17v3m14-3v3"/><circle cx="12" cy="12" r="2"/></svg><span>Drone</span></button>
             </div>
             <div class="data-badge demo" id="data-badge"><i></i><span>DEMO DATA</span></div>
           </div>
@@ -194,8 +204,12 @@
 
           <div class="drive-touch" id="drive-touch" aria-label="Touch driving controls">
             <div class="drive-steer" role="group" aria-label="Steering">
-              <button type="button" data-drive-button="left" aria-label="Steer left">←</button>
-              <button type="button" data-drive-button="right" aria-label="Steer right">→</button>
+              <div class="drive-pad" id="drive-steer-pad" role="slider" tabindex="0" aria-label="Virtual steering pad" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0">
+                <span class="drive-pad-label drive-pad-label--left" aria-hidden="true">←</span>
+                <span class="drive-pad-track" aria-hidden="true"></span>
+                <span class="drive-pad-label drive-pad-label--right" aria-hidden="true">→</span>
+                <span class="drive-pad-thumb" id="drive-steer-thumb" aria-hidden="true"></span>
+              </div>
             </div>
             <div class="drive-pedals" role="group" aria-label="Pedals">
               <button class="drive-brake" type="button" data-drive-button="brake">BRAKE</button>

@@ -28,7 +28,7 @@ export function tileForPoint(x: number, z: number, size: number): WorldTile {
 }
 
 export function streamingRange(mode: ExploreMode, radius: number): StreamingRange {
-  if (mode === "orbit") {
+  if (mode === "orbit" || mode === "drone") {
     return {
       base: Math.max(600, radius * 2.25),
       detail: Math.max(450, radius * 1.25),

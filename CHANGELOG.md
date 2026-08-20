@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0 — Landmark presets and Drone camera
+
+- Replaced mobile left/right steering buttons with a continuous virtual steering pad and thumb-sized control.
+- Added famous-landmark presets across Japan, Europe, North America, the Middle East, and Australia.
+- Added an automatic Drone camera mode with a slow orbit, height drift, and shareable mode state.
+
 ## 0.7.1 — Mobile Drive polish
 
 - Added an iPhone Drive focus mode that hides the large world panel while driving, with a compact toggle to reopen it.

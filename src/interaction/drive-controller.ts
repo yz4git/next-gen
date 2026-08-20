@@ -56,6 +56,7 @@ export class DriveController {
   private readonly routeGroup = new THREE.Group();
   private readonly keys = new Set<string>();
   private readonly touchButtons = new Set<DriveButton>();
+  private steeringInput = 0;
   private readonly cameraTarget = new THREE.Vector3();
   private graph: RoadGraph | null = null;
   private roadIndex: RoadSpatialIndex | null = null;
@@ -126,6 +127,7 @@ export class DriveController {
     this.vehicle.visible = this.active;
     this.routeGroup.visible = this.active && Boolean(this.route);
     this.touchButtons.clear();
+    this.steeringInput = 0;
     this.accumulator = 0;
     if (this.active) {
       this.reset();
@@ -140,6 +142,10 @@ export class DriveController {
   setButton(button: DriveButton, pressed: boolean): void {
     if (pressed) this.touchButtons.add(button);
     else this.touchButtons.delete(button);
+  }
+
+  setSteering(value: number): void {
+    this.steeringInput = Math.max(-1, Math.min(1, value));
   }
 
   onTelemetry(listener: (telemetry: DriveTelemetry) => void): void {
@@ -202,7 +208,7 @@ export class DriveController {
   private fixedUpdate(delta: number): void {
     const throttle = Number(this.keys.has("KeyW") || this.keys.has("ArrowUp") || this.touchButtons.has("throttle"))
       - Number(this.keys.has("KeyS") || this.keys.has("ArrowDown"));
-    const steering = getDriveSteeringInput(this.keys, this.touchButtons);
+    const steering = Math.max(-1, Math.min(1, getDriveSteeringInput(this.keys, this.touchButtons) + this.steeringInput));
     const brake = this.keys.has("Space") || this.touchButtons.has("brake");
     const previous = this.state;
     const candidate = stepDrivePhysics(previous, { throttle, steering, brake }, delta);
@@ -325,6 +331,7 @@ export class DriveController {
   private onBlur = (): void => {
     this.keys.clear();
     this.touchButtons.clear();
+    this.steeringInput = 0;
   };
 }
 
