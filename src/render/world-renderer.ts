@@ -180,6 +180,7 @@ export class WorldRenderer {
   private configureTerrainLod(mesh: THREE.Mesh, radius: number): void {
     const geometry = mesh.geometry as THREE.BufferGeometry;
     orientTerrainFacesUp(geometry);
+    configureSurfaceSide(mesh.material, THREE.DoubleSide);
     const high = geometry.getIndex();
     const medium = createTerrainLodIndex(geometry, 2);
     const low = createTerrainLodIndex(geometry, 4);
@@ -235,6 +236,7 @@ export class WorldRenderer {
       roughness: 0.9,
       metalness: 0,
       flatShading: true,
+      side: THREE.DoubleSide,
     });
     mesh.userData["terrainQualityLegend"] = "slope blue→green→amber→red; elevation changes lightness; facet density reflects active LOD";
   }
@@ -251,11 +253,13 @@ export class WorldRenderer {
         return;
       }
       if (layer === "roads") {
+        configureSurfaceSide(object.material, THREE.DoubleSide);
         configurePolygonOffset(object.material, detail ? -1.25 : -0.75, detail ? -3 : -2);
         object.renderOrder = detail ? 2 : 1;
         return;
       }
       if (layer === "areas") {
+        configureSurfaceSide(object.material, THREE.DoubleSide);
         configurePolygonOffset(object.material, -0.35, -1);
         object.renderOrder = 1;
       }
@@ -318,6 +322,15 @@ function isLonLat(value: unknown): value is LonLat {
     && value.length === 2
     && Number.isFinite(value[0])
     && Number.isFinite(value[1]);
+}
+
+function configureSurfaceSide(material: THREE.Material | THREE.Material[], side: THREE.Side): void {
+  const materials = Array.isArray(material) ? material : [material];
+  for (const candidate of materials) {
+    if (candidate.side === side) continue;
+    candidate.side = side;
+    candidate.needsUpdate = true;
+  }
 }
 
 function configurePolygonOffset(
