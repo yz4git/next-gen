@@ -4,6 +4,9 @@ import { driveSpawnForRoute, findNearestRoadPoint } from "../generation/road-gra
 import type { DriveRoute, DriveSpawn, RoadGraph, RoadGraphEdge } from "../types";
 import { resolveDriveCameraPose, safeDriveCameraHeight } from "./drive-camera";
 import { stepDrivePhysics, type DrivePhysicsState } from "./drive-physics";
+import { blendRoadAssist, resolveRoadGuidance, type RoadGuidance } from "./road-guidance";
+import { DriveVisualAudit } from "./drive-visual-audit";
+import { resolveVehicleGroundPose, smoothVehicleTilt } from "./vehicle-pose";
 
 export type DriveButton = "left" | "right" | "throttle" | "brake";
 
@@ -58,6 +61,7 @@ export class DriveController {
   private readonly routeGroup = new THREE.Group();
   private readonly keys = new Set<string>();
   private readonly touchButtons = new Set<DriveButton>();
+  private readonly visualAudit: DriveVisualAudit;
   private steeringInput = 0;
   private readonly cameraTarget = new THREE.Vector3();
   private graph: RoadGraph | null = null;
@@ -76,6 +80,10 @@ export class DriveController {
   private challengeElapsed = 0;
   private nextCheckpoint = 1;
   private bestSeconds: number | null = null;
+  private visualPitch = 0;
+  private visualRoll = 0;
+  private lastGuidance: RoadGuidance | null = null;
+  private lastAssistSteering = 0;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -85,6 +93,7 @@ export class DriveController {
     this.routeGroup.name = "WorldSeed Drive Route";
     this.routeGroup.visible = false;
     this.scene.add(this.vehicle, this.routeGroup);
+    this.visualAudit = new DriveVisualAudit(scene);
     window.addEventListener("keydown", this.onKeyDown);
     window.addEventListener("keyup", this.onKeyUp);
     window.addEventListener("blur", this.onBlur);
@@ -128,6 +137,7 @@ export class DriveController {
     this.active = active && Boolean(this.graph && this.spawn);
     this.vehicle.visible = this.active;
     this.routeGroup.visible = this.active && Boolean(this.route);
+    this.visualAudit.setDriveActive(this.active);
     this.touchButtons.clear();
     this.steeringInput = 0;
     this.accumulator = 0;
@@ -167,6 +177,10 @@ export class DriveController {
       speed: 0,
       steering: 0,
     };
+    this.visualPitch = 0;
+    this.visualRoll = 0;
+    this.lastGuidance = null;
+    this.lastAssistSteering = 0;
     this.challengeStatus = "ready";
     this.challengeElapsed = 0;
     this.nextCheckpoint = Math.min(1, Math.max(0, (this.route?.checkpoints.length ?? 1) - 1));
@@ -198,6 +212,7 @@ export class DriveController {
     window.removeEventListener("blur", this.onBlur);
     this.scene.remove(this.vehicle);
     this.scene.remove(this.routeGroup);
+    this.visualAudit.dispose();
     disposeGroup(this.routeGroup);
     this.vehicle.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
@@ -210,18 +225,40 @@ export class DriveController {
   private fixedUpdate(delta: number): void {
     const throttle = Number(this.keys.has("KeyW") || this.keys.has("ArrowUp") || this.touchButtons.has("throttle"))
       - Number(this.keys.has("KeyS") || this.keys.has("ArrowDown"));
-    const steering = Math.max(-1, Math.min(1, getDriveSteeringInput(this.keys, this.touchButtons) + this.steeringInput));
+    const manualSteering = Math.max(-1, Math.min(1, getDriveSteeringInput(this.keys, this.touchButtons) + this.steeringInput));
     const brake = this.keys.has("Space") || this.touchButtons.has("brake");
     const previous = this.state;
+    const roadBefore = this.roadIndex?.nearest(previous.x, previous.z) ?? null;
+    let steering = manualSteering;
+    this.lastGuidance = null;
+    this.lastAssistSteering = 0;
+    if (roadBefore && this.graph) {
+      const guidance = resolveRoadGuidance(this.graph, roadBefore, previous);
+      const shoulder = roadBefore.edge.widthMeters * 0.62 + 1.4;
+      const offRoadAmount = Math.max(0, Math.min(1, (roadBefore.distance - roadBefore.edge.widthMeters * 0.38) / Math.max(2, shoulder)));
+      steering = blendRoadAssist(manualSteering, guidance, offRoadAmount);
+      this.lastGuidance = guidance;
+      this.lastAssistSteering = steering - manualSteering;
+    }
+
     const candidate = stepDrivePhysics(previous, { throttle, steering, brake }, delta);
     const road = this.roadIndex?.nearest(candidate.x, candidate.z) ?? null;
+
+    if (this.lastGuidance && !brake) {
+      const speedKph = Math.abs(candidate.speed) * 3.6;
+      const target = this.lastGuidance.recommendedSpeedKph;
+      if (speedKph > target * 1.12) {
+        const overspeed = Math.min(1, (speedKph - target) / Math.max(12, target));
+        candidate.speed *= Math.max(0.965, 1 - delta * (0.4 + this.lastGuidance.cornerSeverity * 1.15) * overspeed);
+      }
+    }
 
     if (road) {
       const shoulder = road.edge.widthMeters * 0.62 + 1.4;
       const excess = Math.max(0, road.distance - shoulder);
       if (excess > 0) {
         candidate.speed *= Math.max(0.86, 1 - delta * (2.2 + excess * 0.08));
-        const assist = Math.min(0.085, delta * (0.35 + excess * 0.055));
+        const assist = Math.min(0.065, delta * (0.28 + excess * 0.045));
         candidate.x += (road.x - candidate.x) * assist;
         candidate.z += (road.z - candidate.z) * assist;
       }
@@ -236,9 +273,11 @@ export class DriveController {
   }
 
   private updateVisuals(delta: number): void {
-    const ground = this.groundHeightAt(this.state.x, this.state.z);
-    this.vehicle.position.set(this.state.x, ground + 0.62, this.state.z);
-    this.vehicle.rotation.y = this.state.heading;
+    const groundPose = resolveVehicleGroundPose(this.state, this.groundHeightAt);
+    this.visualPitch = smoothVehicleTilt(this.visualPitch, groundPose.pitch, delta, 7.2);
+    this.visualRoll = smoothVehicleTilt(this.visualRoll, groundPose.roll, delta, 8.4);
+    this.vehicle.position.set(this.state.x, groundPose.groundY + 0.62, this.state.z);
+    this.vehicle.rotation.set(-this.visualPitch, this.state.heading, this.visualRoll, "YXZ");
     const wheels = this.vehicle.userData["wheels"] as THREE.Mesh[] | undefined;
     for (const wheel of wheels ?? []) wheel.rotation.x -= this.state.speed * delta * 1.7;
 
@@ -265,6 +304,39 @@ export class DriveController {
       1.1,
     );
     this.camera.lookAt(this.cameraTarget);
+
+    const road = this.roadIndex?.nearest(this.state.x, this.state.z) ?? null;
+    const terrain = this.scene.getObjectByName("Terrain");
+    const nearTerrain = this.scene.getObjectByName("WorldSeed Drive Terrain Detail");
+    const guidance = this.lastGuidance;
+    this.visualAudit.update({
+      vehicle: { x: this.state.x, y: groundPose.groundY, z: this.state.z },
+      road: road ? { x: road.x, y: road.y, z: road.z, distance: road.distance, width: road.edge.widthMeters } : undefined,
+      guidance: guidance ? {
+        targetX: guidance.targetX,
+        targetZ: guidance.targetZ,
+        targetY: this.groundHeightAt(guidance.targetX, guidance.targetZ),
+        headingError: guidance.headingError,
+        lateralError: guidance.lateralError,
+        assist: this.lastAssistSteering,
+      } : undefined,
+      pose: {
+        pitch: this.visualPitch,
+        roll: this.visualRoll,
+        frontY: groundPose.frontY,
+        rearY: groundPose.rearY,
+        leftY: groundPose.leftY,
+        rightY: groundPose.rightY,
+      },
+      camera: {
+        x: this.camera.position.x,
+        y: this.camera.position.y,
+        z: this.camera.position.z,
+        clearance: this.camera.position.y - this.groundHeightAt(this.camera.position.x, this.camera.position.z),
+      },
+      terrainLod: terrain ? String(terrain.userData["terrainLod"] ?? "—") : undefined,
+      driveDetailTriangles: nearTerrain ? Number(nearTerrain.userData["driveDetailTriangles"] ?? 0) : undefined,
+    });
   }
 
   private updateChallenge(delta: number): void {
