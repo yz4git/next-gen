@@ -1,4 +1,4 @@
-const CACHE = "worldseed-shell-v0.8.2-drive-quality-v1";
+const CACHE = "worldseed-shell-v0.8.2-drive-contact-fix";
 const CACHE_PREFIXES = ["worldseed-shell-", "worldseed-sites-"];
 const SHELL = ["./index.html", "./manifest.webmanifest", "./worldseed-mark.svg"];
 
