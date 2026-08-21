@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { TerrainProvider } from "../data/terrain";
 import { WORLD_PALETTES } from "../generation/styles";
+import { conformRoadSurfacesToTerrain } from "../terrain/mesh-sampler";
 import {
   applyTerrainQualityColors,
   createAdaptiveTerrainGeometry,
@@ -12,6 +13,7 @@ import {
   type TerrainLodLevel,
 } from "../terrain/quality";
 import type { ExploreMode, LonLat, WorldStyle } from "../types";
+import { DriveTerrainDetailPatch } from "./drive-terrain-detail";
 import { TileStreamer, type StreamingStats } from "./tile-streamer";
 
 interface TerrainLodState {
@@ -36,6 +38,7 @@ export class WorldRenderer {
   private exploreMode: ExploreMode = "orbit";
   private currentStyle: WorldStyle = "low-poly";
   private terrainLod: TerrainLodState | null = null;
+  private driveTerrainDetail: DriveTerrainDetailPatch | null = null;
   private terrainUpgradeGeneration = 0;
   private streamingListener?: (stats: StreamingStats) => void;
   private frame = 0;
@@ -101,10 +104,12 @@ export class WorldRenderer {
 
   setExploreMode(mode: ExploreMode): void {
     this.exploreMode = mode;
+    this.driveTerrainDetail?.setVisible(mode === "drive");
   }
 
   setCity(group: THREE.Group, radius: number): void {
     const terrainGeneration = ++this.terrainUpgradeGeneration;
+    this.disposeDriveTerrainDetail();
     if (this.currentCity) {
       this.scene.remove(this.currentCity);
       disposeObject(this.currentCity);
@@ -113,6 +118,8 @@ export class WorldRenderer {
     this.scene.add(group);
     this.stabilizeSurfaceDepth(group);
     this.installTerrainLod(group, radius);
+    this.conformRoadsToTerrain(group);
+    this.rebuildDriveTerrainDetail();
     this.tileStreamer = new TileStreamer(group, radius);
     if (this.streamingListener) this.tileStreamer.onChange(this.streamingListener);
     this.orbit.maxDistance = Math.max(350, radius * 3.4);
@@ -143,7 +150,10 @@ export class WorldRenderer {
     this.sun.intensity = style === "cyber" ? 1.1 : 2.4;
     this.ambient.intensity = style === "cyber" ? 0.72 : 1.7;
     this.renderer.toneMappingExposure = style === "cyber" ? 1.25 : 1.05;
-    if (style === "quality" && this.terrainLod) this.applyTerrainQualityMaterial(this.terrainLod.mesh);
+    if (style === "quality" && this.terrainLod) {
+      this.applyTerrainQualityMaterial(this.terrainLod.mesh);
+      this.rebuildDriveTerrainDetail();
+    }
   }
 
   getCity(): THREE.Group | null {
@@ -163,6 +173,7 @@ export class WorldRenderer {
     cancelAnimationFrame(this.animationFrame);
     this.resizeObserver.disconnect();
     this.orbit.dispose();
+    this.disposeDriveTerrainDetail();
     if (this.currentCity) disposeObject(this.currentCity);
     this.tileStreamer = null;
     this.terrainLod = null;
@@ -219,6 +230,8 @@ export class WorldRenderer {
       previous.dispose();
       this.configureTerrainLod(terrain, radius);
       if (this.currentStyle === "quality") this.applyTerrainQualityMaterial(terrain);
+      this.conformRoadsToTerrain(group);
+      this.rebuildDriveTerrainDetail();
     } catch {
       // Keep the already-rendered terrain if cache access or a provider retry
       // fails. Terrain Quality v2 is progressive enhancement, not a blocker.
@@ -239,6 +252,34 @@ export class WorldRenderer {
       side: THREE.DoubleSide,
     });
     mesh.userData["terrainQualityLegend"] = "slope blue→green→amber→red; elevation changes lightness; facet density reflects active LOD";
+  }
+
+  private conformRoadsToTerrain(group: THREE.Group): void {
+    const terrain = group.getObjectByName("Terrain");
+    if (!(terrain instanceof THREE.Mesh)) return;
+    const stats = conformRoadSurfacesToTerrain(group, terrain);
+    group.userData["roadTerrainConform"] = stats;
+  }
+
+  private rebuildDriveTerrainDetail(): void {
+    this.disposeDriveTerrainDetail();
+    const terrain = this.terrainLod?.mesh;
+    if (!terrain) return;
+    try {
+      this.driveTerrainDetail = new DriveTerrainDetailPatch(terrain);
+      this.scene.add(this.driveTerrainDetail.mesh);
+      this.driveTerrainDetail.setVisible(this.exploreMode === "drive");
+      if (this.exploreMode === "drive") this.driveTerrainDetail.update(this.camera.position.x, this.camera.position.z);
+    } catch {
+      this.driveTerrainDetail = null;
+    }
+  }
+
+  private disposeDriveTerrainDetail(): void {
+    if (!this.driveTerrainDetail) return;
+    this.scene.remove(this.driveTerrainDetail.mesh);
+    this.driveTerrainDetail.dispose();
+    this.driveTerrainDetail = null;
   }
 
   private stabilizeSurfaceDepth(group: THREE.Group): void {
@@ -275,9 +316,18 @@ export class WorldRenderer {
   private updateTerrainLod(): void {
     const state = this.terrainLod;
     if (!state) return;
-    const cameraDistance = this.camera.position.length();
-    state.level = selectTerrainLod(this.exploreMode, cameraDistance, this.camera.position.y, state.radius);
-    state.mesh.userData["terrainLod"] = state.level;
+    if (this.exploreMode === "drive" && this.driveTerrainDetail) {
+      state.level = "medium";
+      this.driveTerrainDetail.setVisible(true);
+      this.driveTerrainDetail.update(this.camera.position.x, this.camera.position.z);
+    } else {
+      this.driveTerrainDetail?.setVisible(false);
+      const cameraDistance = this.camera.position.length();
+      state.level = selectTerrainLod(this.exploreMode, cameraDistance, this.camera.position.y, state.radius);
+    }
+    state.mesh.userData["terrainLod"] = this.exploreMode === "drive" && this.driveTerrainDetail
+      ? "medium + drive-near-high"
+      : state.level;
   }
 
   private updateDepthPrecision(): void {
