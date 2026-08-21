@@ -1,5 +1,7 @@
 import * as THREE from "three";
 
+export const DRONE_TOUR_SPEED = 1.75;
+
 export interface DroneCameraPose {
   x: number;
   y: number;
@@ -13,33 +15,34 @@ export interface DroneCameraPose {
 
 export function droneCameraPose(elapsedSeconds: number, radius: number): DroneCameraPose {
   const safeRadius = Math.max(100, radius);
-  const swoop = 0.5 + 0.5 * Math.sin(elapsedSeconds * 0.17 - 0.8);
-  const banking = 0.5 + 0.5 * Math.sin(elapsedSeconds * 0.29 + 1.1);
-  const angle = elapsedSeconds * (0.2 + banking * 0.08) + Math.sin(elapsedSeconds * 0.115) * 0.72;
+  const time = elapsedSeconds * DRONE_TOUR_SPEED;
+  const swoop = 0.5 + 0.5 * Math.sin(time * 0.17 - 0.8);
+  const banking = 0.5 + 0.5 * Math.sin(time * 0.29 + 1.1);
+  const angle = time * (0.2 + banking * 0.08) + Math.sin(time * 0.115) * 0.72;
   const minDistance = Math.max(170, safeRadius * 0.34);
   const maxDistance = Math.max(260, safeRadius * 1.25);
   const distance = clamp(
-    safeRadius * (0.5 + swoop * 0.6) + safeRadius * 0.05 * Math.sin(elapsedSeconds * 0.33),
+    safeRadius * (0.5 + swoop * 0.6) + safeRadius * 0.05 * Math.sin(time * 0.33),
     minDistance,
     maxDistance,
   );
   const minHeight = Math.max(90, safeRadius * 0.16);
   const maxHeight = Math.max(150, safeRadius * 0.9);
   const height = clamp(
-    safeRadius * (0.18 + swoop * 0.64) + safeRadius * 0.04 * Math.sin(elapsedSeconds * 0.39 + 1.2),
+    safeRadius * (0.18 + swoop * 0.64) + safeRadius * 0.04 * Math.sin(time * 0.39 + 1.2),
     minHeight,
     maxHeight,
   );
-  const targetX = safeRadius * (0.14 * Math.sin(elapsedSeconds * 0.12) + 0.05 * Math.sin(elapsedSeconds * 0.29 + 0.6));
-  const targetZ = safeRadius * 0.1 * Math.cos(elapsedSeconds * 0.15 + 0.4);
+  const targetX = safeRadius * (0.14 * Math.sin(time * 0.12) + 0.05 * Math.sin(time * 0.29 + 0.6));
+  const targetZ = safeRadius * 0.1 * Math.cos(time * 0.15 + 0.4);
   return {
     x: targetX + Math.cos(angle) * distance,
     y: height,
     z: targetZ + Math.sin(angle) * distance,
     targetX,
-    targetY: clamp(safeRadius * (0.035 + (1 - swoop) * 0.06) + 9 * Math.sin(elapsedSeconds * 0.22), 8, 42),
+    targetY: clamp(safeRadius * (0.035 + (1 - swoop) * 0.06) + 9 * Math.sin(time * 0.22), 8, 42),
     targetZ,
-    roll: 0.035 * Math.sin(elapsedSeconds * 0.25) + 0.018 * Math.sin(elapsedSeconds * 0.47 + 0.4),
+    roll: 0.035 * Math.sin(time * 0.25) + 0.018 * Math.sin(time * 0.47 + 0.4),
     fov: 52 + banking * 6 + (1 - swoop) * 3,
   };
 }
