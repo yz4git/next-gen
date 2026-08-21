@@ -10,6 +10,7 @@ describe("Drive terrain detail", () => {
     const mediumIndex = new THREE.Uint16BufferAttribute(Array.from({ length: 60 }, (_, index) => highIndex.getX(index)), 1);
     const terrain = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial());
     terrain.onBeforeRender = () => geometry.setIndex(mediumIndex);
+    const group = new THREE.Group();
 
     const patch = new DriveTerrainDetailPatch(terrain);
     patch.setVisible(true);
@@ -20,7 +21,7 @@ describe("Drive terrain detail", () => {
       {} as THREE.Camera,
       geometry,
       terrain.material,
-      null,
+      group,
     );
 
     expect(patch.mesh.visible).toBe(false);
@@ -35,7 +36,7 @@ describe("Drive terrain detail", () => {
       {} as THREE.Camera,
       geometry,
       terrain.material,
-      null,
+      group,
     );
     expect(geometry.getIndex()?.count).toBe(mediumIndex.count);
 
