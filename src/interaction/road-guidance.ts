@@ -1,4 +1,5 @@
 import type { RoadGraph, RoadGraphEdge, RoadGraphNode } from "../types";
+import { DRIVE_STEERING_POLARITY } from "./drive-physics";
 
 export interface RoadGuidanceMatch {
   edge: RoadGraphEdge;
@@ -55,7 +56,8 @@ export class RoadGuidanceIndex {
     const width = Math.max(3.2, match.edge.widthMeters);
     const lateralCorrection = clamp(-lateralError / (width * 0.72), -0.9, 0.9);
     const headingCorrection = clamp(headingError * 0.95, -0.9, 0.9);
-    const suggestedSteering = clamp(headingCorrection + lateralCorrection * 0.52, -1, 1);
+    const physicalSteering = clamp(headingCorrection + lateralCorrection * 0.52, -1, 1);
+    const suggestedSteering = physicalSteering * DRIVE_STEERING_POLARITY;
     const cornerSeverity = clamp(Math.abs(headingError) / 1.15, 0, 1);
     const roadLimit = clamp(match.edge.speedLimitKph || 35, 15, 110);
     const recommendedSpeedKph = Math.max(15, roadLimit * (1 - cornerSeverity * 0.52));
