@@ -34,7 +34,7 @@ export class RoadGuidanceIndex {
   private readonly nodeById: Map<string, RoadGraphNode>;
   private readonly edgeById: Map<string, RoadGraphEdge>;
 
-  constructor(private readonly graph: RoadGraph) {
+  constructor(graph: RoadGraph) {
     this.nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
     this.edgeById = new Map(graph.edges.map((edge) => [edge.id, edge]));
   }
