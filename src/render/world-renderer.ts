@@ -253,6 +253,12 @@ export class WorldRenderer {
         return;
       }
       if (layer === "roads") {
+        const isRoadSurface = name.startsWith("Roads ")
+          || name.startsWith("Road markings ")
+          || name.startsWith("Sidewalks ");
+        if (isRoadSurface && object.geometry instanceof THREE.BufferGeometry) {
+          orientTerrainFacesUp(object.geometry);
+        }
         configureSurfaceSide(object.material, THREE.DoubleSide);
         configurePolygonOffset(object.material, detail ? -1.25 : -0.75, detail ? -3 : -2);
         object.renderOrder = detail ? 2 : 1;
