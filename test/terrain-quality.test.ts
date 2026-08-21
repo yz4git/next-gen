@@ -1,9 +1,11 @@
+import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import type { ElevationGrid } from "../src/types";
 import {
   applyTerrainQualityColors,
   buildRadialTerrainIndices,
   createAdaptiveTerrainGeometry,
+  orientTerrainFacesUp,
   selectTerrainLod,
   terrainGridSizeForRadius,
   terrainMeshProfile,
@@ -55,6 +57,8 @@ describe("Terrain Quality v2", () => {
     const geometry = createAdaptiveTerrainGeometry(terrain, 1_000);
     expect(geometry.getAttribute("position").count).toBe(1 + profile.rings * profile.sectors);
     expect(geometry.getIndex()?.count).toBeGreaterThan(200_000);
+    const normal = geometry.getAttribute("normal");
+    expect(normal.getY(0)).toBeGreaterThan(0);
     geometry.dispose();
   });
 
@@ -65,6 +69,23 @@ describe("Terrain Quality v2", () => {
     expect(high.length).toBeGreaterThan(medium.length);
     expect(medium.length).toBeGreaterThan(low.length);
     expect(Math.max(...low)).toBe(1 + (48 - 1) * 128 + 124);
+  });
+
+  it("repairs legacy downward terrain winding for chase-camera views", () => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute([
+      0, 0, 0,
+      10, 0, 0,
+      0, 2, 10,
+    ], 3));
+    geometry.setIndex([0, 1, 2]);
+    geometry.computeVertexNormals();
+    expect(geometry.getAttribute("normal").getY(0)).toBeLessThan(0);
+
+    expect(orientTerrainFacesUp(geometry)).toBe(true);
+    expect(geometry.getAttribute("normal").getY(0)).toBeGreaterThan(0);
+    expect(orientTerrainFacesUp(geometry)).toBe(false);
+    geometry.dispose();
   });
 
   it("keeps ground interaction high-res and reduces distant aerial terrain", () => {
