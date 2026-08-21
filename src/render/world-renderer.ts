@@ -1,8 +1,26 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import type { ExploreMode, WorldStyle } from "../types";
+import { TerrainProvider } from "../data/terrain";
 import { WORLD_PALETTES } from "../generation/styles";
+import {
+  applyTerrainQualityColors,
+  createAdaptiveTerrainGeometry,
+  createTerrainLodIndex,
+  selectTerrainLod,
+  terrainResolutionMeters,
+  type TerrainLodLevel,
+} from "../terrain/quality";
+import type { ExploreMode, LonLat, WorldStyle } from "../types";
 import { TileStreamer, type StreamingStats } from "./tile-streamer";
+
+interface TerrainLodState {
+  mesh: THREE.Mesh;
+  high: THREE.BufferAttribute | null;
+  medium: THREE.BufferAttribute | null;
+  low: THREE.BufferAttribute | null;
+  radius: number;
+  level: TerrainLodLevel;
+}
 
 export class WorldRenderer {
   readonly scene = new THREE.Scene();
@@ -15,6 +33,9 @@ export class WorldRenderer {
   private currentCity: THREE.Group | null = null;
   private tileStreamer: TileStreamer | null = null;
   private exploreMode: ExploreMode = "orbit";
+  private currentStyle: WorldStyle = "low-poly";
+  private terrainLod: TerrainLodState | null = null;
+  private terrainUpgradeGeneration = 0;
   private streamingListener?: (stats: StreamingStats) => void;
   private frame = 0;
   private fpsStartedAt = performance.now();
@@ -81,17 +102,25 @@ export class WorldRenderer {
   }
 
   setCity(group: THREE.Group, radius: number): void {
+    const terrainGeneration = ++this.terrainUpgradeGeneration;
     if (this.currentCity) {
       this.scene.remove(this.currentCity);
       disposeObject(this.currentCity);
     }
     this.currentCity = group;
     this.scene.add(group);
+    this.installTerrainLod(group, radius);
     this.tileStreamer = new TileStreamer(group, radius);
     if (this.streamingListener) this.tileStreamer.onChange(this.streamingListener);
     this.orbit.maxDistance = Math.max(350, radius * 3.4);
     this.camera.far = Math.max(3_000, radius * 7);
     this.camera.updateProjectionMatrix();
+
+    const provider = String(group.userData["provider"] ?? "");
+    const center = group.userData["center"];
+    if (provider.includes("Mapzen terrain") && isLonLat(center)) {
+      void this.upgradeTerrain(group, center, radius, terrainGeneration);
+    }
   }
 
   frameCity(radius: number): void {
@@ -102,6 +131,7 @@ export class WorldRenderer {
   }
 
   setStyle(style: WorldStyle, radius: number): void {
+    this.currentStyle = style;
     const palette = WORLD_PALETTES[style];
     const sky = new THREE.Color(palette.sky);
     this.scene.background = sky;
@@ -110,6 +140,7 @@ export class WorldRenderer {
     this.sun.intensity = style === "cyber" ? 1.1 : 2.4;
     this.ambient.intensity = style === "cyber" ? 0.72 : 1.7;
     this.renderer.toneMappingExposure = style === "cyber" ? 1.25 : 1.05;
+    if (style === "quality" && this.terrainLod) this.applyTerrainQualityMaterial(this.terrainLod.mesh);
   }
 
   getCity(): THREE.Group | null {
@@ -125,12 +156,91 @@ export class WorldRenderer {
   }
 
   dispose(): void {
+    this.terrainUpgradeGeneration += 1;
     cancelAnimationFrame(this.animationFrame);
     this.resizeObserver.disconnect();
     this.orbit.dispose();
     if (this.currentCity) disposeObject(this.currentCity);
     this.tileStreamer = null;
+    this.terrainLod = null;
     this.renderer.dispose();
+  }
+
+  private installTerrainLod(group: THREE.Group, radius: number): void {
+    this.terrainLod = null;
+    const terrain = group.getObjectByName("Terrain");
+    if (!(terrain instanceof THREE.Mesh) || !(terrain.geometry instanceof THREE.BufferGeometry)) return;
+    this.configureTerrainLod(terrain, radius);
+    if (this.currentStyle === "quality") this.applyTerrainQualityMaterial(terrain);
+  }
+
+  private configureTerrainLod(mesh: THREE.Mesh, radius: number): void {
+    const geometry = mesh.geometry as THREE.BufferGeometry;
+    const high = geometry.getIndex();
+    const medium = createTerrainLodIndex(geometry, 2);
+    const low = createTerrainLodIndex(geometry, 4);
+    this.terrainLod = { mesh, high, medium, low, radius, level: "high" };
+    mesh.userData["terrainLod"] = "high";
+    mesh.onBeforeRender = () => {
+      const state = this.terrainLod;
+      if (!state || state.mesh !== mesh) return;
+      const index = state.level === "low" ? state.low : state.level === "medium" ? state.medium : state.high;
+      geometry.setIndex(index ?? state.high);
+    };
+    mesh.onAfterRender = () => {
+      const state = this.terrainLod;
+      if (!state || state.mesh !== mesh) return;
+      geometry.setIndex(state.high);
+    };
+  }
+
+  private async upgradeTerrain(
+    group: THREE.Group,
+    center: LonLat,
+    radius: number,
+    generation: number,
+  ): Promise<void> {
+    try {
+      // WorldDataService has already loaded this exact seed, so this normally
+      // resolves from IndexedDB without a second network request.
+      const grid = await new TerrainProvider().load(center, radius);
+      if (generation !== this.terrainUpgradeGeneration || this.currentCity !== group) return;
+      const terrain = group.getObjectByName("Terrain");
+      if (!(terrain instanceof THREE.Mesh) || !(terrain.geometry instanceof THREE.BufferGeometry)) return;
+      const previous = terrain.geometry;
+      terrain.geometry = createAdaptiveTerrainGeometry(grid, radius);
+      terrain.userData["terrainResolutionMeters"] = terrainResolutionMeters(grid);
+      terrain.userData["terrainSourceGrid"] = `${grid.columns}×${grid.rows}`;
+      previous.dispose();
+      this.configureTerrainLod(terrain, radius);
+      if (this.currentStyle === "quality") this.applyTerrainQualityMaterial(terrain);
+    } catch {
+      // Keep the already-rendered terrain if cache access or a provider retry
+      // fails. Terrain Quality v2 is progressive enhancement, not a blocker.
+    }
+  }
+
+  private applyTerrainQualityMaterial(mesh: THREE.Mesh): void {
+    const geometry = mesh.geometry as THREE.BufferGeometry;
+    applyTerrainQualityColors(geometry);
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    materials.forEach((material) => material.dispose());
+    mesh.material = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      vertexColors: true,
+      roughness: 0.9,
+      metalness: 0,
+      flatShading: true,
+    });
+    mesh.userData["terrainQualityLegend"] = "slope blue→green→amber→red; elevation changes lightness; facet density reflects active LOD";
+  }
+
+  private updateTerrainLod(): void {
+    const state = this.terrainLod;
+    if (!state) return;
+    const cameraDistance = this.camera.position.length();
+    state.level = selectTerrainLod(this.exploreMode, cameraDistance, this.camera.position.y, state.radius);
+    state.mesh.userData["terrainLod"] = state.level;
   }
 
   private resize(): void {
@@ -149,6 +259,7 @@ export class WorldRenderer {
     this.update?.(delta);
     this.tileStreamer?.update(this.camera, this.exploreMode);
     if (this.orbit.enabled) this.orbit.update();
+    this.updateTerrainLod();
     this.renderer.render(this.scene, this.camera);
 
     this.frame += 1;
@@ -159,6 +270,13 @@ export class WorldRenderer {
       this.fpsStartedAt = now;
     }
   };
+}
+
+function isLonLat(value: unknown): value is LonLat {
+  return Array.isArray(value)
+    && value.length === 2
+    && Number.isFinite(value[0])
+    && Number.isFinite(value[1]);
 }
 
 function disposeObject(object: THREE.Object3D): void {
