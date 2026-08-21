@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { CollisionIndex } from "../generation/collision";
 import { driveSpawnForRoute, findNearestRoadPoint } from "../generation/road-graph";
 import type { DriveRoute, DriveSpawn, RoadGraph, RoadGraphEdge } from "../types";
+import { resolveDriveCameraPose, safeDriveCameraHeight } from "./drive-camera";
 import { stepDrivePhysics, type DrivePhysicsState } from "./drive-physics";
 
 export type DriveButton = "left" | "right" | "throttle" | "brake";
@@ -242,15 +243,27 @@ export class DriveController {
     for (const wheel of wheels ?? []) wheel.rotation.x -= this.state.speed * delta * 1.7;
 
     if (!this.active) return;
-    const forward = new THREE.Vector3(Math.sin(this.state.heading), 0, Math.cos(this.state.heading));
-    const speedLift = Math.min(2.3, Math.abs(this.state.speed) * 0.065);
-    const desired = new THREE.Vector3(this.state.x, ground + 6.1 + speedLift, this.state.z)
-      .addScaledVector(forward, -11.5 - Math.abs(this.state.speed) * 0.075);
-    const target = new THREE.Vector3(this.state.x, ground + 1.35, this.state.z).addScaledVector(forward, 5.5);
+    const pose = resolveDriveCameraPose(this.state, this.groundHeightAt);
+    const desired = new THREE.Vector3(pose.desired.x, pose.desired.y, pose.desired.z);
+    const target = new THREE.Vector3(pose.target.x, pose.target.y, pose.target.z);
     const cameraAmount = 1 - Math.exp(-Math.max(delta, 1 / 120) * 6.4);
     const targetAmount = 1 - Math.exp(-Math.max(delta, 1 / 120) * 8.5);
     this.camera.position.lerp(desired, cameraAmount);
     this.cameraTarget.lerp(target, targetAmount);
+    this.camera.position.y = safeDriveCameraHeight(
+      this.camera.position.x,
+      this.camera.position.z,
+      this.camera.position.y,
+      this.groundHeightAt,
+      2.2,
+    );
+    this.cameraTarget.y = safeDriveCameraHeight(
+      this.cameraTarget.x,
+      this.cameraTarget.z,
+      this.cameraTarget.y,
+      this.groundHeightAt,
+      1.1,
+    );
     this.camera.lookAt(this.cameraTarget);
   }
 
