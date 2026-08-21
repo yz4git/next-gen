@@ -1,6 +1,8 @@
 import type { RoadGraph, RoadGraphEdge, RoadGraphNode } from "../types";
 import { DRIVE_STEERING_POLARITY } from "./drive-physics";
 
+export const DRIVE_STEERING_ASSIST_ENABLED = false;
+
 export interface RoadGuidanceMatch {
   edge: RoadGraphEdge;
   x: number;
@@ -180,6 +182,7 @@ function fallbackNode(point: { x: number; y?: number; z: number } | undefined, i
 
 export function blendRoadAssist(manualSteering: number, guidance: RoadGuidance, offRoadAmount: number): number {
   const manual = clamp(manualSteering, -1, 1);
+  if (!DRIVE_STEERING_ASSIST_ENABLED) return manual;
   const playerAuthority = Math.abs(manual);
   const baseStrength = 0.24 + clamp(offRoadAmount, 0, 1) * 0.46;
   const speedStrength = 0.88 + guidance.cornerSeverity * 0.18;

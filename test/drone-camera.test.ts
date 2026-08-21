@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { droneCameraPose } from "../src/interaction/drone-camera";
+import { DRONE_TOUR_SPEED, droneCameraPose } from "../src/interaction/drone-camera";
 
 describe("automatic drone camera", () => {
   it("keeps a safe aerial distance and changes its orbit over time", () => {
@@ -11,6 +11,13 @@ describe("automatic drone camera", () => {
     expect(Math.abs(later.targetX - first.targetX) + Math.abs(later.targetZ - first.targetZ)).toBeGreaterThan(1);
     expect(later.fov).not.toBe(first.fov);
     expect(first.targetY).toBeGreaterThan(0);
+  });
+
+  it("runs the cinematic tour substantially faster", () => {
+    expect(DRONE_TOUR_SPEED).toBeGreaterThanOrEqual(1.7);
+    const start = droneCameraPose(0, 500);
+    const afterOneSecond = droneCameraPose(1, 500);
+    expect(Math.hypot(afterOneSecond.x - start.x, afterOneSecond.z - start.z)).toBeGreaterThan(45);
   });
 
   it("clamps tiny worlds to a readable tour distance", () => {

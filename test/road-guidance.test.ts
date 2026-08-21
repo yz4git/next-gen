@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildRoadGraph } from "../src/generation/road-graph";
 import { fromLocalMeters } from "../src/geo/coordinates";
-import { blendRoadAssist, RoadGuidanceIndex } from "../src/interaction/road-guidance";
+import { blendRoadAssist, DRIVE_STEERING_ASSIST_ENABLED, RoadGuidanceIndex } from "../src/interaction/road-guidance";
 import type { LonLat, RoadFeature } from "../src/types";
 
 const center: LonLat = [135.52586, 34.68737];
@@ -39,7 +39,7 @@ describe("predictive Drive road guidance", () => {
     expect(guidance.cornerSeverity).toBeGreaterThan(0);
   });
 
-  it("preserves strong manual steering authority while helping recovery", () => {
+  it("keeps steering fully manual while the temporary assist switch is off", () => {
     const guidance = {
       targetX: 10,
       targetZ: 20,
@@ -50,9 +50,9 @@ describe("predictive Drive road guidance", () => {
       cornerSeverity: 0.4,
       recommendedSpeedKph: 30,
     };
-    const handsOff = blendRoadAssist(0, guidance, 1);
-    const manual = blendRoadAssist(0.9, guidance, 1);
-    expect(handsOff).toBeLessThan(0);
-    expect(manual).toBeGreaterThan(0.7);
+    expect(DRIVE_STEERING_ASSIST_ENABLED).toBe(false);
+    expect(blendRoadAssist(0, guidance, 1)).toBe(0);
+    expect(blendRoadAssist(0.9, guidance, 1)).toBeCloseTo(0.9, 6);
+    expect(blendRoadAssist(-0.65, guidance, 0.8)).toBeCloseTo(-0.65, 6);
   });
 });
