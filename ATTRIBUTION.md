@@ -2,10 +2,11 @@
 
 WorldSeed retrieves and transforms open geographic data at runtime.
 
-- Building footprints: [Overture Maps Foundation](https://overturemaps.org/). Overture data is assembled from multiple sources and may carry source-specific terms. Review its [attribution guidance](https://docs.overturemaps.org/attribution/).
-- Streets, rail, water and land: © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), available under the [Open Database License 1.0](https://opendatacommons.org/licenses/odbl/1-0/).
+- Building footprints and primary street routing: [Overture Maps Foundation](https://overturemaps.org/). Overture data is assembled from multiple sources and may carry source-specific terms. Review its [attribution guidance](https://docs.overturemaps.org/attribution/).
+- Street fallback, rail, water and land: © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), available under the [Open Database License 1.0](https://opendatacommons.org/licenses/odbl/1-0/).
+- Terrain: [Mapzen Terrain Tiles](https://registry.opendata.aws/terrain-tiles/), assembled from open elevation sources with [source-specific attribution](https://github.com/tilezen/joerd/blob/master/docs/attribution.md).
+- Optional local LOD import: [Project PLATEAU](https://www.mlit.go.jp/plateau/) CityGML. Preserve the attribution and license terms supplied with the particular dataset you import.
 
-Every WorldSeed starter-kit export includes an `ATTRIBUTION.md` generated from the providers used for that seed. Preserve it when sharing an exported world and verify the current provider terms for your use case.
+WorldSeed keeps provider attribution visible over every live world. Every starter-kit export also includes an `ATTRIBUTION.md` generated from the providers used for that seed. Preserve it when sharing an exported world and verify the current provider terms for your use case.
 
 The bundled demo is deterministic synthetic geometry and does not represent the selected real-world location.
-

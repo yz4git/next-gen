@@ -1,10 +1,15 @@
 import { strToU8, zipSync } from "fflate";
 import * as THREE from "three";
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
-import type { WorldData, WorldStats, WorldStyle } from "../types";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import type { DriveRoute, RoadGraph, WorldData, WorldManifest, WorldStats, WorldStyle } from "../types";
 
-export async function exportGlb(group: THREE.Group, name = "worldseed-city.glb"): Promise<void> {
-  const binary = await createGlb(group);
+export async function exportGlb(
+  group: THREE.Group,
+  includeExactOrigin = true,
+  name = includeExactOrigin ? "worldseed-city.glb" : "worldseed-city-private.glb",
+): Promise<void> {
+  const binary = await createGlb(group, includeExactOrigin);
   download(new Blob([binary], { type: "model/gltf-binary" }), name);
 }
 
@@ -13,46 +18,99 @@ export async function exportStarterKit(
   data: WorldData,
   stats: WorldStats,
   style: WorldStyle,
+  manifest: WorldManifest,
+  roadGraph: RoadGraph,
+  route: DriveRoute | null,
+  pedestrianSpawn: { x: number; y: number; z: number },
+  includeExactOrigin = true,
 ): Promise<void> {
-  const binary = await createGlb(group);
-  const metadata = JSON.stringify(
-    {
-      generator: "WorldSeed 0.1.0",
-      coordinateSystem: "local meters; X east, Y up, Z south",
-      origin: { longitude: data.center[0], latitude: data.center[1] },
-      radiusMeters: data.radius,
-      style,
-      source: data.providerLabel,
-      sourceDetails: data.sourceDetails ?? [],
-      generatedAt: data.generatedAt,
-      stats,
-      warnings: data.warnings,
-    },
-    null,
-    2,
-  );
+  const binary = await createGlb(group, includeExactOrigin);
+  const terrainBinary = await createGlb(createTerrainExport(group), false);
+  const colliderBinary = await createGlb(createColliderExport(manifest), false);
+  const metadata = JSON.stringify(createWorldMetadata(data, stats, style, includeExactOrigin), null, 2);
+  const spawnPoints = createSpawnPoints(roadGraph, route, pedestrianSpawn);
   const archive = zipSync(
     {
-      "worldseed-city.glb": new Uint8Array(binary),
+      "city.glb": new Uint8Array(binary),
+      "terrain.glb": new Uint8Array(terrainBinary),
+      "colliders.glb": new Uint8Array(colliderBinary),
       "worldseed.json": strToU8(metadata),
+      "worldseed-objects.json": strToU8(JSON.stringify(manifest, null, 2)),
+      "road-graph.json": strToU8(JSON.stringify(roadGraph, null, 2)),
+      "spawn-points.json": strToU8(JSON.stringify(spawnPoints, null, 2)),
+      "drive-route.json": strToU8(JSON.stringify(route, null, 2)),
       "ATTRIBUTION.md": strToU8(attributionMarkdown(data)),
-      "README.md": strToU8(starterReadme()),
+      "README.md": strToU8(starterReadme(includeExactOrigin)),
       "package.json": strToU8(starterPackage()),
       "index.html": strToU8(starterHtml()),
       "src/main.js": strToU8(starterMain()),
     },
     { level: 6 },
   );
-  download(new Blob([archive], { type: "application/zip" }), "worldseed-threejs-kit.zip");
+  download(
+    new Blob([archive], { type: "application/zip" }),
+    includeExactOrigin ? "worldseed-threejs-kit.zip" : "worldseed-threejs-kit-private.zip",
+  );
 }
 
-function createGlb(group: THREE.Group): Promise<ArrayBuffer> {
+export function createWorldMetadata(
+  data: WorldData,
+  stats: WorldStats,
+  style: WorldStyle,
+  includeExactOrigin: boolean,
+): Record<string, unknown> {
+  return {
+    generator: "WorldSeed 0.7.0 Drive Any City",
+    coordinateSystem: "local meters; X east, Y up, Z south",
+    origin: includeExactOrigin
+      ? { longitude: data.center[0], latitude: data.center[1] }
+      : null,
+    exactOriginIncluded: includeExactOrigin,
+    radiusMeters: data.radius,
+    style,
+    source: data.providerLabel,
+    sourceDetails: data.sourceDetails ?? [],
+    generatedAt: data.generatedAt,
+    stats,
+    warnings: data.warnings,
+    semanticManifest: "worldseed-objects.json",
+    roadGraph: "road-graph.json",
+    spawnPoints: "spawn-points.json",
+  };
+}
+
+async function createGlb(group: THREE.Group, includeExactOrigin: boolean): Promise<ArrayBuffer> {
   const exporter = new GLTFExporter();
-  return exporter.parseAsync(group, {
-    binary: true,
-    onlyVisible: true,
-    trs: false,
-  }) as Promise<ArrayBuffer>;
+  const originalUserData = group.userData;
+  const streamedVisibility = new Map<THREE.Object3D, boolean>();
+  group.traverse((object) => {
+    if (!object.userData["worldseedTile"]) return;
+    streamedVisibility.set(object, object.visible);
+    object.visible = true;
+  });
+  group.userData = createExportUserData(originalUserData, includeExactOrigin);
+  try {
+    return await exporter.parseAsync(group, {
+      binary: true,
+      onlyVisible: true,
+      trs: false,
+    }) as ArrayBuffer;
+  } finally {
+    group.userData = originalUserData;
+    for (const [object, visible] of streamedVisibility) object.visible = visible;
+  }
+}
+
+export function createExportUserData(
+  userData: Record<string, unknown>,
+  includeExactOrigin: boolean,
+): Record<string, unknown> {
+  const exportUserData: Record<string, unknown> = {
+    ...userData,
+    exactOriginIncluded: includeExactOrigin,
+  };
+  if (!includeExactOrigin) delete exportUserData["center"];
+  return exportUserData;
 }
 
 function attributionMarkdown(data: WorldData): string {
@@ -62,13 +120,16 @@ function attributionMarkdown(data: WorldData): string {
         .map((source) => `- [${source.label}](${source.url}) — [${source.license}](${source.licenseUrl})`)
         .join("\n");
   const sourceDetails = data.sourceDetails && data.sourceDetails.length > 0
-    ? `\n\nBuilding geometry sources reported by Overture: ${data.sourceDetails.join(", ")}.`
+    ? `\n\nGeometry source details: ${data.sourceDetails.join(", ")}.`
     : "";
   return `# Data attribution\n\nGenerated by WorldSeed on ${data.generatedAt}.\n\n${sources}${sourceDetails}\n\nPreserve this file when redistributing the generated world. Verify source-specific obligations for your use case.\n`;
 }
 
-function starterReadme(): string {
-  return `# WorldSeed Three.js Starter\n\nA local-meter Three.js scene exported by WorldSeed.\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n\nThe model origin is the selected latitude/longitude. X points east, Y points up, and Z points south. See worldseed.json and ATTRIBUTION.md.\n`;
+function starterReadme(includeExactOrigin: boolean): string {
+  const originNote = includeExactOrigin
+    ? "The model origin is the selected latitude/longitude."
+    : "The exact latitude/longitude was intentionally omitted from this privacy-safe export.";
+  return `# WorldSeed Drive Any City Starter\n\nA local-meter Three.js city and gameplay-data bundle exported by WorldSeed.\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n\n${originNote} X points east, Y points up, and Z points south.\n\n- city.glb — complete rendered city\n- terrain.glb — terrain-only mesh\n- colliders.glb — merged building collision boxes\n- road-graph.json — routable local-meter graph with road class, direction, surface, width, and speed\n- spawn-points.json — vehicle and pedestrian starts\n- drive-route.json — the active time-attack route, when available\n- worldseed-objects.json — stable semantic objects and bounds\n- ATTRIBUTION.md — data-source obligations to preserve\n`;
 }
 
 function starterPackage(): string {
@@ -95,10 +156,95 @@ const camera = new THREE.PerspectiveCamera(52, innerWidth / innerHeight, .1, 600
 const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); document.querySelector("#app").append(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
 scene.add(new THREE.HemisphereLight(0xffffff, 0x52606d, 2)); const sun = new THREE.DirectionalLight(0xffffff, 2.5); sun.position.set(-200, 400, 180); scene.add(sun);
-new GLTFLoader().load("/worldseed-city.glb", ({ scene: city }) => scene.add(city));
+Promise.all([
+  new GLTFLoader().loadAsync("/city.glb"),
+  fetch("/worldseed-objects.json").then((response) => response.json()),
+  fetch("/road-graph.json").then((response) => response.json()),
+  fetch("/spawn-points.json").then((response) => response.json()),
+]).then(([{ scene: city }, manifest, roadGraph, spawnPoints]) => {
+  city.userData.worldseedManifest = manifest;
+  city.userData.roadGraph = roadGraph;
+  city.userData.spawnPoints = spawnPoints;
+  scene.add(city);
+});
 addEventListener("resize", () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
 `;
+}
+
+function createTerrainExport(group: THREE.Group): THREE.Group {
+  const terrain = group.getObjectByName("Terrain") ?? group.getObjectByName("Ground");
+  const exported = new THREE.Group();
+  exported.name = "WorldSeed Terrain";
+  exported.userData = { worldseedLayer: "terrain", exactOriginIncluded: false };
+  if (terrain) exported.add(terrain.clone(true));
+  return exported;
+}
+
+function createColliderExport(manifest: WorldManifest): THREE.Group {
+  const geometries: THREE.BufferGeometry[] = [];
+  for (const object of manifest.objects) {
+    if (object.layer !== "buildings") continue;
+    const [minX, minY, minZ] = object.bounds.minimum;
+    const [maxX, maxY, maxZ] = object.bounds.maximum;
+    const width = Math.max(0.25, maxX - minX);
+    const height = Math.max(0.25, maxY - minY);
+    const depth = Math.max(0.25, maxZ - minZ);
+    const geometry = new THREE.BoxGeometry(width, height, depth);
+    geometry.translate((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+    geometries.push(geometry);
+  }
+  if (geometries.length === 0) geometries.push(new THREE.BoxGeometry(0.1, 0.1, 0.1));
+  const merged = mergeGeometries(geometries, false);
+  geometries.forEach((geometry) => geometry.dispose());
+  const root = new THREE.Group();
+  root.name = "WorldSeed Colliders";
+  root.userData = { schemaVersion: "1.0", colliderType: "building-aabb", exactOriginIncluded: false };
+  if (merged) {
+    const mesh = new THREE.Mesh(merged, new THREE.MeshBasicMaterial({ color: 0x7fd3ff, wireframe: true }));
+    mesh.name = "Building Colliders";
+    root.add(mesh);
+  }
+  return root;
+}
+
+function createSpawnPoints(
+  roadGraph: RoadGraph,
+  route: DriveRoute | null,
+  pedestrianSpawn: { x: number; y: number; z: number },
+): Record<string, unknown> {
+  const edgeById = new Map(roadGraph.edges.map((edge) => [edge.id, edge]));
+  const vehicles: Array<Record<string, unknown>> = [];
+  const routeStart = route?.points[0];
+  const routeNext = route?.points[1];
+  if (routeStart && routeNext) {
+    vehicles.push({
+      id: "vehicle:time-attack",
+      position: routeStart,
+      headingRadians: Math.atan2(routeNext.x - routeStart.x, routeNext.z - routeStart.z),
+      routeId: route?.id,
+    });
+  }
+  for (const node of [...roadGraph.nodes].sort((first, second) => second.edgeIds.length - first.edgeIds.length)) {
+    if (vehicles.length >= 8) break;
+    const edge = edgeById.get(node.edgeIds[0] ?? "");
+    if (!edge) continue;
+    const other = edge.from === node.id ? edge.path[1] : edge.path.at(-2);
+    if (!other) continue;
+    vehicles.push({
+      id: `vehicle:${vehicles.length + 1}`,
+      position: { x: node.x, y: node.y, z: node.z },
+      headingRadians: Math.atan2(other.x - node.x, other.z - node.z),
+      edgeId: edge.id,
+    });
+  }
+  return {
+    schemaVersion: "1.0",
+    generator: "WorldSeed Drive Any City",
+    coordinateSystem: roadGraph.coordinateSystem,
+    vehicles,
+    pedestrians: [{ id: "pedestrian:primary", position: pedestrianSpawn }],
+  };
 }
 
 function download(blob: Blob, filename: string): void {

@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import type { WorldStyle } from "../types";
+import type { ExploreMode, WorldStyle } from "../types";
 import { WORLD_PALETTES } from "../generation/styles";
+import { TileStreamer, type StreamingStats } from "./tile-streamer";
 
 export class WorldRenderer {
   readonly scene = new THREE.Scene();
@@ -12,6 +13,9 @@ export class WorldRenderer {
   private readonly sun = new THREE.DirectionalLight(0xffffff, 2.4);
   private readonly ambient = new THREE.HemisphereLight(0xffffff, 0x52606d, 1.7);
   private currentCity: THREE.Group | null = null;
+  private tileStreamer: TileStreamer | null = null;
+  private exploreMode: ExploreMode = "orbit";
+  private streamingListener?: (stats: StreamingStats) => void;
   private frame = 0;
   private fpsStartedAt = performance.now();
   private update?: (delta: number) => void;
@@ -68,6 +72,14 @@ export class WorldRenderer {
     this.fpsListener = listener;
   }
 
+  onStreaming(listener: (stats: StreamingStats) => void): void {
+    this.streamingListener = listener;
+  }
+
+  setExploreMode(mode: ExploreMode): void {
+    this.exploreMode = mode;
+  }
+
   setCity(group: THREE.Group, radius: number): void {
     if (this.currentCity) {
       this.scene.remove(this.currentCity);
@@ -75,6 +87,8 @@ export class WorldRenderer {
     }
     this.currentCity = group;
     this.scene.add(group);
+    this.tileStreamer = new TileStreamer(group, radius);
+    if (this.streamingListener) this.tileStreamer.onChange(this.streamingListener);
     this.orbit.maxDistance = Math.max(350, radius * 3.4);
     this.camera.far = Math.max(3_000, radius * 7);
     this.camera.updateProjectionMatrix();
@@ -115,6 +129,7 @@ export class WorldRenderer {
     this.resizeObserver.disconnect();
     this.orbit.dispose();
     if (this.currentCity) disposeObject(this.currentCity);
+    this.tileStreamer = null;
     this.renderer.dispose();
   }
 
@@ -132,6 +147,7 @@ export class WorldRenderer {
     this.animationFrame = requestAnimationFrame(this.animate);
     const delta = Math.min(this.clock.getDelta(), 0.05);
     this.update?.(delta);
+    this.tileStreamer?.update(this.camera, this.exploreMode);
     if (this.orbit.enabled) this.orbit.update();
     this.renderer.render(this.scene, this.camera);
 
@@ -153,4 +169,3 @@ function disposeObject(object: THREE.Object3D): void {
     for (const material of materials) material.dispose();
   });
 }
-

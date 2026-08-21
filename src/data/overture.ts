@@ -75,6 +75,7 @@ export function decodeBuildingTile(
         facadeColor: normalizeColor(properties.facade_color),
         roofColor: normalizeColor(properties.roof_color),
         roofShape: toText(properties.roof_shape),
+        roofHeight: toNumber(properties.roof_height),
         geometrySource: toText(properties["@geometry_source"]),
         heightSource: toText(properties["@height_source"]),
         source: "overture",

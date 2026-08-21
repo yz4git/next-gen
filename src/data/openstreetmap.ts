@@ -118,6 +118,7 @@ export function parseOverpassResponse(
           facadeColor: normalizeColor(tags["building:colour"]),
           roofColor: normalizeColor(tags["roof:colour"]),
           roofShape: tags["roof:shape"],
+          roofHeight: parseLengthMeters(tags["roof:height"]),
           geometrySource: "OpenStreetMap",
           heightSource: tags.height ? "OpenStreetMap height" : undefined,
           source: "openstreetmap",
@@ -149,6 +150,11 @@ export function parseOverpassResponse(
           path,
           kind,
           width: resolveRoadWidth(tags, kind),
+          name: tags.name,
+          subclass: tags.service,
+          surface: tags.surface ?? (tags.tracktype ? "unpaved" : undefined),
+          oneWay: parseOsmOneWay(tags.oneway),
+          speedLimitKph: parseOsmSpeed(tags.maxspeed),
           source: "openstreetmap",
         });
       }
@@ -156,6 +162,19 @@ export function parseOverpassResponse(
   }
 
   return { buildings, roads, areas };
+}
+
+function parseOsmOneWay(value: string | undefined): RoadFeature["oneWay"] {
+  if (["yes", "true", "1"].includes(value?.toLowerCase() ?? "")) return "forward";
+  if (value === "-1") return "backward";
+  return "both";
+}
+
+function parseOsmSpeed(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const numeric = Number.parseFloat(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return undefined;
+  return /mph/i.test(value) ? numeric * 1.609344 : numeric;
 }
 
 function polygonsFromElement(element: OsmElement): MultiPolygon {

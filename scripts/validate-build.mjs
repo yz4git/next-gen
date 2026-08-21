@@ -10,7 +10,18 @@ const required = [
 await Promise.all(required.map((path) => access(path)));
 
 const html = await readFile("dist/index.html", "utf8");
-for (const marker of ["WorldSeed", "type=\"module\""]) {
+for (const marker of [
+  "WorldSeed",
+  "type=\"module\"",
+  "v0.1.1 PUBLIC SAFETY",
+  "v0.8.2",
+  "id=\"privacy-dialog\"",
+  "id=\"viewport-attribution\"",
+  "id=\"plateau-import-button\"",
+  "id=\"metric-tiles\"",
+  "data-mode=\"drive\"",
+  "id=\"drive-challenge\"",
+]) {
   if (!html.includes(marker)) {
     throw new Error(`Production HTML is missing ${marker}`);
   }

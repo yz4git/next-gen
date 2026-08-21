@@ -4,29 +4,33 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#101412" />
-    <meta name="description" content="Turn any latitude and longitude into a playable, game-ready Three.js city using open map data." />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="description" content="Drive a playable, game-ready Three.js city from any coordinate using open map data." />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./worldseed-mark.svg" type="image/svg+xml" />
-    <title>WorldSeed — Grow a playable city</title>
+    <title>WorldSeed — Drive Any City</title>
   </head>
-  <body>
+  <body class="world-panel-open">
     <div id="app">
       <header class="topbar">
         <a class="brand" href="./" aria-label="WorldSeed home">
           <img src="./worldseed-mark.svg" alt="" width="32" height="32" />
           <span>WorldSeed</span>
-          <small>alpha</small>
+          <small>v0.8.2</small>
         </a>
         <div class="topbar__center" aria-live="polite">
           <span class="pulse" id="status-pulse"></span>
           <span id="top-status">Demo world ready</span>
         </div>
         <nav class="top-actions" aria-label="Project actions">
-          <button class="icon-button" id="share-button" type="button" title="Copy a shareable seed link" aria-label="Copy share link">
+          <button class="icon-button" id="share-button" type="button" title="Share this world" aria-label="Share this world">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.6 13.5 15.4 9M18 7.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 15a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm12 1.5a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM8.7 18l6.6 1.8"/></svg>
           </button>
           <button class="icon-button" id="snapshot-button" type="button" title="Save a PNG snapshot" aria-label="Save snapshot">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l1.4-2h7.2L17 7h3v12H4z"/><circle cx="12" cy="13" r="4"/></svg>
+          </button>
+          <button class="icon-button" type="button" data-open-dialog="privacy-dialog" title="Privacy and data" aria-label="Privacy and data">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.8 8.4 7 10 4.2-1.6 7-5.4 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-5"/></svg>
           </button>
           <a class="github-button" href="https://github.com/yz4git/next-gen" target="_blank" rel="noreferrer">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.87c-2.78.6-3.37-1.18-3.37-1.18-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.64-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.6 9.6 0 0 1 12 6.82a9.6 9.6 0 0 1 2.5.34c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85V21c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></svg>
@@ -39,9 +43,9 @@
         <aside class="seed-panel" id="seed-panel">
           <div class="panel-scroll">
             <div class="intro">
-              <span class="eyebrow"><i></i> OPEN DATA → PLAYABLE WORLD</span>
-              <h1>Grow a city<br />from one coordinate.</h1>
-              <p>Paste a latitude and longitude. WorldSeed turns the surrounding open map data into a walkable Three.js scene.</p>
+              <span class="eyebrow"><i></i> OPEN DATA → DRIVABLE WORLD</span>
+              <h1>Drive any city<br />from one coordinate.</h1>
+              <p>Paste a latitude and longitude. WorldSeed grows a terrain-aware Three.js city, then puts you on its real road network.</p>
             </div>
 
             <form id="seed-form" class="seed-form">
@@ -53,7 +57,7 @@
                   <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>
                 </button>
               </div>
-              <span id="coordinate-help" class="field-help">Latitude, longitude · Google Maps URLs also work</span>
+              <span id="coordinate-help" class="field-help">Latitude, longitude · Google Maps URLs also work · Location access is explained first</span>
 
               <div class="range-head">
                 <label for="radius-input">WORLD RADIUS</label>
@@ -62,18 +66,31 @@
               <input id="radius-input" class="range" type="range" min="100" max="1000" step="50" value="500" />
               <div class="range-scale"><span>100 m</span><span>1 km</span></div>
 
-              <div class="presets" aria-label="Location presets">
-                <button type="button" data-coordinate="35.681236, 139.767125">Tokyo</button>
-                <button type="button" data-coordinate="40.706100, -74.009200">New York</button>
-                <button type="button" data-coordinate="48.858370, 2.294481">Paris</button>
-                <button type="button" data-coordinate="51.500729, -0.124625">London</button>
+              <div class="preset-caption">LANDMARK PRESETS</div>
+              <div class="presets" aria-label="Landmark presets">
+                <button type="button" data-coordinate="35.658581, 139.745433">東京タワー</button>
+                <button type="button" data-coordinate="35.659500, 139.700500">渋谷スクランブル</button>
+                <button type="button" data-coordinate="34.687300, 135.526200">大阪城</button>
+                <button type="button" data-coordinate="34.994856, 135.785046">清水寺</button>
+                <button type="button" data-coordinate="43.062095, 141.354376">札幌時計台</button>
+                <button type="button" data-coordinate="48.858370, 2.294481">エッフェル塔</button>
+                <button type="button" data-coordinate="40.689249, -74.044500">自由の女神</button>
+                <button type="button" data-coordinate="51.500729, -0.124625">ビッグ・ベン</button>
+                <button type="button" data-coordinate="-33.856784, 151.215297">オペラハウス</button>
+                <button type="button" data-coordinate="41.890210, 12.492231">コロッセオ</button>
+                <button type="button" data-coordinate="25.197197, 55.274290">ブルジュ・ハリファ</button>
+                <button type="button" data-coordinate="27.175144, 78.042142">タージ・マハル</button>
               </div>
 
               <button class="seed-button" id="seed-button" type="submit">
                 <span>Seed this world</span>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>
               </button>
+              <p class="request-disclosure">Live worlds request the selected area from Overture Maps, OpenStreetMap, and open elevation tiles. <button type="button" data-open-dialog="privacy-dialog">Privacy &amp; data</button></p>
               <button class="demo-button" id="demo-button" type="button">Regenerate instant demo</button>
+              <button class="plateau-button" id="plateau-import-button" type="button">Import PLATEAU CityGML</button>
+              <input id="plateau-file" type="file" accept=".gml,.xml,application/gml+xml,text/xml" hidden />
+              <p class="local-file-note">LOD1/LOD2 <code>.gml</code> stays in this browser.</p>
             </form>
 
             <section class="panel-section">
@@ -94,6 +111,10 @@
                 <div><strong id="stat-roads">0</strong><span>roads</span></div>
                 <div><strong id="stat-triangles">0</strong><span>triangles</span></div>
                 <div><strong id="stat-height">0%</strong><span>known height</span></div>
+                <div><strong id="stat-roofs">0</strong><span>shaped roofs</span></div>
+                <div><strong id="stat-relief">0 m</strong><span>terrain relief</span></div>
+                <div><strong id="stat-objects">0</strong><span>game objects</span></div>
+                <div><strong id="stat-tiles">0</strong><span>world tiles</span></div>
               </div>
               <div class="height-bar" aria-label="Building height provenance">
                 <i id="height-provided"></i><i id="height-levels"></i><i id="height-inferred"></i>
@@ -114,9 +135,17 @@
               <p id="attribution-links">Synthetic demonstration data</p>
               <p class="source-details" id="source-details"></p>
               <p class="warning-text" id="warning-text"></p>
+              <div class="privacy-actions">
+                <button type="button" data-open-dialog="privacy-dialog">Privacy &amp; data</button>
+                <button type="button" id="clear-local-data">Clear local data</button>
+              </div>
             </section>
           </div>
         </aside>
+
+        <button class="drive-panel-toggle" id="drive-panel-toggle" type="button" aria-expanded="true" aria-controls="seed-panel" aria-label="Close world settings">
+          <span aria-hidden="true">☷</span><strong>CLOSE</strong>
+        </button>
 
         <section class="viewport" id="viewport" aria-label="Generated 3D city">
           <canvas id="world-canvas"></canvas>
@@ -125,6 +154,8 @@
               <button class="is-active" type="button" data-mode="orbit"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M4 12a8 4 0 0 0 16 0M12 4a4 8 0 0 0 0 16"/></svg><span>Orbit</span></button>
               <button type="button" data-mode="walk"><svg viewBox="0 0 24 24"><circle cx="13" cy="5" r="2"/><path d="m10 22 1-7-3-3 3-4 4 2 3 4M6 22l3-6m3-4 3 3"/></svg><span>Walk</span></button>
               <button type="button" data-mode="fly"><svg viewBox="0 0 24 24"><path d="m3 13 8-2 2-8 2 8 6 2-6 2-2 6-2-6-8-2Z"/></svg><span>Fly</span></button>
+              <button type="button" data-mode="drive"><svg viewBox="0 0 24 24"><path d="m5 15 1.7-5h10.6l1.7 5M4 15h16v4H4zM7 19v2m10-2v2"/><circle cx="8" cy="16" r="1"/><circle cx="16" cy="16" r="1"/></svg><span>Drive</span></button>
+              <button type="button" data-mode="drone"><svg viewBox="0 0 24 24"><path d="M7 8h10v8H7zM4 6h3m10 0h3M4 18h3m10 0h3M5 4v3m14-3v3M5 17v3m14-3v3"/><circle cx="12" cy="12" r="2"/></svg><span>Drone</span></button>
             </div>
             <div class="data-badge demo" id="data-badge"><i></i><span>DEMO DATA</span></div>
           </div>
@@ -142,7 +173,7 @@
             <span id="loading-stage">Reading open map data…</span>
             <strong id="loading-title">Planting your seed</strong>
             <div class="progress-track"><i id="progress-bar"></i></div>
-            <small id="loading-detail">Overture buildings + OpenStreetMap streets</small>
+            <small id="loading-detail">Buildings, streets, land + terrain elevation</small>
           </div>
 
           <div class="error-card" id="error-card" hidden>
@@ -156,12 +187,50 @@
             <div class="stick" id="look-stick"><i></i><span>LOOK</span></div>
           </div>
 
+          <div class="drive-hud" id="drive-hud" aria-live="polite">
+            <div class="drive-speed"><strong id="drive-speed">0</strong><span>km/h</span></div>
+            <div class="drive-road"><small>NOW DRIVING</small><strong id="drive-road-name">Ready road</strong><span id="drive-road-state">ON ROAD</span></div>
+            <button id="drive-reset" type="button">Reset car <kbd>R</kbd></button>
+          </div>
+
+          <div class="drive-challenge" id="drive-challenge">
+            <div class="drive-challenge__head"><span id="drive-challenge-state">PRESS DRIVE</span><small id="drive-route-length">— m</small></div>
+            <strong id="drive-time">0:00.00</strong>
+            <div class="drive-challenge__stats">
+              <span>CHECKPOINT <b id="drive-checkpoint">0/0</b></span>
+              <span>BEST <b id="drive-best">—</b></span>
+            </div>
+            <div class="drive-challenge__actions">
+              <button id="drive-restart" type="button">Restart</button>
+              <button id="drive-new-route" type="button">New route</button>
+            </div>
+          </div>
+
+          <div class="drive-touch" id="drive-touch" aria-label="Touch driving controls">
+            <div class="drive-steer" role="group" aria-label="Steering">
+              <div class="drive-pad" id="drive-steer-pad" role="slider" tabindex="0" aria-label="Virtual steering pad" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0">
+                <span class="drive-pad-label drive-pad-label--left" aria-hidden="true">←</span>
+                <span class="drive-pad-track" aria-hidden="true"></span>
+                <span class="drive-pad-label drive-pad-label--right" aria-hidden="true">→</span>
+                <span class="drive-pad-thumb" id="drive-steer-thumb" aria-hidden="true"></span>
+              </div>
+            </div>
+            <div class="drive-pedals" role="group" aria-label="Pedals">
+              <button class="drive-brake" type="button" data-drive-button="brake">BRAKE<br />REVERSE</button>
+              <button class="drive-throttle" type="button" data-drive-button="throttle">DRIVE</button>
+            </div>
+          </div>
+          <div class="viewport-attribution" id="viewport-attribution" aria-label="Map data attribution">
+            Synthetic demo · no map data
+          </div>
+
           <footer class="world-footer">
             <div class="world-id"><span>WORLD</span><strong id="world-coordinate">35.681236°N · 139.767125°E</strong></div>
             <div class="world-metrics">
               <span><i class="metric-dot"></i><strong id="metric-fps">—</strong> FPS</span>
               <span><strong id="metric-radius">500</strong> m radius</span>
               <span><strong id="metric-draws">—</strong> draws</span>
+              <span><strong id="metric-tiles">—/—</strong> tiles</span>
             </div>
           </footer>
         </section>
@@ -169,6 +238,89 @@
 
       <div class="toast" id="toast" role="status" aria-live="polite"></div>
     </div>
+
+    <dialog class="safety-dialog" id="location-dialog" aria-labelledby="location-dialog-title" aria-describedby="location-dialog-copy">
+      <div class="dialog-kicker">LOCATION PRIVACY</div>
+      <h2 id="location-dialog-title">Before using your location</h2>
+      <p id="location-dialog-copy">After browser permission, WorldSeed rounds your position to six decimals and immediately grows a live world around it.</p>
+      <ul>
+        <li>The exact center and radius are sent to public OpenStreetMap Overpass services.</li>
+        <li>Overture tile requests, hosted on Amazon S3, reveal the selected map area.</li>
+        <li>Open terrain tile requests, also hosted on Amazon S3, reveal the selected map area.</li>
+        <li>Results can be cached in this browser for up to 7 days.</li>
+        <li>The app adds no account, analytics, or WorldSeed location server.</li>
+      </ul>
+      <p class="dialog-note">Providers and the site host can still receive normal network metadata such as your IP address.</p>
+      <div class="dialog-actions">
+        <button class="button-secondary" type="button" data-close-dialog>Cancel</button>
+        <button class="button-primary" id="confirm-location" type="button">Continue to browser prompt</button>
+      </div>
+    </dialog>
+
+    <dialog class="safety-dialog" id="share-dialog" aria-labelledby="share-dialog-title" aria-describedby="share-dialog-copy">
+      <div class="dialog-kicker">SHARE SAFELY</div>
+      <h2 id="share-dialog-title">Choose what the link reveals</h2>
+      <p id="share-dialog-copy">An exact seed link includes <code id="share-coordinate">—</code> in its URL. It may be retained in browser history, messages, and hosting logs.</p>
+      <div class="choice-stack">
+        <button class="choice-button" id="copy-app-link" type="button">
+          <strong>Copy app-only link</strong>
+          <span>No coordinates, radius, or style</span>
+        </button>
+        <button class="choice-button choice-button--warning" id="copy-seed-link" type="button">
+          <strong>Copy exact seed link</strong>
+          <span>Includes coordinates, radius, and style</span>
+        </button>
+      </div>
+      <p class="dialog-note">WorldSeed no longer adds coordinates to the address bar automatically.</p>
+      <div class="dialog-actions">
+        <button class="button-secondary" type="button" data-close-dialog>Cancel</button>
+      </div>
+    </dialog>
+
+    <dialog class="safety-dialog" id="export-dialog" aria-labelledby="export-dialog-title" aria-describedby="export-dialog-copy">
+      <div class="dialog-kicker">EXPORT PRIVACY</div>
+      <h2 id="export-dialog-title">Export world</h2>
+      <p id="export-dialog-copy">The privacy-safe default removes the exact origin from file metadata.</p>
+      <label class="check-choice">
+        <input id="include-export-origin" type="checkbox" />
+        <span><strong>Include exact latitude and longitude</strong><small>Needed only when the file must be georeferenced.</small></span>
+      </label>
+      <p class="dialog-note">Removing metadata does not anonymize recognizable streets or buildings. Treat the geometry itself as potentially identifying.</p>
+      <div class="dialog-actions">
+        <button class="button-secondary" type="button" data-close-dialog>Cancel</button>
+        <button class="button-primary" id="confirm-export" type="button">Export without origin</button>
+      </div>
+    </dialog>
+
+    <dialog class="safety-dialog safety-dialog--wide" id="privacy-dialog" aria-labelledby="privacy-dialog-title">
+      <div class="dialog-kicker">v0.1.1 PUBLIC SAFETY</div>
+      <h2 id="privacy-dialog-title">Privacy &amp; data</h2>
+      <p class="privacy-status" id="privacy-url-status">Checking this tab’s URL…</p>
+      <div class="privacy-grid">
+        <section>
+          <h3>Live requests</h3>
+          <p>Overpass receives the selected center and radius. Overture and Mapzen terrain tile requests on Amazon S3 identify the selected area. Those providers and the site host may process IP addresses and other standard request metadata.</p>
+        </section>
+        <section>
+          <h3>On this device</h3>
+          <p>World responses are cached in IndexedDB for up to 7 days. The offline app shell is stored separately without coordinate query strings. Selected PLATEAU CityGML files are parsed in memory, are not uploaded, and are not added to that cache.</p>
+        </section>
+        <section>
+          <h3>WorldSeed itself</h3>
+          <p>This client app adds no user account, analytics tracker, advertising SDK, or WorldSeed backend database. Browser and hosting behavior is governed by their own policies.</p>
+        </section>
+        <section>
+          <h3>Sharing &amp; exports</h3>
+          <p>Coordinates enter a URL only when you choose “exact seed link.” Exports omit the origin by default, but recognizable geometry can still reveal a place.</p>
+        </section>
+      </div>
+      <p class="privacy-links"><a href="https://osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noreferrer">OpenStreetMap privacy</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a><a href="https://docs.overturemaps.org/attribution/" target="_blank" rel="noreferrer">Overture attribution</a><a href="https://www.mlit.go.jp/plateau/" target="_blank" rel="noreferrer">Project PLATEAU</a></p>
+      <div class="dialog-actions dialog-actions--split">
+        <button class="button-danger" id="clear-private-data" type="button">Clear local data &amp; current URL</button>
+        <button class="button-primary" type="button" data-close-dialog>Done</button>
+      </div>
+    </dialog>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

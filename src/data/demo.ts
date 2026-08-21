@@ -1,6 +1,7 @@
 import { fromLocalMeters } from "../geo/coordinates";
 import type { AreaFeature, BuildingFeature, LonLat, RoadFeature, WorldData } from "../types";
 import { seededUnit } from "../generation/height";
+import { createDemoElevationGrid } from "../terrain/elevation";
 
 export function createDemoWorld(center: LonLat, radius: number): WorldData {
   const buildings: BuildingFeature[] = [];
@@ -30,14 +31,22 @@ export function createDemoWorld(center: LonLat, radius: number): WorldData {
         height: buildingIndex % 5 === 0 ? 18 + seededUnit(`${id}:h`) * 54 : undefined,
         levels: buildingIndex % 3 === 0 ? 3 + Math.floor(seededUnit(`${id}:l`) * 8) : undefined,
         kind: buildingIndex % 4 === 0 ? "commercial" : "residential",
+        roofShape: buildingIndex % 7 === 0 ? "gabled" : buildingIndex % 11 === 0 ? "hipped" : "flat",
+        roofHeight: buildingIndex % 7 === 0 ? 3.5 : undefined,
+        roofColor: buildingIndex % 5 === 0 ? "#8d5f56" : undefined,
         source: "demo",
       });
     }
   }
 
-  for (let offset = -radius; offset <= radius; offset += spacing) {
-    roads.push(makeRoad(`demo-road-x-${offset}`, center, [-radius, offset], [radius, offset], offset === 0 ? "primary" : "residential"));
-    roads.push(makeRoad(`demo-road-z-${offset}`, center, [offset, -radius], [offset, radius], offset === 0 ? "primary" : "residential"));
+  const roadOffsets: number[] = [];
+  for (let offset = -radius; offset <= radius; offset += spacing) roadOffsets.push(Math.round(offset * 100) / 100);
+  if ((roadOffsets.at(-1) ?? -radius) < radius) roadOffsets.push(radius);
+  const central = [...roadOffsets].sort((first, second) => Math.abs(first) - Math.abs(second))[0] ?? 0;
+  for (const offset of roadOffsets) {
+    const kind = offset === central ? "primary" : "residential";
+    roads.push(makeGridRoad(`demo-road-x-${offset}`, center, roadOffsets.map((x) => [x, offset]), kind));
+    roads.push(makeGridRoad(`demo-road-z-${offset}`, center, roadOffsets.map((z) => [offset, z]), kind));
   }
 
   const parkRing = rectangle(center, 60, -170, 160, 120);
@@ -54,26 +63,32 @@ export function createDemoWorld(center: LonLat, radius: number): WorldData {
     providerLabel: "Bundled synthetic demo",
     generatedAt: new Date().toISOString(),
     warnings: ["This preview is synthetic demo data, not a model of the selected location."],
+    terrain: createDemoElevationGrid(radius),
     isDemo: true,
     attributions: [],
   };
 }
 
-function makeRoad(
+function makeGridRoad(
   id: string,
   center: LonLat,
-  start: [number, number],
-  end: [number, number],
+  points: Array<[number, number]>,
   kind: string,
 ): RoadFeature {
   return {
     id,
-    path: [
-      fromLocalMeters({ x: start[0], z: start[1] }, center),
-      fromLocalMeters({ x: end[0], z: end[1] }, center),
-    ],
+    path: points.map(([x, z]) => fromLocalMeters({ x, z }, center)),
     kind,
     width: kind === "primary" ? 12 : 6,
+    name: kind === "primary" ? "WorldSeed Avenue" : undefined,
+    surface: "paved",
+    oneWay: "both",
+    speedLimitKph: kind === "primary" ? 50 : 30,
+    connectors: points.map(([x, z], index) => ({
+      id: `demo-junction:${x.toFixed(2)}:${z.toFixed(2)}`,
+      at: points.length <= 1 ? 0 : index / (points.length - 1),
+      position: fromLocalMeters({ x, z }, center),
+    })),
     source: "demo",
   };
 }

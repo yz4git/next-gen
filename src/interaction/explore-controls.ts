@@ -6,6 +6,7 @@ import { CollisionIndex } from "../generation/collision";
 export class ExploreControls {
   private mode: ExploreMode = "orbit";
   private collision: CollisionIndex | null = null;
+  private groundHeightAt: (x: number, z: number) => number = () => 0;
   private readonly keys = new Set<string>();
   private yaw = 0;
   private pitch = 0;
@@ -24,16 +25,28 @@ export class ExploreControls {
     canvas.addEventListener("click", this.onCanvasClick);
   }
 
-  setCollision(collision: CollisionIndex): void {
+  setCollision(
+    collision: CollisionIndex,
+    groundHeightAt: (x: number, z: number) => number = () => 0,
+  ): void {
     this.collision = collision;
+    this.groundHeightAt = groundHeightAt;
     const spawn = collision.findOpenSpawn();
-    this.spawn.set(spawn.x, 1.72, spawn.z);
+    this.spawn.set(spawn.x, this.groundHeightAt(spawn.x, spawn.z) + 1.72, spawn.z);
   }
 
   setMode(mode: ExploreMode): void {
     this.mode = mode;
     this.orbit.enabled = mode === "orbit";
     if (mode === "orbit") {
+      if (document.pointerLockElement === this.canvas) document.exitPointerLock();
+      return;
+    }
+    if (mode === "drive") {
+      if (document.pointerLockElement === this.canvas) document.exitPointerLock();
+      return;
+    }
+    if (mode === "drone") {
       if (document.pointerLockElement === this.canvas) document.exitPointerLock();
       return;
     }
@@ -67,7 +80,7 @@ export class ExploreControls {
   }
 
   reset(): void {
-    if (this.mode === "orbit") return;
+    if (this.mode === "orbit" || this.mode === "drive" || this.mode === "drone") return;
     this.camera.position.copy(this.spawn);
     this.pitch = 0;
     this.yaw = 0;
@@ -75,7 +88,7 @@ export class ExploreControls {
   }
 
   update(delta: number): void {
-    if (this.mode === "orbit") return;
+    if (this.mode === "orbit" || this.mode === "drive" || this.mode === "drone") return;
     const lookSpeed = 1.65;
     this.yaw -= this.mobileLook.x * delta * lookSpeed;
     this.pitch -= this.mobileLook.y * delta * lookSpeed;
@@ -103,7 +116,7 @@ export class ExploreControls {
     const candidate = this.camera.position.clone().add(movement);
 
     if (this.mode === "walk") {
-      candidate.y = 1.72;
+      candidate.y = this.groundHeightAt(candidate.x, candidate.z) + 1.72;
       if (this.collision?.canOccupy({ x: candidate.x, z: candidate.z }, 0.72) ?? true) {
         this.camera.position.copy(candidate);
       } else {
@@ -113,7 +126,8 @@ export class ExploreControls {
         if (this.collision?.canOccupy(slideZ, 0.72)) this.camera.position.z = candidate.z;
       }
     } else {
-      candidate.y = THREE.MathUtils.clamp(candidate.y, 1.5, 900);
+      const minimumHeight = this.groundHeightAt(candidate.x, candidate.z) + 1.5;
+      candidate.y = THREE.MathUtils.clamp(candidate.y, minimumHeight, 900);
       this.camera.position.copy(candidate);
     }
   }
@@ -140,7 +154,7 @@ export class ExploreControls {
   };
 
   private onMouseMove = (event: MouseEvent): void => {
-    if (document.pointerLockElement !== this.canvas || this.mode === "orbit") return;
+    if (document.pointerLockElement !== this.canvas || this.mode === "orbit" || this.mode === "drive" || this.mode === "drone") return;
     this.yaw -= event.movementX * 0.0022;
     this.pitch -= event.movementY * 0.0022;
     this.pitch = THREE.MathUtils.clamp(this.pitch, -Math.PI * 0.47, Math.PI * 0.47);
@@ -148,7 +162,7 @@ export class ExploreControls {
   };
 
   private onCanvasClick = (): void => {
-    if (this.mode !== "orbit" && document.pointerLockElement !== this.canvas) {
+    if ((this.mode === "walk" || this.mode === "fly") && document.pointerLockElement !== this.canvas) {
       void this.canvas.requestPointerLock();
     }
   };
