@@ -22,6 +22,13 @@ export interface DrivePhysicsTuning {
   steeringRate: number;
 }
 
+/**
+ * WorldSeed's Drive controls intentionally use an inverted steering feel:
+ * positive pad/right input turns the vehicle toward negative heading and
+ * negative pad/left input turns it toward positive heading.
+ */
+export const DRIVE_STEERING_POLARITY = -1;
+
 export const DEFAULT_DRIVE_TUNING: DrivePhysicsTuning = {
   maximumForwardSpeed: 34,
   maximumReverseSpeed: 10,
@@ -63,7 +70,9 @@ export function stepDrivePhysics(
   speed = clamp(speed, -tuning.maximumReverseSpeed, tuning.maximumForwardSpeed);
   const speedRatio = clamp(Math.abs(speed) / 7.5, 0.16, 1);
   const direction = speed < -0.05 ? -1 : 1;
-  const heading = normalizeAngle(state.heading + steering * tuning.steeringRate * speedRatio * direction * dt);
+  const heading = normalizeAngle(
+    state.heading + steering * tuning.steeringRate * speedRatio * direction * DRIVE_STEERING_POLARITY * dt,
+  );
   return {
     x: state.x + Math.sin(heading) * speed * dt,
     z: state.z + Math.cos(heading) * speed * dt,
