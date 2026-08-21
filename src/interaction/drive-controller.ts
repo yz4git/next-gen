@@ -4,7 +4,7 @@ import { driveSpawnForRoute, findNearestRoadPoint } from "../generation/road-gra
 import type { DriveRoute, DriveSpawn, RoadGraph, RoadGraphEdge } from "../types";
 import { resolveDriveCameraPose, safeDriveCameraHeight } from "./drive-camera";
 import { stepDrivePhysics, type DrivePhysicsState } from "./drive-physics";
-import { blendRoadAssist, resolveRoadGuidance, type RoadGuidance } from "./road-guidance";
+import { blendRoadAssist, RoadGuidanceIndex, type RoadGuidance } from "./road-guidance";
 import { DriveVisualAudit } from "./drive-visual-audit";
 import { resolveVehicleGroundPose, smoothVehicleTilt } from "./vehicle-pose";
 
@@ -66,6 +66,7 @@ export class DriveController {
   private readonly cameraTarget = new THREE.Vector3();
   private graph: RoadGraph | null = null;
   private roadIndex: RoadSpatialIndex | null = null;
+  private guidanceIndex: RoadGuidanceIndex | null = null;
   private collision: CollisionIndex | null = null;
   private groundHeightAt: (x: number, z: number) => number = () => 0;
   private spawn: DriveSpawn | null = null;
@@ -107,6 +108,7 @@ export class DriveController {
   ): void {
     this.graph = graph;
     this.roadIndex = new RoadSpatialIndex(graph);
+    this.guidanceIndex = new RoadGuidanceIndex(graph);
     this.collision = collision;
     this.groundHeightAt = groundHeightAt;
     this.spawn = preferredSpawn ?? findNearestRoadPoint(graph);
@@ -232,8 +234,8 @@ export class DriveController {
     let steering = manualSteering;
     this.lastGuidance = null;
     this.lastAssistSteering = 0;
-    if (roadBefore && this.graph) {
-      const guidance = resolveRoadGuidance(this.graph, roadBefore, previous);
+    if (roadBefore && this.guidanceIndex) {
+      const guidance = this.guidanceIndex.resolve(roadBefore, previous);
       const shoulder = roadBefore.edge.widthMeters * 0.62 + 1.4;
       const offRoadAmount = Math.max(0, Math.min(1, (roadBefore.distance - roadBefore.edge.widthMeters * 0.38) / Math.max(2, shoulder)));
       steering = blendRoadAssist(manualSteering, guidance, offRoadAmount);
