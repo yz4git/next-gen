@@ -68,6 +68,45 @@ export function createAdaptiveTerrainGeometry(grid: ElevationGrid, radius: numbe
 }
 
 /**
+ * Repair legacy terrain geometry whose triangle winding points below the
+ * ground plane. Front-side culling otherwise makes slopes disappear from a
+ * low chase camera even though the geometry is still present.
+ */
+export function orientTerrainFacesUp(geometry: THREE.BufferGeometry): boolean {
+  const index = geometry.getIndex();
+  const position = geometry.getAttribute("position");
+  if (!index || !position) return false;
+
+  let changed = false;
+  for (let offset = 0; offset + 2 < index.count; offset += 3) {
+    const a = index.getX(offset);
+    const b = index.getX(offset + 1);
+    const c = index.getX(offset + 2);
+    const ax = position.getX(a);
+    const az = position.getZ(a);
+    const bx = position.getX(b);
+    const bz = position.getZ(b);
+    const cx = position.getX(c);
+    const cz = position.getZ(c);
+    const ux = bx - ax;
+    const uz = bz - az;
+    const vx = cx - ax;
+    const vz = cz - az;
+    const normalY = uz * vx - ux * vz;
+    if (normalY >= 0) continue;
+    index.setX(offset + 1, c);
+    index.setX(offset + 2, b);
+    changed = true;
+  }
+
+  if (changed) {
+    index.needsUpdate = true;
+    geometry.computeVertexNormals();
+  }
+  return changed;
+}
+
+/**
  * Re-index the same terrain vertices for cheap far-distance rendering. This
  * keeps the full-resolution vertex data available for Drive/Walk and exports.
  */
@@ -96,7 +135,7 @@ export function buildRadialTerrainIndices(sectors: number, rings: number, stride
   if (!firstRing) return indices;
   for (let sector = 0; sector < sectors; sector += sectorStep) {
     const next = (sector + sectorStep) % sectors;
-    indices.push(0, vertexIndex(firstRing, sector, sectors), vertexIndex(firstRing, next, sectors));
+    indices.push(0, vertexIndex(firstRing, next, sectors), vertexIndex(firstRing, sector, sectors));
   }
 
   for (let ringIndex = 1; ringIndex < sampledRings.length; ringIndex += 1) {
@@ -108,7 +147,7 @@ export function buildRadialTerrainIndices(sectors: number, rings: number, stride
       const innerNext = vertexIndex(innerRing, next, sectors);
       const outer = vertexIndex(outerRing, sector, sectors);
       const outerNext = vertexIndex(outerRing, next, sectors);
-      indices.push(inner, outer, innerNext, innerNext, outer, outerNext);
+      indices.push(inner, innerNext, outer, innerNext, outerNext, outer);
     }
   }
   return indices;
