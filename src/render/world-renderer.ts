@@ -6,6 +6,7 @@ import {
   applyTerrainQualityColors,
   createAdaptiveTerrainGeometry,
   createTerrainLodIndex,
+  orientTerrainFacesUp,
   selectTerrainLod,
   terrainResolutionMeters,
   type TerrainLodLevel,
@@ -75,7 +76,8 @@ export class WorldRenderer {
     this.sun.shadow.camera.bottom = -650;
     this.sun.shadow.camera.near = 20;
     this.sun.shadow.camera.far = 1_300;
-    this.sun.shadow.bias = -0.00012;
+    this.sun.shadow.bias = -0.00005;
+    this.sun.shadow.normalBias = 0.025;
     this.scene.add(this.sun, this.ambient);
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
@@ -109,6 +111,7 @@ export class WorldRenderer {
     }
     this.currentCity = group;
     this.scene.add(group);
+    this.stabilizeSurfaceDepth(group);
     this.installTerrainLod(group, radius);
     this.tileStreamer = new TileStreamer(group, radius);
     if (this.streamingListener) this.tileStreamer.onChange(this.streamingListener);
@@ -176,6 +179,7 @@ export class WorldRenderer {
 
   private configureTerrainLod(mesh: THREE.Mesh, radius: number): void {
     const geometry = mesh.geometry as THREE.BufferGeometry;
+    orientTerrainFacesUp(geometry);
     const high = geometry.getIndex();
     const medium = createTerrainLodIndex(geometry, 2);
     const low = createTerrainLodIndex(geometry, 4);
@@ -235,12 +239,48 @@ export class WorldRenderer {
     mesh.userData["terrainQualityLegend"] = "slope blue→green→amber→red; elevation changes lightness; facet density reflects active LOD";
   }
 
+  private stabilizeSurfaceDepth(group: THREE.Group): void {
+    group.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const layer = String(object.userData["worldseedLayer"] ?? "");
+      const name = object.name;
+      const detail = object.userData["worldseedDetail"] === true;
+      if (layer === "roofs" || name.startsWith("Roofs ")) {
+        configurePolygonOffset(object.material, -1, -4);
+        object.renderOrder = 3;
+        return;
+      }
+      if (layer === "roads") {
+        configurePolygonOffset(object.material, detail ? -1.25 : -0.75, detail ? -3 : -2);
+        object.renderOrder = detail ? 2 : 1;
+        return;
+      }
+      if (layer === "areas") {
+        configurePolygonOffset(object.material, -0.35, -1);
+        object.renderOrder = 1;
+      }
+    });
+  }
+
   private updateTerrainLod(): void {
     const state = this.terrainLod;
     if (!state) return;
     const cameraDistance = this.camera.position.length();
     state.level = selectTerrainLod(this.exploreMode, cameraDistance, this.camera.position.y, state.radius);
     state.mesh.userData["terrainLod"] = state.level;
+  }
+
+  private updateDepthPrecision(): void {
+    const viewDistance = this.camera.position.distanceTo(this.orbit.target);
+    let near = 0.08;
+    if (this.exploreMode === "fly") {
+      near = clamp(viewDistance * 0.001, 0.12, 0.7);
+    } else if (this.exploreMode === "orbit" || this.exploreMode === "drone") {
+      near = clamp(viewDistance * 0.0025, 0.2, 2.5);
+    }
+    if (Math.abs(this.camera.near - near) < 0.025) return;
+    this.camera.near = near;
+    this.camera.updateProjectionMatrix();
   }
 
   private resize(): void {
@@ -260,6 +300,7 @@ export class WorldRenderer {
     this.tileStreamer?.update(this.camera, this.exploreMode);
     if (this.orbit.enabled) this.orbit.update();
     this.updateTerrainLod();
+    this.updateDepthPrecision();
     this.renderer.render(this.scene, this.camera);
 
     this.frame += 1;
@@ -277,6 +318,25 @@ function isLonLat(value: unknown): value is LonLat {
     && value.length === 2
     && Number.isFinite(value[0])
     && Number.isFinite(value[1]);
+}
+
+function configurePolygonOffset(
+  material: THREE.Material | THREE.Material[],
+  factor: number,
+  units: number,
+): void {
+  const materials = Array.isArray(material) ? material : [material];
+  for (const candidate of materials) {
+    if (!(candidate instanceof THREE.MeshBasicMaterial) && !(candidate instanceof THREE.MeshStandardMaterial)) continue;
+    candidate.polygonOffset = true;
+    candidate.polygonOffsetFactor = factor;
+    candidate.polygonOffsetUnits = units;
+    candidate.needsUpdate = true;
+  }
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value));
 }
 
 function disposeObject(object: THREE.Object3D): void {
