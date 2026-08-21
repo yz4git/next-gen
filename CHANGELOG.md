@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — Terrain Quality v2
+
+- Added adaptive Mapzen DEM sampling at 65×65, 129×129, or 257×257 based on world radius, keeping live terrain near an ~8 m source-sample target at larger seeds.
+- Added progressive high-resolution terrain replacement from the already-cached DEM after the first city frame is available.
+- Added mode-aware terrain LOD: Drive/Walk keep full terrain detail while distant Orbit/Drone views reduce triangle work without changing exported geometry.
+- Added Data Quality terrain coloring where slope moves from cool to warm colors, elevation changes lightness, and facet density exposes the active terrain LOD.
+- Exposed the live terrain source grid and approximate meter-per-sample resolution in world source details.
+- Added regression coverage for adaptive sampling, terrain mesh density, LOD decimation, and quality colors.
+
 ## 0.8.2 — Mobile WORLD panel visibility
 
 - Moved the panel toggle into the mobile workspace layer so the green CLOSE button stays above the open WORLD panel.

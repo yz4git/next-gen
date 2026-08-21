@@ -1,3 +1,4 @@
+import { terrainResolutionMeters } from "../terrain/quality";
 import type { Attribution, LonLat, WorldData } from "../types";
 import { OpenStreetMapProvider, type OsmResult } from "./openstreetmap";
 import { OVERTURE_SOURCE_LABEL, OvertureBuildingsProvider } from "./overture";
@@ -48,7 +49,7 @@ export class WorldDataService {
     const transportationPromise = this.transportation.load(center, radius, signal);
     onProgress?.({ stage: "map", message: "Querying OpenStreetMap streets and land…" });
     const osmPromise = this.osm.load(center, radius, signal);
-    onProgress?.({ stage: "terrain", message: "Sampling open elevation tiles…" });
+    onProgress?.({ stage: "terrain", message: "Sampling adaptive elevation grid…" });
     const terrainPromise = this.terrain.load(center, radius, signal);
 
     const [overtureResult, transportationResult, osmResult, terrainResult] = await Promise.allSettled([
@@ -99,6 +100,7 @@ export class WorldDataService {
     if (terrain) {
       attributions.push(TERRAIN_ATTRIBUTION);
       providerLabel = `${providerLabel} + Mapzen terrain`;
+      sourceDetails.push(`Mapzen terrain · adaptive ${terrain.columns}×${terrain.rows} grid · ≈${terrainResolutionMeters(terrain).toFixed(1)} m samples`);
     } else {
       warnings.push("Elevation tiles were unavailable; this world is using flat terrain.");
     }

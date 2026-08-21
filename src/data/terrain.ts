@@ -1,7 +1,8 @@
-import { TERRAIN_GRID_SIZE, TERRAIN_TILES_URL, TERRAIN_TILE_ZOOM } from "../config";
+import { TERRAIN_TILES_URL, TERRAIN_TILE_ZOOM } from "../config";
 import { boundsAround, fromLocalMeters } from "../geo/coordinates";
 import { tilesForBounds } from "../geo/tiles";
 import { decodeTerrariumPixel } from "../terrain/elevation";
+import { terrainGridSizeForRadius } from "../terrain/quality";
 import type { ElevationGrid, LonLat } from "../types";
 import { coordinateCacheKey, getCached, setCached } from "./cache";
 
@@ -13,7 +14,8 @@ interface DecodedTile {
 
 export class TerrainProvider {
   async load(center: LonLat, radius: number, signal?: AbortSignal): Promise<ElevationGrid> {
-    const cacheKey = coordinateCacheKey("terrain-v1", center[0], center[1], radius);
+    const gridSize = terrainGridSizeForRadius(radius);
+    const cacheKey = coordinateCacheKey(`terrain-v2-${gridSize}`, center[0], center[1], radius);
     const cached = await getCached<ElevationGrid>(cacheKey);
     if (cached) return cached;
 
@@ -30,8 +32,8 @@ export class TerrainProvider {
       decoded.set(`${x}:${y}`, await decodePng(await response.blob()));
     }));
 
-    const columns = TERRAIN_GRID_SIZE;
-    const rows = TERRAIN_GRID_SIZE;
+    const columns = gridSize;
+    const rows = gridSize;
     const absoluteHeights: number[] = [];
     for (let row = 0; row < rows; row += 1) {
       const z = -radius + (row / (rows - 1)) * radius * 2;
