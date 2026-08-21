@@ -98,6 +98,7 @@ export const WORLD_PALETTES: Record<WorldStyle, WorldPalette> = {
 export function materialForStyle(style: WorldStyle, color: number): THREE.MeshStandardMaterial {
   const palette = WORLD_PALETTES[style];
   const cyber = style === "cyber";
+  const surfaceLayer = color === palette.ground || color === palette.road || color === palette.roadMinor;
   return new THREE.MeshStandardMaterial({
     color,
     emissive: cyber || style === "blueprint" ? palette.emissive : 0x000000,
@@ -105,5 +106,6 @@ export function materialForStyle(style: WorldStyle, color: number): THREE.MeshSt
     roughness: style === "anime" ? 0.88 : 0.72,
     metalness: cyber ? 0.2 : 0.02,
     flatShading: style !== "quality",
+    side: surfaceLayer ? THREE.DoubleSide : THREE.FrontSide,
   });
 }
