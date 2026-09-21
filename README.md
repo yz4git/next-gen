@@ -31,7 +31,9 @@ WorldSeed is an open-source bridge between public geospatial data and interactiv
 
 See [docs/REUSE.md](docs/REUSE.md) for concrete integration paths and export-file responsibilities.
 
-![WorldSeed generating a playable low-poly city](docs/worldseed-preview.png)
+![WorldSeed live Tokyo Tower world generated from open geospatial data](docs/worldseed-preview.png)
+
+*Live Tokyo Tower seed rendered by the production WebGL build from open geospatial data.*
 
 ## What works in v0.9.x — Interoperable City Export
 
