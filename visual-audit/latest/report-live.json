@@ -1,0 +1,85 @@
+{
+  "generatedAt": "2026-09-21T09:50:18.592Z",
+  "scenarios": [
+    {
+      "name": "Osaka Castle",
+      "coordinate": "34.687300, 135.526200",
+      "errors": [
+        {
+          "type": "requestfailed",
+          "text": "POST https://overpass.private.coffee/api/interpreter :: net::ERR_ABORTED"
+        }
+      ],
+      "status": "Live world ready",
+      "liveReady": true,
+      "speedSamples": [
+        5,
+        5,
+        11,
+        16,
+        22,
+        22,
+        28,
+        33,
+        42
+      ],
+      "driveAvailable": true,
+      "webgl": {
+        "ok": true,
+        "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "width": 1519,
+        "height": 604
+      },
+      "stats": {
+        "buildings": "181",
+        "roads": "496",
+        "triangles": "24.1K",
+        "fps": "5",
+        "tiles": "21/21",
+        "warning": "OpenStreetMap streets and land data could not be loaded.",
+        "quality": "MIXED"
+      }
+    },
+    {
+      "name": "Shibuya Crossing",
+      "coordinate": "35.659500, 139.700500",
+      "errors": [
+        {
+          "type": "requestfailed",
+          "text": "POST https://overpass.private.coffee/api/interpreter :: net::ERR_ABORTED"
+        }
+      ],
+      "status": "Live world ready",
+      "liveReady": true,
+      "speedSamples": [
+        0,
+        3,
+        3,
+        3,
+        3,
+        3,
+        8,
+        8,
+        14
+      ],
+      "driveAvailable": true,
+      "webgl": {
+        "ok": true,
+        "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "width": 1519,
+        "height": 604
+      },
+      "stats": {
+        "buildings": "1,811",
+        "roads": "1,333",
+        "triangles": "89.6K",
+        "fps": "2",
+        "tiles": "21/21",
+        "warning": "OpenStreetMap streets and land data could not be loaded.",
+        "quality": "MIXED"
+      }
+    }
+  ]
+}
