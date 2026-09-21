@@ -53,7 +53,7 @@ See [docs/REUSE.md](docs/REUSE.md) for concrete integration paths and export-fil
 
 ## Project status
 
-WorldSeed is an actively developed early-stage project. v0.9.0 establishes a versioned export contract and an independent downstream consumer example. The project is actively seeking early adopters, bug reports, integration examples, and focused contributions; adoption metrics are never inferred or presented without a public link.
+WorldSeed is an actively developed early-stage project. v0.9.1 is the current public build; v0.9.0 established the versioned export contract and independent downstream consumer example. The project is actively seeking early adopters, bug reports, integration examples, and focused contributions; adoption metrics are never inferred or presented without a public link.
 
 ## Quick start
 
