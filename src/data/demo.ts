@@ -10,9 +10,9 @@ export function createDemoWorld(center: LonLat, radius: number): WorldData {
   const spacing = 54;
   let buildingIndex = 0;
 
-  for (let x = -radius + 45; x < radius - 45; x += spacing) {
-    for (let z = -radius + 45; z < radius - 45; z += spacing) {
-      if (Math.hypot(x, z) > radius - 38 || Math.abs(x) < 13 || Math.abs(z) < 13) continue;
+  for (let x = -radius + spacing / 2; x < radius - spacing / 2; x += spacing) {
+    for (let z = -radius + spacing / 2; z < radius - spacing / 2; z += spacing) {
+      if (Math.hypot(x, z) > radius - 38) continue;
       if (x > 50 && x < 180 && z > -180 && z < -50) continue;
       const id = `demo-building-${buildingIndex++}`;
       const width = 20 + seededUnit(`${id}:w`) * 18;
