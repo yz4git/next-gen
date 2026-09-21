@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/yz4git/next-gen/v0.9.0/schemas/v1/road-graph.schema.json",
+  "$id": "https://raw.githubusercontent.com/yz4git/next-gen/v0.9.1/schemas/v1/road-graph.schema.json",
   "title": "WorldSeed road graph v1",
   "type": "object",
   "required": [
@@ -23,29 +23,35 @@
     "nodes": {
       "type": "array",
       "items": {
-        "allOf": [
-          {
-            "$ref": "#/$defs/point"
+        "type": "object",
+        "required": [
+          "id",
+          "x",
+          "y",
+          "z",
+          "edgeIds"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
           },
-          {
-            "type": "object",
-            "required": [
-              "id",
-              "edgeIds"
-            ],
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "edgeIds": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          },
+          "edgeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           }
-        ]
+        },
+        "additionalProperties": false
       }
     },
     "edges": {
