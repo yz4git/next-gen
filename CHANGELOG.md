@@ -2,6 +2,8 @@
 
 ## Unreleased — Terrain Quality v2
 
+- Added dedicated terrain-following junction patches for multi-road intersections and sharp two-road connections, replacing stacked road strips at dense intersections.
+- Added trimmed road mouths, curved corner-sidewalk meshes, and per-arm crosswalk geometry to reduce close-range overlap, z-fighting, and abrupt sidewalk transitions.
 - Added adaptive Mapzen DEM sampling at 65×65, 129×129, or 257×257 based on world radius, keeping live terrain near an ~8 m source-sample target at larger seeds.
 - Added progressive high-resolution terrain replacement from the already-cached DEM after the first city frame is available.
 - Added mode-aware terrain LOD: Drive/Walk keep full terrain detail while distant Orbit/Drone views reduce triangle work without changing exported geometry.
