@@ -24,13 +24,13 @@ See [docs/REUSE.md](docs/REUSE.md) for concrete integration paths and export-fil
 
 ![WorldSeed generating a playable low-poly city](docs/worldseed-preview.png)
 
-## What works in v0.8.2 — Drive Any City
+## What works in v0.9.0 — Interoperable City Export
 
 - Overture Maps building footprints through its public PMTiles distribution
 - A routable road graph built from Overture Transportation segments and connectors, with OpenStreetMap road fallback
 - Arcade vehicle handling, chase camera, keyboard and touch controls, building collision, off-road drag, and recovery assist
 - Deterministic checkpoint routes, time attack, per-route local best times, and opt-in exact route sharing
-- Tiled sidewalks, lane markings, crosswalks, trees, lights, and signs generated along drivable streets
+- Terrain-following roads with dedicated intersection patches, trimmed road mouths, curved sidewalk corners, crosswalks, trees, lights, and signs
 - OpenStreetMap rail, parks, forests, pedestrian areas, and water through Overpass
 - Browser-side terrain sampling from Mapzen Terrarium elevation tiles, with an offline procedural demo and flat fallback
 - Separate flat, gabled, hipped, and skillion roof meshes using provider shape, height, and color tags when available
@@ -41,7 +41,7 @@ See [docs/REUSE.md](docs/REUSE.md) for concrete integration paths and export-fil
 - Bounded generation at 100–1,000 m with 2,500-building safety cap and merged geometry batches
 - Five views: Low poly, Anime, Cyber, Blueprint, and Data quality
 - Orbit, first-person walk with footprint collision, free-flight, and Drive modes
-- GLB download and a zipped Three.js game kit with separated terrain, colliders, road graph, route, and spawn points
+- GLB download and a zipped Three.js game kit with separated terrain, colliders, road graph, route, spawn points, and versioned JSON Schema contracts
 - Always-visible viewport attribution, provenance warnings, and a per-seed height-quality meter
 - IndexedDB request caching, coordinate-safe service-worker shell caching, and an offline synthetic first-run demo
 - Just-in-time location disclosure, explicit share choices, privacy-safe export defaults, and local-data clearing
@@ -53,7 +53,7 @@ See [docs/REUSE.md](docs/REUSE.md) for concrete integration paths and export-fil
 
 ## Project status
 
-WorldSeed is an actively developed early-stage project. The current public build is v0.8.2, with additional terrain-quality work tracked under **Unreleased** in the changelog. The project is seeking early adopters, bug reports, integration examples, and focused contributions; adoption metrics are not presented as evidence of maturity.
+WorldSeed is an actively developed early-stage project. v0.9.0 establishes a versioned export contract and an independent downstream consumer example. The project is actively seeking early adopters, bug reports, integration examples, and focused contributions; adoption metrics are never inferred or presented without a public link.
 
 ## Quick start
 
@@ -147,7 +147,14 @@ The starter-kit ZIP contains:
 - `spawn-points.json` with collision-safe vehicle and pedestrian starts
 - `drive-route.json` with the current deterministic time-attack route
 - `ATTRIBUTION.md` generated for that seed
+- `schemas/v1/*.schema.json` with machine-readable contracts for every exported JSON document
 - a minimal Vite + Three.js viewer
+
+Schema compatibility is documented in [docs/SCHEMA_VERSIONING.md](docs/SCHEMA_VERSIONING.md). The independent [export consumer example](examples/export-consumer/) imports only the ZIP contract—no WorldSeed runtime code—and renders the GLB, road graph, spawn points, and route in a separate Three.js app.
+
+### Build something with WorldSeed
+
+If you use a WorldSeed export in a public game, simulation, visualization, benchmark, or tool, open an **Integration report** issue with a reproducible link. Verified public integrations are listed in [ADOPTERS.md](ADOPTERS.md). This is the project's primary early-adopter program; no usage is counted without a public artifact.
 
 The “Drive Any City” concept was originally described as v0.2, but the repository had already used versions 0.2–0.6 for terrain, roofs, semantic objects, streaming, and PLATEAU import. It therefore ships as v0.7.x without rewriting release history.
 
