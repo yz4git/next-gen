@@ -177,4 +177,6 @@ WorldSeed source code is available under the [MIT License](LICENSE). Generated w
 
 Contributions are welcome—see [CONTRIBUTING.md](CONTRIBUTING.md). If you build a game, simulation, visualization, or tooling workflow with a WorldSeed export, a small reproducible integration example is especially useful to the project.
 
+Project stewardship is documented in [MAINTAINERS.md](MAINTAINERS.md) and [MAINTENANCE.md](MAINTENANCE.md). Security reporting and trust boundaries are documented in [SECURITY.md](SECURITY.md) and [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md).
+
 Release details are tracked in [CHANGELOG.md](CHANGELOG.md).
