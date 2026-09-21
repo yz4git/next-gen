@@ -1,0 +1,47 @@
+name: Capture Shibuya README preview
+
+on:
+  push:
+    branches:
+      - docs/tokyo-readme-preview-20260921
+    paths:
+      - "scripts/capture-readme-preview-fast.mjs"
+      - ".github/workflows/capture-readme-preview-fast.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/tokyo-readme-preview-20260921
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm install --no-save --no-package-lock playwright-core@1.55.0
+      - name: Start preview
+        run: |
+          nohup npx vite preview --host 127.0.0.1 --port 4173 >/tmp/worldseed-vite.log 2>&1 &
+          for i in {1..60}; do
+            curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/worldseed-vite.log
+          exit 1
+      - name: Capture real Shibuya world
+        run: xvfb-run -a node scripts/capture-readme-preview-fast.mjs
+      - name: Commit candidates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add visual-audit/readme-preview-fast
+          git diff --cached --quiet && exit 0
+          git commit -m "chore: capture Shibuya README candidates"
+          git push origin HEAD:docs/tokyo-readme-preview-20260921
