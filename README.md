@@ -9,6 +9,19 @@ WorldSeed turns a WGS84 latitude and longitude into a local-meter, browser-gener
 
 Google Maps is only treated as an optional coordinate-input format. WorldSeed does not request, scrape, trace, or derive geometry from Google Maps. World geometry comes from public open-data providers.
 
+## Why WorldSeed
+
+WorldSeed is an open-source bridge between public geospatial data and interactive 3D applications. It is designed for developers who want a reproducible local-meter world, not a screenshot or proprietary map capture. The same generated world can be explored in-browser and exported as meshes plus structured gameplay data.
+
+### Designed for reuse
+
+- **Games and prototypes** — start from a generated city, road graph, colliders, routes, and spawn points instead of rebuilding map ingestion.
+- **Three.js experiments** — use the included minimal Vite + Three.js starter viewer and semantic object manifests.
+- **Simulation and visualization** — keep source provenance, local coordinates, semantic layers, and attribution alongside geometry.
+- **Open geospatial workflows** — combine Overture Maps, OpenStreetMap, Mapzen terrain, and local PLATEAU CityGML without relying on scraped proprietary map geometry.
+
+See [docs/REUSE.md](docs/REUSE.md) for concrete integration paths and export-file responsibilities.
+
 ![WorldSeed generating a playable low-poly city](docs/worldseed-preview.png)
 
 ## What works in v0.8.2 — Drive Any City
@@ -37,6 +50,10 @@ Google Maps is only treated as an optional coordinate-input format. WorldSeed do
 - A closable WORLD settings panel that can be reopened from every explore mode
 - A cinematic Drone camera mode with swoops, altitude changes, moving focus, banking, and FOV changes
 - Reversed steering mapping for the virtual pad and keyboard controls, plus hold-to-reverse braking after a full stop
+
+## Project status
+
+WorldSeed is an actively developed early-stage project. The current public build is v0.8.2, with additional terrain-quality work tracked under **Unreleased** in the changelog. The project is seeking early adopters, bug reports, integration examples, and focused contributions; adoption metrics are not presented as evidence of maturity.
 
 ## Quick start
 
@@ -138,6 +155,6 @@ The “Drive Any City” concept was originally described as v0.2, but the repos
 
 WorldSeed source code is available under the [MIT License](LICENSE). Generated world data remains subject to its source licenses and attribution requirements. See [ATTRIBUTION.md](ATTRIBUTION.md), [PRIVACY.md](PRIVACY.md), and the per-export attribution file. Overture features can carry source-specific licenses; check the Overture attribution guidance for your selected region and use case.
 
-Contributions are welcome—see [CONTRIBUTING.md](CONTRIBUTING.md).
+Contributions are welcome—see [CONTRIBUTING.md](CONTRIBUTING.md). If you build a game, simulation, visualization, or tooling workflow with a WorldSeed export, a small reproducible integration example is especially useful to the project.
 
 Release details are tracked in [CHANGELOG.md](CHANGELOG.md).
