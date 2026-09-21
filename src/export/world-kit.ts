@@ -2,6 +2,11 @@ import { strToU8, zipSync } from "fflate";
 import * as THREE from "three";
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import worldseedSchema from "../../schemas/v1/worldseed.schema.json";
+import worldseedObjectsSchema from "../../schemas/v1/worldseed-objects.schema.json";
+import roadGraphSchema from "../../schemas/v1/road-graph.schema.json";
+import spawnPointsSchema from "../../schemas/v1/spawn-points.schema.json";
+import driveRouteSchema from "../../schemas/v1/drive-route.schema.json";
 import type { DriveRoute, RoadGraph, WorldData, WorldManifest, WorldStats, WorldStyle } from "../types";
 
 export async function exportGlb(
@@ -39,6 +44,11 @@ export async function exportStarterKit(
       "road-graph.json": strToU8(JSON.stringify(roadGraph, null, 2)),
       "spawn-points.json": strToU8(JSON.stringify(spawnPoints, null, 2)),
       "drive-route.json": strToU8(JSON.stringify(route, null, 2)),
+      "schemas/v1/worldseed.schema.json": strToU8(JSON.stringify(worldseedSchema, null, 2)),
+      "schemas/v1/worldseed-objects.schema.json": strToU8(JSON.stringify(worldseedObjectsSchema, null, 2)),
+      "schemas/v1/road-graph.schema.json": strToU8(JSON.stringify(roadGraphSchema, null, 2)),
+      "schemas/v1/spawn-points.schema.json": strToU8(JSON.stringify(spawnPointsSchema, null, 2)),
+      "schemas/v1/drive-route.schema.json": strToU8(JSON.stringify(driveRouteSchema, null, 2)),
       "ATTRIBUTION.md": strToU8(attributionMarkdown(data)),
       "README.md": strToU8(starterReadme(includeExactOrigin)),
       "package.json": strToU8(starterPackage()),
@@ -60,7 +70,8 @@ export function createWorldMetadata(
   includeExactOrigin: boolean,
 ): Record<string, unknown> {
   return {
-    generator: "WorldSeed 0.7.0 Drive Any City",
+    schemaVersion: "1.0",
+    generator: "WorldSeed 0.9.0",
     coordinateSystem: "local meters; X east, Y up, Z south",
     origin: includeExactOrigin
       ? { longitude: data.center[0], latitude: data.center[1] }
@@ -76,6 +87,13 @@ export function createWorldMetadata(
     semanticManifest: "worldseed-objects.json",
     roadGraph: "road-graph.json",
     spawnPoints: "spawn-points.json",
+    schemas: {
+      metadata: "schemas/v1/worldseed.schema.json",
+      objects: "schemas/v1/worldseed-objects.schema.json",
+      roadGraph: "schemas/v1/road-graph.schema.json",
+      spawnPoints: "schemas/v1/spawn-points.schema.json",
+      driveRoute: "schemas/v1/drive-route.schema.json",
+    },
   };
 }
 
@@ -240,7 +258,7 @@ function createSpawnPoints(
   }
   return {
     schemaVersion: "1.0",
-    generator: "WorldSeed Drive Any City",
+    generator: "WorldSeed 0.9.0",
     coordinateSystem: roadGraph.coordinateSystem,
     vehicles,
     pedestrians: [{ id: "pedestrian:primary", position: pedestrianSpawn }],
