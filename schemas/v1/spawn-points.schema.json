@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/yz4git/next-gen/v0.9.0/schemas/v1/spawn-points.schema.json",
+  "$id": "https://raw.githubusercontent.com/yz4git/next-gen/v0.9.1/schemas/v1/spawn-points.schema.json",
   "title": "WorldSeed spawn points v1",
   "type": "object",
   "required": [
