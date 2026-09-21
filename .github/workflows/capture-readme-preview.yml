@@ -1,0 +1,62 @@
+name: Capture Tokyo README preview candidates
+
+on:
+  push:
+    branches:
+      - docs/tokyo-readme-preview-20260921
+    paths:
+      - "scripts/capture-readme-preview.mjs"
+      - ".github/workflows/capture-readme-preview.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/tokyo-readme-preview-20260921
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install app dependencies
+        run: npm ci
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Install Playwright core
+        run: npm install --no-save --no-package-lock playwright-core@1.55.0
+
+      - name: Start production preview
+        run: |
+          nohup npx vite preview --host 127.0.0.1 --port 4173 > /tmp/worldseed-vite.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/worldseed-vite.log
+          exit 1
+
+      - name: Capture Tokyo candidates
+        run: xvfb-run -a node scripts/capture-readme-preview.mjs
+
+      - name: Commit preview candidates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add visual-audit/readme-preview
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "chore: capture Tokyo README preview candidates"
+          git push origin HEAD:docs/tokyo-readme-preview-20260921
