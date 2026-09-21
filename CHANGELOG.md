@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.1 — Schema validation hotfix
+
+- Fixed the road-graph v1 JSON Schema node definition so node IDs and edge references validate correctly under Draft 2020-12 `additionalProperties` rules.
+- Updated published schema `$id` URLs and generated version metadata for the patch release.
+
 ## 0.9.0 — Interoperable City Export
 
 - Added versioned JSON Schema v1 contracts for world metadata, semantic objects, road graphs, spawn points, and drive routes, and bundled them into starter-kit exports.
