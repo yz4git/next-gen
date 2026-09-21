@@ -52,21 +52,31 @@ export class OpenStreetMapProvider {
     const query = createOverpassQuery(center, radius);
     let lastError: unknown;
     for (const endpoint of OVERPASS_ENDPOINTS) {
-      try {
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-          body: `data=${encodeURIComponent(query)}`,
-          signal,
-        });
-        if (!response.ok) throw new Error(`Overpass returned ${response.status}`);
-        const payload = (await response.json()) as OverpassResponse;
-        const parsed = parseOverpassResponse(payload, center, radius);
-        await setCached(cacheKey, parsed);
-        return parsed;
-      } catch (error) {
-        if (signal?.aborted) throw error;
-        lastError = error;
+      for (const method of ["POST", "GET"] as const) {
+        try {
+          const response = await fetch(
+            method === "GET" ? `${endpoint}?data=${encodeURIComponent(query)}` : endpoint,
+            method === "GET"
+              ? { method, headers: { Accept: "application/json" }, signal }
+              : {
+                  method,
+                  headers: {
+                    Accept: "application/json",
+                    "Content-Type": "application/x-www-form-urlencoded",
+                  },
+                  body: new URLSearchParams({ data: query }),
+                  signal,
+                },
+          );
+          if (!response.ok) throw new Error(`Overpass returned ${response.status}`);
+          const payload = (await response.json()) as OverpassResponse;
+          const parsed = parseOverpassResponse(payload, center, radius);
+          await setCached(cacheKey, parsed);
+          return parsed;
+        } catch (error) {
+          if (signal?.aborted) throw error;
+          lastError = error;
+        }
       }
     }
     throw lastError instanceof Error ? lastError : new Error("OpenStreetMap request failed");
