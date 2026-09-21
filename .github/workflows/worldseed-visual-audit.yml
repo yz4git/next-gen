@@ -1,0 +1,80 @@
+name: WorldSeed Visual Audit
+
+on:
+  push:
+    branches:
+      - visual-audit-worldseed-20260921
+    paths-ignore:
+      - "visual-audit/**"
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: visual-audit-worldseed-20260921
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install app dependencies
+        run: npm ci
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Install Playwright core
+        run: npm install --no-save --no-package-lock playwright-core@1.55.0
+
+      - name: Locate Chrome
+        run: |
+          which google-chrome || which google-chrome-stable || which chromium || which chromium-browser
+
+      - name: Start production preview
+        run: |
+          nohup npx vite preview --host 127.0.0.1 --port 4173 > /tmp/worldseed-vite.log 2>&1 &
+          echo $! > /tmp/worldseed-vite.pid
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/worldseed-vite.log
+          exit 1
+
+      - name: Run headful WebGL play audit
+        run: xvfb-run -a node scripts/visual-audit-worldseed.mjs
+
+      - name: Save preview log
+        if: always()
+        run: |
+          mkdir -p visual-audit/latest
+          cp /tmp/worldseed-vite.log visual-audit/latest/vite.log || true
+
+      - name: Upload visual audit artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: worldseed-visual-audit
+          path: visual-audit/latest
+          if-no-files-found: error
+
+      - name: Commit latest audit captures to audit branch
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add visual-audit/latest
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "chore: capture WorldSeed WebGL visual audit"
+          git push origin HEAD:visual-audit-worldseed-20260921
