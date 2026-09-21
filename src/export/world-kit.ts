@@ -71,7 +71,7 @@ export function createWorldMetadata(
 ): Record<string, unknown> {
   return {
     schemaVersion: "1.0",
-    generator: "WorldSeed 0.9.0",
+    generator: "WorldSeed 0.9.1",
     coordinateSystem: "local meters; X east, Y up, Z south",
     origin: includeExactOrigin
       ? { longitude: data.center[0], latitude: data.center[1] }
@@ -258,7 +258,7 @@ function createSpawnPoints(
   }
   return {
     schemaVersion: "1.0",
-    generator: "WorldSeed 0.9.0",
+    generator: "WorldSeed 0.9.1",
     coordinateSystem: roadGraph.coordinateSystem,
     vehicles,
     pedestrians: [{ id: "pedestrian:primary", position: pedestrianSpawn }],
