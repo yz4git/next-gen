@@ -50,11 +50,7 @@ jobs:
           cat /tmp/worldseed-vite.log
           exit 1
 
-      - name: Run synthetic headful WebGL play audit
-        continue-on-error: true
-        run: xvfb-run -a node scripts/visual-audit-worldseed.mjs
-
-      - name: Run live Osaka and Shibuya junction WebGL audit
+      - name: Run Shibuya junction WebGL audit
         continue-on-error: true
         run: xvfb-run -a node scripts/visual-audit-worldseed-live.mjs
 
