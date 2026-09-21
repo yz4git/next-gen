@@ -189,7 +189,7 @@ export function createWorldManifest(
 
   return {
     schemaVersion: "1.0",
-    generator: "WorldSeed 0.9.0",
+    generator: "WorldSeed 0.9.1",
     coordinateSystem: "local meters; X east, Y up, Z south",
     radiusMeters: data.radius,
     layers: countLayers(objects),
