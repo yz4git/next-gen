@@ -61,3 +61,25 @@ describe("privacy-safe exports", () => {
     });
   });
 });
+
+
+describe("versioned export contract", () => {
+  it("publishes schema v1 paths from worldseed metadata", () => {
+    const data = createDemoWorld([139.767125, 35.681236], 250);
+    const metadata = createWorldMetadata(data, {
+      buildings: 0, roads: 0, areas: 0, providedHeights: 0, levelHeights: 0, inferredHeights: 0,
+      triangles: 0, drawCalls: 0, truncatedBuildings: 0, terrainRelief: 0, roofs: 0, shapedRoofs: 0,
+      semanticObjects: 0, tiles: 0, plateauBuildings: 0, plateauLod2Buildings: 0,
+      roadNodes: 0, roadEdges: 0, drivableRoadMeters: 0,
+    }, "low-poly", false);
+    expect(metadata["schemaVersion"]).toBe("1.0");
+    expect(metadata["generator"]).toBe("WorldSeed 0.9.0");
+    expect(metadata["schemas"]).toEqual({
+      metadata: "schemas/v1/worldseed.schema.json",
+      objects: "schemas/v1/worldseed-objects.schema.json",
+      roadGraph: "schemas/v1/road-graph.schema.json",
+      spawnPoints: "schemas/v1/spawn-points.schema.json",
+      driveRoute: "schemas/v1/drive-route.schema.json",
+    });
+  });
+});
