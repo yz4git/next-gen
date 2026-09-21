@@ -1,0 +1,30 @@
+{
+  "generatedAt": "2026-09-21T14:09:11.846Z",
+  "locations": [
+    {
+      "name": "Tokyo Tower",
+      "coordinate": "35.658581, 139.745433",
+      "stats": {
+        "status": "Live world ready",
+        "buildings": "1,299",
+        "roads": "928",
+        "triangles": "107.9K",
+        "relief": "59 m",
+        "objects": "3,527"
+      }
+    },
+    {
+      "name": "Shibuya Crossing",
+      "coordinate": "35.659500, 139.700500",
+      "stats": {
+        "status": "Live world ready",
+        "buildings": "1,811",
+        "roads": "1,333",
+        "triangles": "123.5K",
+        "relief": "89 m",
+        "objects": "4,956"
+      }
+    }
+  ],
+  "errors": []
+}
