@@ -1,7 +1,10 @@
 # Changelog
 
-## Unreleased — Terrain Quality v2
+## 0.9.0 — Interoperable City Export
 
+- Added versioned JSON Schema v1 contracts for world metadata, semantic objects, road graphs, spawn points, and drive routes, and bundled them into starter-kit exports.
+- Added a standalone export-consumer example that reads a WorldSeed ZIP without importing WorldSeed application code.
+- Added a verified-adopter registry and Integration report issue template for reproducible downstream usage.
 - Added dedicated terrain-following junction patches for multi-road intersections and sharp two-road connections, replacing stacked road strips at dense intersections.
 - Added trimmed road mouths, curved corner-sidewalk meshes, and per-arm crosswalk geometry to reduce close-range overlap, z-fighting, and abrupt sidewalk transitions.
 - Added adaptive Mapzen DEM sampling at 65×65, 129×129, or 257×257 based on world radius, keeping live terrain near an ~8 m source-sample target at larger seeds.
