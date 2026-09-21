@@ -12,7 +12,19 @@ It consumes only the public files created by **Three.js kit** export:
 - `drive-route.json`
 - `schemas/v1/*.schema.json`
 
-## Run
+## Fastest trial
+
+If you do not have your own WorldSeed export yet, download the privacy-safe synthetic sample:
+
+https://github.com/yz4git/next-gen/releases/download/v0.9.1/worldseed-demo-export-v0.9.1.zip
+
+A prebuilt static copy of this consumer is also published at:
+
+https://github.com/yz4git/next-gen/releases/download/v0.9.1/worldseed-export-consumer-static-v0.9.1.zip
+
+Serve the extracted static consumer with any local HTTP server and drop the demo export ZIP onto it.
+
+## Run from source
 
 ```bash
 cd examples/export-consumer
