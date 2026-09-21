@@ -1,0 +1,24 @@
+name: Feature or integration request
+description: Propose a focused improvement or downstream integration
+title: "[Feature] "
+labels: []
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What downstream workflow, game, simulation, or visualization needs this?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe the smallest useful change.
+    validations:
+      required: true
+  - type: textarea
+    id: contract
+    attributes:
+      label: Export / provider impact
+      description: Note whether this would change provider requests, generated geometry, JSON fields, GLB output, privacy behavior, or attribution.
