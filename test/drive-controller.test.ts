@@ -44,6 +44,7 @@ describe("drive spawn safety", () => {
         lengthMeters: 60,
         class: "residential",
         widthMeters: 6,
+        surface: "paved",
         oneWay: "both",
         speedLimitKph: 30,
       }],
