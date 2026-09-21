@@ -10,6 +10,12 @@ No third-party integrations have been verified yet.
 
 The repository's own [standalone export consumer](examples/export-consumer/) is a contract test/example and is **not** counted as external adoption.
 
+## Become an early adopter
+
+The fastest path is the [five-minute trial](docs/TRY_WORLDSEED.md), which uses a published synthetic export and a prebuilt standalone consumer. From there, fork the idea into a small public integration in your own runtime.
+
+Good first targets include Babylon.js, Godot, Blender Python, a CLI validator/converter, traffic simulation, or a small procedural game prototype. The integration does not need to be large; it needs to be public and reproducible.
+
 ## Get listed
 
 Open an issue titled `Integration report: <project name>` and include:
