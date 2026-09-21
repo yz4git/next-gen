@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/yz4git/next-gen/v0.9.0/schemas/v1/spawn-points.schema.json",
+  "title": "WorldSeed spawn points v1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "generator",
+    "coordinateSystem",
+    "vehicles",
+    "pedestrians"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "generator": {
+      "type": "string"
+    },
+    "coordinateSystem": {
+      "type": "string"
+    },
+    "vehicles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "position",
+          "headingRadians"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "position": {
+            "$ref": "#/$defs/point"
+          },
+          "headingRadians": {
+            "type": "number"
+          },
+          "routeId": {
+            "type": "string"
+          },
+          "edgeId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "pedestrians": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "position"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "position": {
+            "$ref": "#/$defs/point"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "$defs": {
+    "point": {
+      "type": "object",
+      "required": [
+        "x",
+        "y",
+        "z"
+      ],
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "z": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
