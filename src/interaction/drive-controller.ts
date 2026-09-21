@@ -111,7 +111,7 @@ export class DriveController {
     this.guidanceIndex = new RoadGuidanceIndex(graph);
     this.collision = collision;
     this.groundHeightAt = groundHeightAt;
-    this.spawn = preferredSpawn ?? findNearestRoadPoint(graph);
+    this.spawn = selectSafeDriveSpawn(graph, collision, preferredSpawn ?? findNearestRoadPoint(graph));
     this.setRoute(null);
     this.reset();
   }
@@ -121,7 +121,10 @@ export class DriveController {
     this.route = route;
     if (route) {
       this.routeGroup.add(createRouteVisual(route));
-      this.spawn = driveSpawnForRoute(route) ?? this.spawn;
+      const routeSpawn = driveSpawnForRoute(route);
+      this.spawn = this.graph && this.collision
+        ? selectSafeDriveSpawn(this.graph, this.collision, routeSpawn ?? this.spawn)
+        : routeSpawn ?? this.spawn;
       this.bestSeconds = readBestTime(route.id);
     } else {
       this.bestSeconds = null;
@@ -421,6 +424,56 @@ export class DriveController {
     this.touchButtons.clear();
     this.steeringInput = 0;
   };
+}
+
+export function selectSafeDriveSpawn(
+  graph: RoadGraph,
+  collision: CollisionIndex,
+  preferred: DriveSpawn | null,
+): DriveSpawn | null {
+  const isSafe = (spawn: DriveSpawn): boolean => {
+    const forward = {
+      x: spawn.position.x + Math.sin(spawn.headingRadians) * 3.2,
+      z: spawn.position.z + Math.cos(spawn.headingRadians) * 3.2,
+    };
+    const backward = {
+      x: spawn.position.x - Math.sin(spawn.headingRadians) * 2.1,
+      z: spawn.position.z - Math.cos(spawn.headingRadians) * 2.1,
+    };
+    return collision.canOccupy(spawn.position, 1.8)
+      && collision.canOccupy(forward, 1.55)
+      && collision.canOccupy(backward, 1.55);
+  };
+
+  if (preferred && isSafe(preferred)) return preferred;
+
+  const candidates: DriveSpawn[] = [];
+  const nearest = findNearestRoadPoint(graph);
+  if (nearest) candidates.push(nearest);
+  for (const edge of graph.edges) {
+    for (let index = 1; index < edge.path.length; index += 1) {
+      const start = edge.path[index - 1]!;
+      const end = edge.path[index]!;
+      const headingRadians = Math.atan2(end.x - start.x, end.z - start.z);
+      for (const amount of [0.5, 0.25, 0.75]) {
+        candidates.push({
+          edgeId: edge.id,
+          position: {
+            x: start.x + (end.x - start.x) * amount,
+            y: start.y + (end.y - start.y) * amount,
+            z: start.z + (end.z - start.z) * amount,
+          },
+          headingRadians,
+        });
+      }
+    }
+  }
+
+  candidates.sort(
+    (first, second) =>
+      Math.hypot(first.position.x, first.position.z) - Math.hypot(second.position.x, second.position.z),
+  );
+  return candidates.find(isSafe) ?? preferred ?? nearest;
 }
 
 class RoadSpatialIndex {
