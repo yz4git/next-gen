@@ -1,0 +1,67 @@
+name: Publish v0.9.1 demo assets
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".release/v0.9.1-demo-assets.md"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build WorldSeed and consumer
+        run: |
+          npm run build
+          npm run build:example
+
+      - name: Install Playwright core
+        run: npm install --no-save --no-package-lock playwright-core@1.55.0
+
+      - name: Start WorldSeed preview
+        run: |
+          nohup npx vite preview --host 127.0.0.1 --port 4173 > /tmp/worldseed-vite.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/worldseed-vite.log
+          exit 1
+
+      - name: Capture privacy-safe demo export
+        run: xvfb-run -a node scripts/capture-demo-export.mjs
+
+      - name: Package static consumer
+        run: |
+          mkdir -p release-assets
+          cd dist-example
+          zip -qr ../release-assets/worldseed-export-consumer-static-v0.9.1.zip .
+          cd ..
+          test -s release-assets/worldseed-export-consumer-static-v0.9.1.zip
+
+      - name: Upload assets to v0.9.1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view v0.9.1
+          gh release upload v0.9.1 \
+            release-assets/worldseed-demo-export-v0.9.1.zip \
+            release-assets/worldseed-export-consumer-static-v0.9.1.zip \
+            --clobber
