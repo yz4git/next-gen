@@ -180,7 +180,12 @@ async function renderData(nextData: WorldData, live: boolean): Promise<void> {
   city = built;
   renderer.setCity(built.group, nextData.radius);
   renderer.frameCity(nextData.radius);
-  drone.setWorld(nextData.radius);
+  const tallestBuilding = built.resolvedBuildings.reduce(
+    (maximum, building) => Math.max(maximum, building.resolvedHeight),
+    0,
+  );
+  const droneMinimumHeight = Math.max(90, tallestBuilding + built.stats.terrainRelief + 28);
+  drone.setWorld(nextData.radius, droneMinimumHeight, built.groundHeightAt);
   explore.setCollision(built.collision, built.groundHeightAt);
   drive.setWorld(built.roadGraph, built.collision, built.groundHeightAt);
   currentRouteSeed = requestedRouteSeed ?? routeSeedForWorld(nextData);

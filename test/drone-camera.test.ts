@@ -25,4 +25,9 @@ describe("automatic drone camera", () => {
     expect(Math.hypot(pose.x, pose.z)).toBeGreaterThanOrEqual(170);
     expect(pose.y).toBeGreaterThanOrEqual(90);
   });
+
+  it("honors city-specific clearance for dense skylines", () => {
+    const pose = droneCameraPose(0, 500, 310);
+    expect(pose.y).toBeGreaterThanOrEqual(310);
+  });
 });

@@ -1,4 +1,6 @@
+import * as THREE from "three";
 import { describe, expect, it } from "vitest";
+import { normalizeMergeGeometry } from "../src/generation/city-builder";
 import { CollisionIndex } from "../src/generation/collision";
 import { resolveBuildingHeight } from "../src/generation/height";
 import { clipSegmentToCircle, pointInPolygon } from "../src/geo/polygon";
@@ -42,3 +44,23 @@ describe("spatial safeguards", () => {
   });
 });
 
+
+
+describe("geometry batching", () => {
+  it("normalizes merge attributes so generated roof variants can share a bucket", () => {
+    const textured = new THREE.BoxGeometry(2, 2, 2);
+    const procedural = new THREE.BufferGeometry();
+    procedural.setAttribute("position", new THREE.Float32BufferAttribute([
+      0, 0, 0,
+      1, 0, 0,
+      0, 1, 0,
+    ], 3));
+    procedural.setIndex([0, 1, 2]);
+
+    normalizeMergeGeometry(textured);
+    normalizeMergeGeometry(procedural);
+
+    expect(Object.keys(textured.attributes).sort()).toEqual(["normal", "position"]);
+    expect(Object.keys(procedural.attributes).sort()).toEqual(["normal", "position"]);
+  });
+});

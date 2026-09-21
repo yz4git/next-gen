@@ -340,6 +340,33 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
   .dialog-actions--split button { width: 100%; }
 }
 
+@media (max-width: 900px) and (max-height: 480px) {
+  body.is-driving .viewport-top { top: 6px; left: 92px; right: 148px; }
+  body.is-driving .mode-switch { padding: 2px; border-radius: 8px; }
+  body.is-driving .mode-switch button { height: 27px; padding: 0 7px; }
+  body.is-driving .mode-switch button span { display: none; }
+  body.is-driving .drive-challenge { top: 7px; right: 8px; width: 132px; padding: 7px 8px; }
+  body.is-driving .drive-challenge > strong { margin-top: 4px; font-size: 15px; }
+  body.is-driving .drive-challenge__stats { margin-top: 5px; gap: 7px; }
+  body.is-driving .drive-challenge__actions { display: none; }
+  body.is-driving .drive-touch { left: 8px; right: 8px; bottom: calc(48px + env(safe-area-inset-bottom)); }
+  body.is-driving .drive-pad { width: 152px; height: 58px; border-radius: 18px; }
+  body.is-driving .drive-pad-thumb { width: 38px; height: 38px; }
+  body.is-driving .drive-pad-label { font-size: 15px; }
+  body.is-driving .drive-pedals { gap: 6px; }
+  body.is-driving .drive-pedals button { width: 64px; border-radius: 16px; }
+  body.is-driving .drive-pedals .drive-throttle { height: 66px; }
+  body.is-driving .drive-pedals .drive-brake { height: 54px; }
+  body.is-driving .drive-hud { width: 220px; bottom: 48px; padding: 5px 7px; gap: 6px; }
+  body.is-driving .drive-speed { min-width: 47px; padding-right: 6px; }
+  body.is-driving .drive-speed strong { font-size: 18px; }
+  body.is-driving .drive-road strong { max-width: 92px; font-size: 7px; }
+  body.is-driving .world-footer { height: 40px; padding: 0 8px; }
+  body.is-driving .world-metrics span:nth-child(n+2) { display: none; }
+  body.is-driving .viewport-attribution { bottom: 44px; max-width: 42%; padding: 4px 6px; font-size: 6px; }
+  body.is-driving .drive-panel-toggle { top: 49px; height: 29px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }

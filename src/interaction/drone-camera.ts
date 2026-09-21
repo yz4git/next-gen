@@ -13,7 +13,7 @@ export interface DroneCameraPose {
   fov: number;
 }
 
-export function droneCameraPose(elapsedSeconds: number, radius: number): DroneCameraPose {
+export function droneCameraPose(elapsedSeconds: number, radius: number, minimumHeight = 0): DroneCameraPose {
   const safeRadius = Math.max(100, radius);
   const time = elapsedSeconds * DRONE_TOUR_SPEED;
   const swoop = 0.5 + 0.5 * Math.sin(time * 0.17 - 0.8);
@@ -28,10 +28,13 @@ export function droneCameraPose(elapsedSeconds: number, radius: number): DroneCa
   );
   const minHeight = Math.max(90, safeRadius * 0.16);
   const maxHeight = Math.max(150, safeRadius * 0.9);
-  const height = clamp(
-    safeRadius * (0.18 + swoop * 0.64) + safeRadius * 0.04 * Math.sin(time * 0.39 + 1.2),
-    minHeight,
-    maxHeight,
+  const height = Math.max(
+    minimumHeight,
+    clamp(
+      safeRadius * (0.18 + swoop * 0.64) + safeRadius * 0.04 * Math.sin(time * 0.39 + 1.2),
+      minHeight,
+      maxHeight,
+    ),
   );
   const targetX = safeRadius * (0.14 * Math.sin(time * 0.12) + 0.05 * Math.sin(time * 0.29 + 0.6));
   const targetZ = safeRadius * 0.1 * Math.cos(time * 0.15 + 0.4);
@@ -51,6 +54,8 @@ export class DroneCameraController {
   private active = false;
   private elapsedSeconds = 0;
   private radius = 500;
+  private minimumHeight = 0;
+  private groundHeightAt: (x: number, z: number) => number = () => 0;
   private readonly target = new THREE.Vector3(0, 28, 0);
   private readonly defaultFov: number;
 
@@ -58,9 +63,15 @@ export class DroneCameraController {
     this.defaultFov = camera.fov;
   }
 
-  setWorld(radius: number): void {
+  setWorld(
+    radius: number,
+    minimumHeight = 0,
+    groundHeightAt: (x: number, z: number) => number = () => 0,
+  ): void {
     this.radius = radius;
-    this.target.y = droneCameraPose(0, radius).targetY;
+    this.minimumHeight = Math.max(0, minimumHeight);
+    this.groundHeightAt = groundHeightAt;
+    this.target.y = droneCameraPose(0, radius, this.minimumHeight).targetY;
     if (this.active) this.applyPose();
   }
 
@@ -84,8 +95,9 @@ export class DroneCameraController {
   }
 
   private applyPose(): void {
-    const pose = droneCameraPose(this.elapsedSeconds, this.radius);
-    this.camera.position.set(pose.x, pose.y, pose.z);
+    const pose = droneCameraPose(this.elapsedSeconds, this.radius, this.minimumHeight);
+    const terrainSafeHeight = this.groundHeightAt(pose.x, pose.z) + 24;
+    this.camera.position.set(pose.x, Math.max(pose.y, terrainSafeHeight), pose.z);
     this.target.set(pose.targetX, pose.targetY, pose.targetZ);
     this.camera.lookAt(this.target);
     this.camera.rotateZ(pose.roll);

@@ -46,6 +46,8 @@ interface FurnitureBucket {
   signs: THREE.Matrix4[];
 }
 
+const ROAD_SURFACE_SAMPLE_METERS = 7.5;
+
 export interface BuiltCity {
   group: THREE.Group;
   collision: CollisionIndex;
@@ -289,9 +291,18 @@ function addToBucket(
   featureId: string,
 ): void {
   const bucket = buckets.get(key) ?? { geometries: [], featureIds: [], tile, color };
-  bucket.geometries.push(geometry);
+  bucket.geometries.push(normalizeMergeGeometry(geometry));
   bucket.featureIds.push(featureId);
   buckets.set(key, bucket);
+}
+
+export function normalizeMergeGeometry(geometry: THREE.BufferGeometry): THREE.BufferGeometry {
+  if (!geometry.getAttribute("normal")) geometry.computeVertexNormals();
+  for (const attributeName of Object.keys(geometry.attributes)) {
+    if (attributeName !== "position" && attributeName !== "normal") geometry.deleteAttribute(attributeName);
+  }
+  geometry.clearGroups();
+  return geometry;
 }
 
 function createSemanticLayers(): Record<"terrain" | "areas" | "roads" | "buildings" | "roofs", THREE.Group> {
@@ -551,35 +562,19 @@ function createRoads(roads: RoadFeature[], data: WorldData, style: WorldStyle): 
       const length = Math.hypot(dx, dz);
       if (length < 0.05) continue;
       const halfWidth = Math.min(road.width, 30) / 2;
-      const nx = (-dz / length) * halfWidth;
-      const nz = (dx / length) * halfWidth;
-      const startHeight = elevationAt(data.terrain, start.x, start.z) + 0.14;
-      const endHeight = elevationAt(data.terrain, end.x, end.z) + 0.14;
       const tile = tileForPoint((start.x + end.x) / 2, (start.z + end.z) / 2, WORLD_TILE_SIZE);
-      const bucket = buckets.get(tile.id) ?? {
-        positions: [],
-        indices: [],
-        featureIds: [],
+      appendRoadStrip(
+        buckets,
         tile,
-        vertex: 0,
-      };
-      bucket.positions.push(
-        start.x + nx, startHeight, start.z + nz,
-        start.x - nx, startHeight, start.z - nz,
-        end.x + nx, endHeight, end.z + nz,
-        end.x - nx, endHeight, end.z - nz,
+        start,
+        end,
+        0,
+        halfWidth,
+        data,
+        0.14,
+        road.id,
+        ROAD_SURFACE_SAMPLE_METERS,
       );
-      bucket.indices.push(
-        bucket.vertex,
-        bucket.vertex + 1,
-        bucket.vertex + 2,
-        bucket.vertex + 2,
-        bucket.vertex + 1,
-        bucket.vertex + 3,
-      );
-      bucket.vertex += 4;
-      bucket.featureIds.push(road.id);
-      buckets.set(tile.id, bucket);
     }
   }
   return [...buckets.values()].map((bucket) => {
@@ -690,6 +685,7 @@ function appendRoadStrip(
   data: WorldData,
   heightOffset: number,
   featureId: string,
+  maximumSegmentLength = ROAD_SURFACE_SAMPLE_METERS,
 ): void {
   const dx = end.x - start.x;
   const dz = end.z - start.z;
@@ -697,24 +693,38 @@ function appendRoadStrip(
   if (length < 0.05) return;
   const nx = -dz / length;
   const nz = dx / length;
-  const startX = start.x + nx * offset;
-  const startZ = start.z + nz * offset;
-  const endX = end.x + nx * offset;
-  const endZ = end.z + nz * offset;
-  const startHeight = elevationAt(data.terrain, startX, startZ) + heightOffset;
-  const endHeight = elevationAt(data.terrain, endX, endZ) + heightOffset;
+  const segmentCount = Math.max(1, Math.ceil(length / Math.max(1, maximumSegmentLength)));
   const bucket = buckets.get(tile.id) ?? { positions: [], indices: [], featureIds: [], tile, vertex: 0 };
-  bucket.positions.push(
-    startX + nx * halfWidth, startHeight, startZ + nz * halfWidth,
-    startX - nx * halfWidth, startHeight, startZ - nz * halfWidth,
-    endX + nx * halfWidth, endHeight, endZ + nz * halfWidth,
-    endX - nx * halfWidth, endHeight, endZ - nz * halfWidth,
-  );
-  bucket.indices.push(
-    bucket.vertex, bucket.vertex + 1, bucket.vertex + 2,
-    bucket.vertex + 2, bucket.vertex + 1, bucket.vertex + 3,
-  );
-  bucket.vertex += 4;
+
+  for (let segment = 0; segment < segmentCount; segment += 1) {
+    const first = interpolateSegment(start, end, segment / segmentCount);
+    const second = interpolateSegment(start, end, (segment + 1) / segmentCount);
+    const startX = first.x + nx * offset;
+    const startZ = first.z + nz * offset;
+    const endX = second.x + nx * offset;
+    const endZ = second.z + nz * offset;
+    const leftStartX = startX + nx * halfWidth;
+    const leftStartZ = startZ + nz * halfWidth;
+    const rightStartX = startX - nx * halfWidth;
+    const rightStartZ = startZ - nz * halfWidth;
+    const leftEndX = endX + nx * halfWidth;
+    const leftEndZ = endZ + nz * halfWidth;
+    const rightEndX = endX - nx * halfWidth;
+    const rightEndZ = endZ - nz * halfWidth;
+
+    bucket.positions.push(
+      leftStartX, elevationAt(data.terrain, leftStartX, leftStartZ) + heightOffset, leftStartZ,
+      rightStartX, elevationAt(data.terrain, rightStartX, rightStartZ) + heightOffset, rightStartZ,
+      leftEndX, elevationAt(data.terrain, leftEndX, leftEndZ) + heightOffset, leftEndZ,
+      rightEndX, elevationAt(data.terrain, rightEndX, rightEndZ) + heightOffset, rightEndZ,
+    );
+    bucket.indices.push(
+      bucket.vertex, bucket.vertex + 1, bucket.vertex + 2,
+      bucket.vertex + 2, bucket.vertex + 1, bucket.vertex + 3,
+    );
+    bucket.vertex += 4;
+  }
+
   bucket.featureIds.push(featureId);
   buckets.set(tile.id, bucket);
 }

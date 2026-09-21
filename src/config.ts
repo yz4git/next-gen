@@ -24,6 +24,6 @@ export const TERRAIN_TILES_URL =
   "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
 
 export const OVERPASS_ENDPOINTS = [
+  import.meta.env.VITE_OVERPASS_URL ?? "https://overpass.private.coffee/api/interpreter",
   "https://overpass-api.de/api/interpreter",
-  "https://overpass.kumi.systems/api/interpreter",
 ] as const;
