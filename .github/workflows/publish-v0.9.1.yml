@@ -1,0 +1,61 @@
+name: Publish v0.9.1
+
+on:
+  push:
+    branches:
+      - ops/publish-v0.9.1
+    paths:
+      - ".github/workflows/publish-v0.9.1.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: d8df9f3a73c48b59af96c1cab6bca0abd0cbca14
+          fetch-depth: 0
+
+      - name: Verify release target
+        run: |
+          test "$(git rev-parse HEAD)" = "d8df9f3a73c48b59af96c1cab6bca0abd0cbca14"
+          node -e 'const p=require("./package.json"); if(p.version!=="0.9.1") process.exit(1)'
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v0.9.1 >/dev/null 2>&1; then
+            echo "v0.9.1 already exists"
+          else
+            gh release create v0.9.1 \
+              --repo "$GITHUB_REPOSITORY" \
+              --target d8df9f3a73c48b59af96c1cab6bca0abd0cbca14 \
+              --title "WorldSeed v0.9.1 — Schema validation hotfix" \
+              --notes-file RELEASE_NOTES_v0.9.1.md
+          fi
+
+      - name: Build reusable release assets
+        run: |
+          mkdir -p release-assets
+          zip -r release-assets/worldseed-schemas-v1-v0.9.1.zip schemas/v1 docs/SCHEMA_VERSIONING.md
+          zip -r release-assets/worldseed-export-consumer-v0.9.1.zip examples/export-consumer
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload v0.9.1 \
+            release-assets/worldseed-schemas-v1-v0.9.1.zip \
+            release-assets/worldseed-export-consumer-v0.9.1.zip \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+      - name: Verify release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view v0.9.1 --repo "$GITHUB_REPOSITORY" --json tagName,name,isDraft,isPrerelease,targetCommitish,url,assets
