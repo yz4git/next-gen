@@ -3,6 +3,15 @@
   <h1>WorldSeed</h1>
   <p><strong>Drive a playable Three.js city from one coordinate.</strong></p>
   <p>Overture buildings + routable streets · arcade driving · game-ready GLB + data kit</p>
+  <p>
+    <a href="https://github.com/yz4git/next-gen/releases/tag/v0.9.1"><strong>Latest release</strong></a>
+    ·
+    <a href="docs/TRY_WORLDSEED.md"><strong>Try it in 5 minutes</strong></a>
+    ·
+    <a href="docs/SCHEMA_VERSIONING.md"><strong>Schema v1</strong></a>
+    ·
+    <a href="https://github.com/yz4git/next-gen/issues/19"><strong>Early adopters wanted</strong></a>
+  </p>
 </div>
 
 WorldSeed turns a WGS84 latitude and longitude into a local-meter, browser-generated 3D world. Paste coordinates (or a Google Maps URL containing coordinates), choose a 100–1,000 m radius, and immediately orbit, walk, fly, or drive through the result.
@@ -24,7 +33,7 @@ See [docs/REUSE.md](docs/REUSE.md) for concrete integration paths and export-fil
 
 ![WorldSeed generating a playable low-poly city](docs/worldseed-preview.png)
 
-## What works in v0.9.0 — Interoperable City Export
+## What works in v0.9.x — Interoperable City Export
 
 - Overture Maps building footprints through its public PMTiles distribution
 - A routable road graph built from Overture Transportation segments and connectors, with OpenStreetMap road fallback
@@ -53,7 +62,9 @@ See [docs/REUSE.md](docs/REUSE.md) for concrete integration paths and export-fil
 
 ## Project status
 
-WorldSeed is an actively developed early-stage project. v0.9.1 is the current public build; v0.9.0 established the versioned export contract and independent downstream consumer example. The project is actively seeking early adopters, bug reports, integration examples, and focused contributions; adoption metrics are never inferred or presented without a public link.
+WorldSeed is an actively developed early-stage project. v0.9.1 is the current public build; v0.9.0 established the versioned export contract and independent downstream consumer example, and v0.9.1 corrected the published road-graph schema without changing schema v1 semantics. The project is actively seeking early adopters, bug reports, integration examples, and focused contributions; adoption metrics are never inferred or presented without a public link.
+
+**Want to evaluate the contract without building WorldSeed?** Follow the [five-minute trial](docs/TRY_WORLDSEED.md): download the privacy-safe synthetic demo export and the prebuilt standalone consumer from the v0.9.1 Release, then drag the export ZIP into the consumer.
 
 ## Quick start
 
@@ -153,6 +164,8 @@ The starter-kit ZIP contains:
 Schema compatibility is documented in [docs/SCHEMA_VERSIONING.md](docs/SCHEMA_VERSIONING.md). The independent [export consumer example](examples/export-consumer/) imports only the ZIP contract—no WorldSeed runtime code—and renders the GLB, road graph, spawn points, and route in a separate Three.js app.
 
 ### Build something with WorldSeed
+
+Start with the [five-minute public trial](docs/TRY_WORLDSEED.md). If you want to test the contract in another runtime, see the [cross-runtime good first issue](https://github.com/yz4git/next-gen/issues/20). Launch-ready wording for developer communities is kept in [docs/LAUNCH_KIT.md](docs/LAUNCH_KIT.md).
 
 If you use a WorldSeed export in a public game, simulation, visualization, benchmark, or tool, open an **Integration report** issue with a reproducible link. Verified public integrations are listed in [ADOPTERS.md](ADOPTERS.md). This is the project's primary early-adopter program; no usage is counted without a public artifact.
 
