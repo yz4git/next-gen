@@ -21,6 +21,14 @@ import { resolveBuildingHeight, seededUnit } from "./height";
 import { createPlateauSurfaceGeometry } from "./plateau";
 import { resolveRoof, type RoofProfile } from "./roof";
 import { buildRoadGraph, isDrivableRoad } from "./road-graph";
+import {
+  buildRoadJunctionLayouts,
+  junctionCrosswalks,
+  roadJunctionPolygon,
+  sidewalkCornerStrips,
+  trimRoadEdge,
+  type RoadJunctionLayout,
+} from "./road-junction";
 import { materialForStyle, WORLD_PALETTES } from "./styles";
 import { tileForPoint, type WorldTile } from "./tiling";
 
@@ -80,10 +88,11 @@ export async function buildCity(
   layers.terrain.add(createGround(data, style));
   const areas = createAreas(data.areas, data, style);
   if (areas.length > 0) layers.areas.add(...areas);
-  const roads = createRoads(data.roads, data, style);
-  if (roads.length > 0) layers.roads.add(...roads);
   const roadGraph = buildRoadGraph(data.roads, data.center, data.radius, data.terrain);
-  const roadDecorations = createRoadDecorations(data.roads, roadGraph, data, style);
+  const roadJunctions = buildRoadJunctionLayouts(roadGraph);
+  const roads = createRoads(data.roads, roadGraph, roadJunctions, data, style);
+  if (roads.length > 0) layers.roads.add(...roads);
+  const roadDecorations = createRoadDecorations(roadGraph, roadJunctions, data, style);
   if (roadDecorations.length > 0) layers.roads.add(...roadDecorations);
 
   const allResolved = data.buildings.map(resolveBuildingHeight);
@@ -547,29 +556,80 @@ function createAreas(areas: AreaFeature[], data: WorldData, style: WorldStyle): 
   });
 }
 
-function createRoads(roads: RoadFeature[], data: WorldData, style: WorldStyle): THREE.Mesh[] {
+function createRoads(
+  sourceRoads: RoadFeature[],
+  roadGraph: RoadGraph,
+  junctions: Map<string, RoadJunctionLayout>,
+  data: WorldData,
+  style: WorldStyle,
+): THREE.Mesh[] {
   const buckets = new Map<string, RoadTileBucket>();
-  for (const road of roads) {
+
+  for (const edge of roadGraph.edges) {
+    const trimmed = trimRoadEdge(edge, junctions);
+    if (!trimmed) continue;
+    const length = Math.hypot(trimmed.end.x - trimmed.start.x, trimmed.end.z - trimmed.start.z);
+    if (length < 0.05) continue;
+    const tile = tileForPoint(
+      (trimmed.start.x + trimmed.end.x) / 2,
+      (trimmed.start.z + trimmed.end.z) / 2,
+      WORLD_TILE_SIZE,
+    );
+    appendRoadStrip(
+      buckets,
+      tile,
+      trimmed.start,
+      trimmed.end,
+      0,
+      Math.min(edge.widthMeters, 30) / 2,
+      data,
+      0.14,
+      edge.roadId,
+      ROAD_SURFACE_SAMPLE_METERS,
+    );
+  }
+
+  for (const junction of junctions.values()) {
+    const polygon = roadJunctionPolygon(junction);
+    if (polygon.length < 3) continue;
+    const tile = tileForPoint(junction.x, junction.z, WORLD_TILE_SIZE);
+    appendRoadJunctionPatch(
+      buckets,
+      tile,
+      { x: junction.x, z: junction.z },
+      polygon,
+      data,
+      `junction:${junction.nodeId}`,
+    );
+  }
+
+  for (const road of sourceRoads) {
+    if (isDrivableRoad(road)) continue;
     for (let index = 0; index < road.path.length - 1; index += 1) {
       const first = road.path[index];
       const second = road.path[index + 1];
       if (!first || !second) continue;
-      const clipped = clipSegmentToCircle(toLocalMeters(first, data.center), toLocalMeters(second, data.center), data.radius);
+      const clipped = clipSegmentToCircle(
+        toLocalMeters(first, data.center),
+        toLocalMeters(second, data.center),
+        data.radius,
+      );
       if (!clipped) continue;
       const [start, end] = clipped;
-      const dx = end.x - start.x;
-      const dz = end.z - start.z;
-      const length = Math.hypot(dx, dz);
+      const length = Math.hypot(end.x - start.x, end.z - start.z);
       if (length < 0.05) continue;
-      const halfWidth = Math.min(road.width, 30) / 2;
-      const tile = tileForPoint((start.x + end.x) / 2, (start.z + end.z) / 2, WORLD_TILE_SIZE);
+      const tile = tileForPoint(
+        (start.x + end.x) / 2,
+        (start.z + end.z) / 2,
+        WORLD_TILE_SIZE,
+      );
       appendRoadStrip(
         buckets,
         tile,
         start,
         end,
         0,
-        halfWidth,
+        Math.min(road.width, 30) / 2,
         data,
         0.14,
         road.id,
@@ -577,6 +637,7 @@ function createRoads(roads: RoadFeature[], data: WorldData, style: WorldStyle): 
       );
     }
   }
+
   return [...buckets.values()].map((bucket) => {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(bucket.positions, 3));
@@ -593,86 +654,200 @@ function createRoads(roads: RoadFeature[], data: WorldData, style: WorldStyle): 
     return mesh;
   });
 }
-
 function createRoadDecorations(
-  roads: RoadFeature[],
   roadGraph: RoadGraph,
+  junctions: Map<string, RoadJunctionLayout>,
   data: WorldData,
   style: WorldStyle,
 ): THREE.Object3D[] {
   const markingBuckets = new Map<string, RoadTileBucket>();
   const sidewalkBuckets = new Map<string, RoadTileBucket>();
   let detailSegments = 0;
-  const maximumDetailSegments = 16_000;
+  const maximumDetailSegments = 18_000;
 
-  for (const road of roads) {
-    if (!isDrivableRoad(road)) continue;
-    for (let index = 1; index < road.path.length && detailSegments < maximumDetailSegments; index += 1) {
-      const first = road.path[index - 1];
-      const second = road.path[index];
-      if (!first || !second) continue;
-      const clipped = clipSegmentToCircle(toLocalMeters(first, data.center), toLocalMeters(second, data.center), data.radius);
-      if (!clipped) continue;
-      const [start, end] = clipped;
-      const length = Math.hypot(end.x - start.x, end.z - start.z);
-      if (length < 2) continue;
-      const tile = tileForPoint((start.x + end.x) / 2, (start.z + end.z) / 2, WORLD_TILE_SIZE);
-      if (road.kind !== "motorway" && road.kind !== "trunk" && road.width >= 4) {
-        appendRoadStrip(sidewalkBuckets, tile, start, end, road.width / 2 + 0.72, 0.62, data, 0.18, road.id);
-        appendRoadStrip(sidewalkBuckets, tile, start, end, -(road.width / 2 + 0.72), 0.62, data, 0.18, road.id);
-        detailSegments += 2;
-      }
-      if (road.width >= 6.5 && !["living_street", "service", "track"].includes(road.kind)) {
-        for (let distance = 2.5; distance < length - 1 && detailSegments < maximumDetailSegments; distance += 9) {
-          const dashEnd = Math.min(length - 0.5, distance + 3.5);
-          const dashStartPoint = interpolateSegment(start, end, distance / length);
-          const dashEndPoint = interpolateSegment(start, end, dashEnd / length);
-          appendRoadStrip(markingBuckets, tile, dashStartPoint, dashEndPoint, 0, 0.09, data, 0.22, road.id);
-          detailSegments += 1;
-        }
+  for (const edge of roadGraph.edges) {
+    if (detailSegments >= maximumDetailSegments) break;
+    const trimmedRoad = trimRoadEdge(edge, junctions, 0.12);
+    if (!trimmedRoad) continue;
+    const length = Math.hypot(
+      trimmedRoad.end.x - trimmedRoad.start.x,
+      trimmedRoad.end.z - trimmedRoad.start.z,
+    );
+    if (length < 1.2) continue;
+    const tile = tileForPoint(
+      (trimmedRoad.start.x + trimmedRoad.end.x) / 2,
+      (trimmedRoad.start.z + trimmedRoad.end.z) / 2,
+      WORLD_TILE_SIZE,
+    );
+
+    if (!["motorway", "trunk"].includes(edge.class) && edge.widthMeters >= 4) {
+      const sidewalkEdge = trimRoadEdge(edge, junctions, 0.34) ?? trimmedRoad;
+      appendRoadStrip(
+        sidewalkBuckets,
+        tile,
+        sidewalkEdge.start,
+        sidewalkEdge.end,
+        edge.widthMeters / 2 + 0.72,
+        0.62,
+        data,
+        0.18,
+        edge.roadId,
+      );
+      appendRoadStrip(
+        sidewalkBuckets,
+        tile,
+        sidewalkEdge.start,
+        sidewalkEdge.end,
+        -(edge.widthMeters / 2 + 0.72),
+        0.62,
+        data,
+        0.18,
+        edge.roadId,
+      );
+      detailSegments += 2;
+    }
+
+    if (edge.widthMeters >= 6.5 && !["living_street", "service", "track"].includes(edge.class)) {
+      for (let distance = 2.5; distance < length - 1 && detailSegments < maximumDetailSegments; distance += 9) {
+        const dashEnd = Math.min(length - 0.5, distance + 3.5);
+        const dashStartPoint = interpolateSegment(trimmedRoad.start, trimmedRoad.end, distance / length);
+        const dashEndPoint = interpolateSegment(trimmedRoad.start, trimmedRoad.end, dashEnd / length);
+        appendRoadStrip(
+          markingBuckets,
+          tile,
+          dashStartPoint,
+          dashEndPoint,
+          0,
+          0.09,
+          data,
+          0.22,
+          edge.roadId,
+        );
+        detailSegments += 1;
       }
     }
   }
 
-  const edgeById = new Map(roadGraph.edges.map((edge) => [edge.id, edge]));
-  for (const node of roadGraph.nodes) {
-    if (node.edgeIds.length < 3 || detailSegments >= maximumDetailSegments) continue;
-    const edge = edgeById.get(node.edgeIds[0] ?? "");
-    const next = edge?.path.find((point) => Math.hypot(point.x - node.x, point.z - node.z) > 0.5);
-    if (!edge || !next) continue;
-    const dx = next.x - node.x;
-    const dz = next.z - node.z;
-    const length = Math.max(0.001, Math.hypot(dx, dz));
-    const acrossX = -dz / length;
-    const acrossZ = dx / length;
-    const tile = tileForPoint(node.x, node.z, WORLD_TILE_SIZE);
-    for (let stripe = -2; stripe <= 2; stripe += 1) {
-      const alongX = (dx / length) * stripe * 0.85;
-      const alongZ = (dz / length) * stripe * 0.85;
-      const half = edge.widthMeters * 0.48;
-      appendRoadStrip(
-        markingBuckets,
+  for (const junction of junctions.values()) {
+    if (detailSegments >= maximumDetailSegments) break;
+    const tile = tileForPoint(junction.x, junction.z, WORLD_TILE_SIZE);
+
+    for (const corner of sidewalkCornerStrips(junction)) {
+      appendSidewalkCornerStrip(
+        sidewalkBuckets,
         tile,
-        { x: node.x + alongX - acrossX * half, z: node.z + alongZ - acrossZ * half },
-        { x: node.x + alongX + acrossX * half, z: node.z + alongZ + acrossZ * half },
-        0,
-        0.2,
+        corner.inner,
+        corner.outer,
         data,
-        0.23,
-        `crosswalk:${node.id}`,
+        `sidewalk-corner:${junction.nodeId}`,
       );
-      detailSegments += 1;
+      detailSegments += Math.max(1, corner.inner.length - 1);
+    }
+
+    for (const crosswalk of junctionCrosswalks(junction)) {
+      for (let stripe = 0; stripe < 4 && detailSegments < maximumDetailSegments; stripe += 1) {
+        const shift = stripe * 0.72;
+        const start = {
+          x: crosswalk.start.x + crosswalk.directionX * shift,
+          z: crosswalk.start.z + crosswalk.directionZ * shift,
+        };
+        const end = {
+          x: crosswalk.end.x + crosswalk.directionX * shift,
+          z: crosswalk.end.z + crosswalk.directionZ * shift,
+        };
+        appendRoadStrip(
+          markingBuckets,
+          tile,
+          start,
+          end,
+          0,
+          0.16,
+          data,
+          0.235,
+          `crosswalk:${junction.nodeId}:${crosswalk.roadId}`,
+          5,
+        );
+        detailSegments += 1;
+      }
     }
   }
 
   const markingColor = style === "cyber" ? 0x5cecff : style === "blueprint" ? 0x8fdbff : 0xf4edcf;
   const sidewalkColor = style === "cyber" ? 0x282d43 : style === "blueprint" ? 0x18486b : 0x9da49d;
-  const objects: THREE.Object3D[] = [
+  return [
     ...roadBucketMeshes(markingBuckets, markingColor, "Road markings", style, true),
     ...roadBucketMeshes(sidewalkBuckets, sidewalkColor, "Sidewalks", style, false),
     ...createRoadFurniture(roadGraph, data, style),
   ];
-  return objects;
+}
+function appendRoadJunctionPatch(
+  buckets: Map<string, RoadTileBucket>,
+  tile: WorldTile,
+  center: LocalPoint,
+  polygon: LocalPoint[],
+  data: WorldData,
+  featureId: string,
+): void {
+  if (polygon.length < 3) return;
+  const bucket = buckets.get(tile.id) ?? { positions: [], indices: [], featureIds: [], tile, vertex: 0 };
+  const centerIndex = bucket.vertex;
+  bucket.positions.push(
+    center.x,
+    elevationAt(data.terrain, center.x, center.z) + 0.155,
+    center.z,
+  );
+  bucket.vertex += 1;
+  const firstPolygonIndex = bucket.vertex;
+  for (const point of polygon) {
+    bucket.positions.push(
+      point.x,
+      elevationAt(data.terrain, point.x, point.z) + 0.155,
+      point.z,
+    );
+    bucket.vertex += 1;
+  }
+  for (let index = 0; index < polygon.length; index += 1) {
+    const next = (index + 1) % polygon.length;
+    bucket.indices.push(
+      centerIndex,
+      firstPolygonIndex + index,
+      firstPolygonIndex + next,
+    );
+  }
+  bucket.featureIds.push(featureId);
+  buckets.set(tile.id, bucket);
+}
+
+function appendSidewalkCornerStrip(
+  buckets: Map<string, RoadTileBucket>,
+  tile: WorldTile,
+  inner: LocalPoint[],
+  outer: LocalPoint[],
+  data: WorldData,
+  featureId: string,
+): void {
+  const segmentCount = Math.min(inner.length, outer.length) - 1;
+  if (segmentCount < 1) return;
+  const bucket = buckets.get(tile.id) ?? { positions: [], indices: [], featureIds: [], tile, vertex: 0 };
+  for (let index = 0; index < segmentCount; index += 1) {
+    const innerStart = inner[index]!;
+    const innerEnd = inner[index + 1]!;
+    const outerStart = outer[index]!;
+    const outerEnd = outer[index + 1]!;
+    bucket.positions.push(
+      innerStart.x, elevationAt(data.terrain, innerStart.x, innerStart.z) + 0.19, innerStart.z,
+      outerStart.x, elevationAt(data.terrain, outerStart.x, outerStart.z) + 0.19, outerStart.z,
+      innerEnd.x, elevationAt(data.terrain, innerEnd.x, innerEnd.z) + 0.19, innerEnd.z,
+      outerEnd.x, elevationAt(data.terrain, outerEnd.x, outerEnd.z) + 0.19, outerEnd.z,
+    );
+    bucket.indices.push(
+      bucket.vertex, bucket.vertex + 1, bucket.vertex + 2,
+      bucket.vertex + 2, bucket.vertex + 1, bucket.vertex + 3,
+    );
+    bucket.vertex += 4;
+  }
+  bucket.featureIds.push(featureId);
+  buckets.set(tile.id, bucket);
 }
 
 function appendRoadStrip(
