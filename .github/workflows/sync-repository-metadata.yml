@@ -1,0 +1,53 @@
+name: Sync repository metadata
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/repository-metadata.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply Description, Website and Topics
+        env:
+          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ "$GITHUB_REPOSITORY" != "yz4git/next-gen" ]; then
+            echo "Refusing to run outside yz4git/next-gen"
+            exit 1
+          fi
+
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "REPO_ADMIN_TOKEN is not configured yet. No repository metadata was changed."
+            echo "Add the secret, then change syncVersion in .github/repository-metadata.json to trigger a sync."
+            exit 0
+          fi
+
+          FILE=".github/repository-metadata.json"
+          DESCRIPTION="$(jq -er '.description | strings' "$FILE")"
+          HOMEPAGE="$(jq -er '.homepage | strings' "$FILE")"
+
+          jq -e '
+            (.topics | type == "array")
+            and (.topics | length <= 20)
+            and ([.topics[] | test("^[a-z0-9][a-z0-9-]{0,49}$")] | all)
+          ' "$FILE" >/dev/null
+
+          echo "Updating repository description and website..."
+          gh api             --method PATCH             -H "Accept: application/vnd.github+json"             -H "X-GitHub-Api-Version: 2022-11-28"             "repos/$GITHUB_REPOSITORY"             -f description="$DESCRIPTION"             -f homepage="$HOMEPAGE"             >/dev/null
+
+          echo "Updating repository topics..."
+          jq '{names: .topics}' "$FILE" > /tmp/topics.json
+          gh api             --method PUT             -H "Accept: application/vnd.github+json"             -H "X-GitHub-Api-Version: 2022-11-28"             "repos/$GITHUB_REPOSITORY/topics"             --input /tmp/topics.json             >/dev/null
+
+          echo "Repository metadata synchronized."
