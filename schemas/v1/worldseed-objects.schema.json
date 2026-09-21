@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/yz4git/next-gen/v0.9.0/schemas/v1/worldseed-objects.schema.json",
+  "title": "WorldSeed semantic objects v1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "generator",
+    "coordinateSystem",
+    "radiusMeters",
+    "layers",
+    "objects"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "generator": {
+      "type": "string"
+    },
+    "coordinateSystem": {
+      "type": "string"
+    },
+    "radiusMeters": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "layers": {
+      "type": "object",
+      "required": [
+        "terrain",
+        "areas",
+        "roads",
+        "buildings",
+        "roofs"
+      ],
+      "properties": {
+        "terrain": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "areas": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "roads": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "buildings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "roofs": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "sourceId",
+          "layer",
+          "source",
+          "center",
+          "bounds",
+          "properties"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceId": {
+            "type": "string"
+          },
+          "layer": {
+            "enum": [
+              "terrain",
+              "areas",
+              "roads",
+              "buildings",
+              "roofs"
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "center": {
+            "$ref": "#/$defs/vec3"
+          },
+          "bounds": {
+            "type": "object",
+            "required": [
+              "minimum",
+              "maximum"
+            ],
+            "properties": {
+              "minimum": {
+                "$ref": "#/$defs/vec3"
+              },
+              "maximum": {
+                "$ref": "#/$defs/vec3"
+              }
+            },
+            "additionalProperties": false
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "tile": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "$defs": {
+    "vec3": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    }
+  },
+  "additionalProperties": false
+}
