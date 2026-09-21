@@ -1,0 +1,39 @@
+name: Bug report
+description: Report a reproducible WorldSeed problem
+title: "[Bug] "
+labels: []
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Include steps, seed/radius when safe to share, mode, and browser/device.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Data provider / import
+        - Terrain / geometry
+        - Road graph / routing
+        - Drive / Walk / Fly / Drone
+        - Export / starter kit
+        - Privacy / attribution
+        - Mobile / accessibility
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Additional context
+      description: Screenshots, console output, or exported fixture details. Do not post private coordinates you do not want to disclose.
