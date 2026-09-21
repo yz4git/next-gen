@@ -1,0 +1,4987 @@
+{
+  "generatedAt": "2026-09-21T09:07:08.545Z",
+  "executablePath": "/usr/bin/google-chrome",
+  "scenarios": [
+    {
+      "name": "desktop-1280x720",
+      "errors": [
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 5. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 3. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 3. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 3. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 4. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 3. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 3. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 4. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 4. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 4. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 3. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 5. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 4. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 4. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        }
+      ],
+      "states": [
+        {
+          "name": "desktop-01-orbit.png",
+          "viewport": {
+            "width": 1280,
+            "height": 720,
+            "dpr": 1
+          },
+          "status": "Demo world ready",
+          "mode": "orbit",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 904,
+            "drawingBufferHeight": 658
+          },
+          "bodyClasses": "world-panel-open",
+          "rects": {
+            "canvas": {
+              "x": 376,
+              "y": 62,
+              "width": 904,
+              "height": 658
+            },
+            "seedPanel": {
+              "x": 0,
+              "y": 62,
+              "width": 376,
+              "height": 658
+            },
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 1280,
+              "height": 62
+            },
+            "modeRail": null,
+            "driveHud": null,
+            "driveControls": null,
+            "panelToggle": null
+          },
+          "overflow": [
+            {
+              "tag": "DIV",
+              "id": null,
+              "cls": "panel-scroll",
+              "cw": 365,
+              "sw": 365,
+              "ch": 658,
+              "sh": 1457
+            },
+            {
+              "tag": "FORM",
+              "id": "seed-form",
+              "cls": "seed-form",
+              "cw": 315,
+              "sw": 319,
+              "ch": 553,
+              "sh": 553
+            },
+            {
+              "tag": "INPUT",
+              "id": "radius-input",
+              "cls": "range",
+              "cw": 315,
+              "sw": 315,
+              "ch": 3,
+              "sh": 9
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch low-poly",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch anime",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch cyber",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch blueprint",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch quality",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            }
+          ],
+          "outsideViewport": [
+            {
+              "id": "seed-button",
+              "text": "Seed this world",
+              "x": 25,
+              "y": 726.265625,
+              "right": 340,
+              "bottom": 773.265625
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 79.921875,
+              "y": 792.859375,
+              "right": 131.5,
+              "bottom": 804.453125
+            },
+            {
+              "id": "demo-button",
+              "text": "Regenerate instant demo",
+              "x": 25,
+              "y": 811.453125,
+              "right": 340,
+              "bottom": 839.453125
+            },
+            {
+              "id": "plateau-import-button",
+              "text": "Import PLATEAU CityGML",
+              "x": 25,
+              "y": 842.453125,
+              "right": 340,
+              "bottom": 872.453125
+            },
+            {
+              "id": null,
+              "text": "Low poly",
+              "x": 25,
+              "y": 956.453125,
+              "right": 83.1875,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Anime",
+              "x": 89.1875,
+              "y": 956.453125,
+              "right": 147.390625,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Cyber",
+              "x": 153.390625,
+              "y": 956.453125,
+              "right": 211.59375,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Blueprint",
+              "x": 217.59375,
+              "y": 956.453125,
+              "right": 275.796875,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Data quality",
+              "x": 281.796875,
+              "y": 956.453125,
+              "right": 340,
+              "bottom": 1016.453125
+            },
+            {
+              "id": "export-glb",
+              "text": "GLBScene model",
+              "x": 25,
+              "y": 1294.453125,
+              "right": 179,
+              "bottom": 1346.453125
+            },
+            {
+              "id": "export-kit",
+              "text": "Three.js kitReady to run",
+              "x": 186,
+              "y": 1294.453125,
+              "right": 340,
+              "bottom": 1346.453125
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 25,
+              "y": 1454.234375,
+              "right": 96.578125,
+              "bottom": 1479.234375
+            },
+            {
+              "id": "clear-local-data",
+              "text": "Clear local data",
+              "x": 103.578125,
+              "y": 1454.234375,
+              "right": 179.171875,
+              "bottom": 1479.234375
+            }
+          ],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "5",
+            "tiles": "21/21",
+            "speed": "0",
+            "driveRoad": "Ready road"
+          }
+        },
+        {
+          "name": "desktop-02-orbit-drag.png",
+          "viewport": {
+            "width": 1280,
+            "height": 720,
+            "dpr": 1
+          },
+          "status": "Demo world ready",
+          "mode": "orbit",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 904,
+            "drawingBufferHeight": 658
+          },
+          "bodyClasses": "world-panel-open",
+          "rects": {
+            "canvas": {
+              "x": 376,
+              "y": 62,
+              "width": 904,
+              "height": 658
+            },
+            "seedPanel": {
+              "x": 0,
+              "y": 62,
+              "width": 376,
+              "height": 658
+            },
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 1280,
+              "height": 62
+            },
+            "modeRail": null,
+            "driveHud": null,
+            "driveControls": null,
+            "panelToggle": null
+          },
+          "overflow": [
+            {
+              "tag": "DIV",
+              "id": null,
+              "cls": "panel-scroll",
+              "cw": 365,
+              "sw": 365,
+              "ch": 658,
+              "sh": 1457
+            },
+            {
+              "tag": "FORM",
+              "id": "seed-form",
+              "cls": "seed-form",
+              "cw": 315,
+              "sw": 319,
+              "ch": 553,
+              "sh": 553
+            },
+            {
+              "tag": "INPUT",
+              "id": "radius-input",
+              "cls": "range",
+              "cw": 315,
+              "sw": 315,
+              "ch": 3,
+              "sh": 9
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch low-poly",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch anime",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch cyber",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch blueprint",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch quality",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            }
+          ],
+          "outsideViewport": [
+            {
+              "id": "seed-button",
+              "text": "Seed this world",
+              "x": 25,
+              "y": 726.265625,
+              "right": 340,
+              "bottom": 773.265625
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 79.921875,
+              "y": 792.859375,
+              "right": 131.5,
+              "bottom": 804.453125
+            },
+            {
+              "id": "demo-button",
+              "text": "Regenerate instant demo",
+              "x": 25,
+              "y": 811.453125,
+              "right": 340,
+              "bottom": 839.453125
+            },
+            {
+              "id": "plateau-import-button",
+              "text": "Import PLATEAU CityGML",
+              "x": 25,
+              "y": 842.453125,
+              "right": 340,
+              "bottom": 872.453125
+            },
+            {
+              "id": null,
+              "text": "Low poly",
+              "x": 25,
+              "y": 956.453125,
+              "right": 83.1875,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Anime",
+              "x": 89.1875,
+              "y": 956.453125,
+              "right": 147.390625,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Cyber",
+              "x": 153.390625,
+              "y": 956.453125,
+              "right": 211.59375,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Blueprint",
+              "x": 217.59375,
+              "y": 956.453125,
+              "right": 275.796875,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Data quality",
+              "x": 281.796875,
+              "y": 956.453125,
+              "right": 340,
+              "bottom": 1016.453125
+            },
+            {
+              "id": "export-glb",
+              "text": "GLBScene model",
+              "x": 25,
+              "y": 1294.453125,
+              "right": 179,
+              "bottom": 1346.453125
+            },
+            {
+              "id": "export-kit",
+              "text": "Three.js kitReady to run",
+              "x": 186,
+              "y": 1294.453125,
+              "right": 340,
+              "bottom": 1346.453125
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 25,
+              "y": 1454.234375,
+              "right": 96.578125,
+              "bottom": 1479.234375
+            },
+            {
+              "id": "clear-local-data",
+              "text": "Clear local data",
+              "x": 103.578125,
+              "y": 1454.234375,
+              "right": 179.171875,
+              "bottom": 1479.234375
+            }
+          ],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "7",
+            "tiles": "20/21",
+            "speed": "0",
+            "driveRoad": "Ready road"
+          }
+        },
+        {
+          "name": "desktop-03-drive-idle.png",
+          "viewport": {
+            "width": 1280,
+            "height": 720,
+            "dpr": 1
+          },
+          "status": "Demo world ready",
+          "mode": "drive",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 904,
+            "drawingBufferHeight": 658
+          },
+          "bodyClasses": "is-driving",
+          "rects": {
+            "canvas": {
+              "x": 376,
+              "y": 62,
+              "width": 904,
+              "height": 658
+            },
+            "seedPanel": {
+              "x": 0,
+              "y": 62,
+              "width": 376,
+              "height": 658
+            },
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 1280,
+              "height": 62
+            },
+            "modeRail": null,
+            "driveHud": {
+              "x": 648,
+              "y": 594,
+              "width": 360,
+              "height": 58
+            },
+            "driveControls": null,
+            "panelToggle": null
+          },
+          "overflow": [
+            {
+              "tag": "DIV",
+              "id": null,
+              "cls": "panel-scroll",
+              "cw": 365,
+              "sw": 365,
+              "ch": 658,
+              "sh": 1457
+            },
+            {
+              "tag": "FORM",
+              "id": "seed-form",
+              "cls": "seed-form",
+              "cw": 315,
+              "sw": 319,
+              "ch": 553,
+              "sh": 553
+            },
+            {
+              "tag": "INPUT",
+              "id": "radius-input",
+              "cls": "range",
+              "cw": 315,
+              "sw": 315,
+              "ch": 3,
+              "sh": 9
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch low-poly",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch anime",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch cyber",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch blueprint",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch quality",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            }
+          ],
+          "outsideViewport": [
+            {
+              "id": "seed-button",
+              "text": "Seed this world",
+              "x": 25,
+              "y": 726.265625,
+              "right": 340,
+              "bottom": 773.265625
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 79.921875,
+              "y": 792.859375,
+              "right": 131.5,
+              "bottom": 804.453125
+            },
+            {
+              "id": "demo-button",
+              "text": "Regenerate instant demo",
+              "x": 25,
+              "y": 811.453125,
+              "right": 340,
+              "bottom": 839.453125
+            },
+            {
+              "id": "plateau-import-button",
+              "text": "Import PLATEAU CityGML",
+              "x": 25,
+              "y": 842.453125,
+              "right": 340,
+              "bottom": 872.453125
+            },
+            {
+              "id": null,
+              "text": "Low poly",
+              "x": 25,
+              "y": 956.453125,
+              "right": 83.1875,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Anime",
+              "x": 89.1875,
+              "y": 956.453125,
+              "right": 147.390625,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Cyber",
+              "x": 153.390625,
+              "y": 956.453125,
+              "right": 211.59375,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Blueprint",
+              "x": 217.59375,
+              "y": 956.453125,
+              "right": 275.796875,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Data quality",
+              "x": 281.796875,
+              "y": 956.453125,
+              "right": 340,
+              "bottom": 1016.453125
+            },
+            {
+              "id": "export-glb",
+              "text": "GLBScene model",
+              "x": 25,
+              "y": 1294.453125,
+              "right": 179,
+              "bottom": 1346.453125
+            },
+            {
+              "id": "export-kit",
+              "text": "Three.js kitReady to run",
+              "x": 186,
+              "y": 1294.453125,
+              "right": 340,
+              "bottom": 1346.453125
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 25,
+              "y": 1454.234375,
+              "right": 96.578125,
+              "bottom": 1479.234375
+            },
+            {
+              "id": "clear-local-data",
+              "text": "Clear local data",
+              "x": 103.578125,
+              "y": 1454.234375,
+              "right": 179.171875,
+              "bottom": 1479.234375
+            }
+          ],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "6",
+            "tiles": "17/21",
+            "speed": "0",
+            "driveRoad": "WorldSeed Avenue"
+          }
+        },
+        {
+          "name": "desktop-04-drive-turn.png",
+          "viewport": {
+            "width": 1280,
+            "height": 720,
+            "dpr": 1
+          },
+          "status": "Demo world ready",
+          "mode": "drive",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 904,
+            "drawingBufferHeight": 658
+          },
+          "bodyClasses": "is-driving",
+          "rects": {
+            "canvas": {
+              "x": 376,
+              "y": 62,
+              "width": 904,
+              "height": 658
+            },
+            "seedPanel": {
+              "x": 0,
+              "y": 62,
+              "width": 376,
+              "height": 658
+            },
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 1280,
+              "height": 62
+            },
+            "modeRail": null,
+            "driveHud": {
+              "x": 648,
+              "y": 594,
+              "width": 360,
+              "height": 58
+            },
+            "driveControls": null,
+            "panelToggle": null
+          },
+          "overflow": [
+            {
+              "tag": "DIV",
+              "id": null,
+              "cls": "panel-scroll",
+              "cw": 365,
+              "sw": 365,
+              "ch": 658,
+              "sh": 1457
+            },
+            {
+              "tag": "FORM",
+              "id": "seed-form",
+              "cls": "seed-form",
+              "cw": 315,
+              "sw": 319,
+              "ch": 553,
+              "sh": 553
+            },
+            {
+              "tag": "INPUT",
+              "id": "radius-input",
+              "cls": "range",
+              "cw": 315,
+              "sw": 315,
+              "ch": 3,
+              "sh": 9
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch low-poly",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch anime",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch cyber",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch blueprint",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch quality",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            }
+          ],
+          "outsideViewport": [
+            {
+              "id": "seed-button",
+              "text": "Seed this world",
+              "x": 25,
+              "y": 726.265625,
+              "right": 340,
+              "bottom": 773.265625
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 79.921875,
+              "y": 792.859375,
+              "right": 131.5,
+              "bottom": 804.453125
+            },
+            {
+              "id": "demo-button",
+              "text": "Regenerate instant demo",
+              "x": 25,
+              "y": 811.453125,
+              "right": 340,
+              "bottom": 839.453125
+            },
+            {
+              "id": "plateau-import-button",
+              "text": "Import PLATEAU CityGML",
+              "x": 25,
+              "y": 842.453125,
+              "right": 340,
+              "bottom": 872.453125
+            },
+            {
+              "id": null,
+              "text": "Low poly",
+              "x": 25,
+              "y": 956.453125,
+              "right": 83.1875,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Anime",
+              "x": 89.1875,
+              "y": 956.453125,
+              "right": 147.390625,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Cyber",
+              "x": 153.390625,
+              "y": 956.453125,
+              "right": 211.59375,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Blueprint",
+              "x": 217.59375,
+              "y": 956.453125,
+              "right": 275.796875,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Data quality",
+              "x": 281.796875,
+              "y": 956.453125,
+              "right": 340,
+              "bottom": 1016.453125
+            },
+            {
+              "id": "export-glb",
+              "text": "GLBScene model",
+              "x": 25,
+              "y": 1294.453125,
+              "right": 179,
+              "bottom": 1346.453125
+            },
+            {
+              "id": "export-kit",
+              "text": "Three.js kitReady to run",
+              "x": 186,
+              "y": 1294.453125,
+              "right": 340,
+              "bottom": 1346.453125
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 25,
+              "y": 1454.234375,
+              "right": 96.578125,
+              "bottom": 1479.234375
+            },
+            {
+              "id": "clear-local-data",
+              "text": "Clear local data",
+              "x": 103.578125,
+              "y": 1454.234375,
+              "right": 179.171875,
+              "bottom": 1479.234375
+            }
+          ],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "5",
+            "tiles": "17/21",
+            "speed": "0",
+            "driveRoad": "WorldSeed Avenue"
+          }
+        },
+        {
+          "name": "desktop-05-drive-brake.png",
+          "viewport": {
+            "width": 1280,
+            "height": 720,
+            "dpr": 1
+          },
+          "status": "Demo world ready",
+          "mode": "drive",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 904,
+            "drawingBufferHeight": 658
+          },
+          "bodyClasses": "is-driving",
+          "rects": {
+            "canvas": {
+              "x": 376,
+              "y": 62,
+              "width": 904,
+              "height": 658
+            },
+            "seedPanel": {
+              "x": 0,
+              "y": 62,
+              "width": 376,
+              "height": 658
+            },
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 1280,
+              "height": 62
+            },
+            "modeRail": null,
+            "driveHud": {
+              "x": 648,
+              "y": 594,
+              "width": 360,
+              "height": 58
+            },
+            "driveControls": null,
+            "panelToggle": null
+          },
+          "overflow": [
+            {
+              "tag": "DIV",
+              "id": null,
+              "cls": "panel-scroll",
+              "cw": 365,
+              "sw": 365,
+              "ch": 658,
+              "sh": 1457
+            },
+            {
+              "tag": "FORM",
+              "id": "seed-form",
+              "cls": "seed-form",
+              "cw": 315,
+              "sw": 319,
+              "ch": 553,
+              "sh": 553
+            },
+            {
+              "tag": "INPUT",
+              "id": "radius-input",
+              "cls": "range",
+              "cw": 315,
+              "sw": 315,
+              "ch": 3,
+              "sh": 9
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch low-poly",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch anime",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch cyber",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch blueprint",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch quality",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            }
+          ],
+          "outsideViewport": [
+            {
+              "id": "seed-button",
+              "text": "Seed this world",
+              "x": 25,
+              "y": 726.265625,
+              "right": 340,
+              "bottom": 773.265625
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 79.921875,
+              "y": 792.859375,
+              "right": 131.5,
+              "bottom": 804.453125
+            },
+            {
+              "id": "demo-button",
+              "text": "Regenerate instant demo",
+              "x": 25,
+              "y": 811.453125,
+              "right": 340,
+              "bottom": 839.453125
+            },
+            {
+              "id": "plateau-import-button",
+              "text": "Import PLATEAU CityGML",
+              "x": 25,
+              "y": 842.453125,
+              "right": 340,
+              "bottom": 872.453125
+            },
+            {
+              "id": null,
+              "text": "Low poly",
+              "x": 25,
+              "y": 956.453125,
+              "right": 83.1875,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Anime",
+              "x": 89.1875,
+              "y": 956.453125,
+              "right": 147.390625,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Cyber",
+              "x": 153.390625,
+              "y": 956.453125,
+              "right": 211.59375,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Blueprint",
+              "x": 217.59375,
+              "y": 956.453125,
+              "right": 275.796875,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Data quality",
+              "x": 281.796875,
+              "y": 956.453125,
+              "right": 340,
+              "bottom": 1016.453125
+            },
+            {
+              "id": "export-glb",
+              "text": "GLBScene model",
+              "x": 25,
+              "y": 1294.453125,
+              "right": 179,
+              "bottom": 1346.453125
+            },
+            {
+              "id": "export-kit",
+              "text": "Three.js kitReady to run",
+              "x": 186,
+              "y": 1294.453125,
+              "right": 340,
+              "bottom": 1346.453125
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 25,
+              "y": 1454.234375,
+              "right": 96.578125,
+              "bottom": 1479.234375
+            },
+            {
+              "id": "clear-local-data",
+              "text": "Clear local data",
+              "x": 103.578125,
+              "y": 1454.234375,
+              "right": 179.171875,
+              "bottom": 1479.234375
+            }
+          ],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "5",
+            "tiles": "17/21",
+            "speed": "0",
+            "driveRoad": "WorldSeed Avenue"
+          }
+        },
+        {
+          "name": "desktop-06-drone.png",
+          "viewport": {
+            "width": 1280,
+            "height": 720,
+            "dpr": 1
+          },
+          "status": "Demo world ready",
+          "mode": "drone",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 904,
+            "drawingBufferHeight": 658
+          },
+          "bodyClasses": "is-drone",
+          "rects": {
+            "canvas": {
+              "x": 376,
+              "y": 62,
+              "width": 904,
+              "height": 658
+            },
+            "seedPanel": {
+              "x": 0,
+              "y": 62,
+              "width": 376,
+              "height": 658
+            },
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 1280,
+              "height": 62
+            },
+            "modeRail": null,
+            "driveHud": null,
+            "driveControls": null,
+            "panelToggle": null
+          },
+          "overflow": [
+            {
+              "tag": "DIV",
+              "id": null,
+              "cls": "panel-scroll",
+              "cw": 365,
+              "sw": 365,
+              "ch": 658,
+              "sh": 1457
+            },
+            {
+              "tag": "FORM",
+              "id": "seed-form",
+              "cls": "seed-form",
+              "cw": 315,
+              "sw": 319,
+              "ch": 553,
+              "sh": 553
+            },
+            {
+              "tag": "INPUT",
+              "id": "radius-input",
+              "cls": "range",
+              "cw": 315,
+              "sw": 315,
+              "ch": 3,
+              "sh": 9
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch low-poly",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch anime",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch cyber",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch blueprint",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch quality",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            }
+          ],
+          "outsideViewport": [
+            {
+              "id": "seed-button",
+              "text": "Seed this world",
+              "x": 25,
+              "y": 726.265625,
+              "right": 340,
+              "bottom": 773.265625
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 79.921875,
+              "y": 792.859375,
+              "right": 131.5,
+              "bottom": 804.453125
+            },
+            {
+              "id": "demo-button",
+              "text": "Regenerate instant demo",
+              "x": 25,
+              "y": 811.453125,
+              "right": 340,
+              "bottom": 839.453125
+            },
+            {
+              "id": "plateau-import-button",
+              "text": "Import PLATEAU CityGML",
+              "x": 25,
+              "y": 842.453125,
+              "right": 340,
+              "bottom": 872.453125
+            },
+            {
+              "id": null,
+              "text": "Low poly",
+              "x": 25,
+              "y": 956.453125,
+              "right": 83.1875,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Anime",
+              "x": 89.1875,
+              "y": 956.453125,
+              "right": 147.390625,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Cyber",
+              "x": 153.390625,
+              "y": 956.453125,
+              "right": 211.59375,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Blueprint",
+              "x": 217.59375,
+              "y": 956.453125,
+              "right": 275.796875,
+              "bottom": 1016.453125
+            },
+            {
+              "id": null,
+              "text": "Data quality",
+              "x": 281.796875,
+              "y": 956.453125,
+              "right": 340,
+              "bottom": 1016.453125
+            },
+            {
+              "id": "export-glb",
+              "text": "GLBScene model",
+              "x": 25,
+              "y": 1294.453125,
+              "right": 179,
+              "bottom": 1346.453125
+            },
+            {
+              "id": "export-kit",
+              "text": "Three.js kitReady to run",
+              "x": 186,
+              "y": 1294.453125,
+              "right": 340,
+              "bottom": 1346.453125
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 25,
+              "y": 1454.234375,
+              "right": 96.578125,
+              "bottom": 1479.234375
+            },
+            {
+              "id": "clear-local-data",
+              "text": "Clear local data",
+              "x": 103.578125,
+              "y": 1454.234375,
+              "right": 179.171875,
+              "bottom": 1479.234375
+            }
+          ],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "4",
+            "tiles": "21/21",
+            "speed": "0",
+            "driveRoad": "WorldSeed Avenue"
+          }
+        },
+        {
+          "name": "desktop-08-quality.png",
+          "viewport": {
+            "width": 1280,
+            "height": 720,
+            "dpr": 1
+          },
+          "status": "Demo world ready",
+          "mode": "drone",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 904,
+            "drawingBufferHeight": 658
+          },
+          "bodyClasses": "is-drone",
+          "rects": {
+            "canvas": {
+              "x": 376,
+              "y": 62,
+              "width": 904,
+              "height": 658
+            },
+            "seedPanel": {
+              "x": 0,
+              "y": 62,
+              "width": 376,
+              "height": 658
+            },
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 1280,
+              "height": 62
+            },
+            "modeRail": null,
+            "driveHud": null,
+            "driveControls": null,
+            "panelToggle": null
+          },
+          "overflow": [
+            {
+              "tag": "DIV",
+              "id": null,
+              "cls": "panel-scroll",
+              "cw": 365,
+              "sw": 365,
+              "ch": 658,
+              "sh": 1457
+            },
+            {
+              "tag": "FORM",
+              "id": "seed-form",
+              "cls": "seed-form",
+              "cw": 315,
+              "sw": 319,
+              "ch": 553,
+              "sh": 553
+            },
+            {
+              "tag": "INPUT",
+              "id": "radius-input",
+              "cls": "range",
+              "cw": 315,
+              "sw": 315,
+              "ch": 3,
+              "sh": 9
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch low-poly",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch anime",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch cyber",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch blueprint",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch quality",
+              "cw": 56,
+              "sw": 56,
+              "ch": 34,
+              "sh": 42
+            }
+          ],
+          "outsideViewport": [
+            {
+              "id": "coordinate-input",
+              "text": "",
+              "x": 59,
+              "y": -243.734375,
+              "right": 301,
+              "bottom": -199.734375
+            },
+            {
+              "id": "locate-button",
+              "text": "",
+              "x": 301,
+              "y": -234.234375,
+              "right": 339,
+              "bottom": -209.234375
+            },
+            {
+              "id": "radius-input",
+              "text": "",
+              "x": 27,
+              "y": -126.734375,
+              "right": 342,
+              "bottom": -123.734375
+            },
+            {
+              "id": null,
+              "text": "東京タワー",
+              "x": 25,
+              "y": -67.734375,
+              "right": 179.5,
+              "bottom": -41.734375
+            },
+            {
+              "id": null,
+              "text": "渋谷スクランブル",
+              "x": 185.5,
+              "y": -67.734375,
+              "right": 340,
+              "bottom": -41.734375
+            },
+            {
+              "id": null,
+              "text": "大阪城",
+              "x": 25,
+              "y": -35.734375,
+              "right": 179.5,
+              "bottom": -9.734375
+            },
+            {
+              "id": null,
+              "text": "清水寺",
+              "x": 185.5,
+              "y": -35.734375,
+              "right": 340,
+              "bottom": -9.734375
+            },
+            {
+              "id": null,
+              "text": "札幌時計台",
+              "x": 25,
+              "y": -3.734375,
+              "right": 179.5,
+              "bottom": 22.265625
+            },
+            {
+              "id": null,
+              "text": "エッフェル塔",
+              "x": 185.5,
+              "y": -3.734375,
+              "right": 340,
+              "bottom": 22.265625
+            },
+            {
+              "id": "export-glb",
+              "text": "GLBScene model",
+              "x": 25,
+              "y": 699.453125,
+              "right": 179,
+              "bottom": 751.453125
+            },
+            {
+              "id": "export-kit",
+              "text": "Three.js kitReady to run",
+              "x": 186,
+              "y": 699.453125,
+              "right": 340,
+              "bottom": 751.453125
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 25,
+              "y": 859.234375,
+              "right": 96.578125,
+              "bottom": 884.234375
+            },
+            {
+              "id": "clear-local-data",
+              "text": "Clear local data",
+              "x": 103.578125,
+              "y": 859.234375,
+              "right": 179.171875,
+              "bottom": 884.234375
+            }
+          ],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "23.9K",
+            "fps": "5",
+            "tiles": "21/21",
+            "speed": "0",
+            "driveRoad": "WorldSeed Avenue"
+          }
+        }
+      ],
+      "driveAvailable": true
+    },
+    {
+      "name": "iphone-landscape-844x390",
+      "errors": [
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 5. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 3. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 3. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 3. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 4. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 3. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 3. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 4. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 4. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 4. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 3. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 5. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 4. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 4. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        }
+      ],
+      "states": [
+        {
+          "name": "iphone-landscape-01-orbit.png",
+          "viewport": {
+            "width": 844,
+            "height": 390,
+            "dpr": 2
+          },
+          "status": "Demo world ready",
+          "mode": "orbit",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 1519,
+            "drawingBufferHeight": 604
+          },
+          "bodyClasses": "world-panel-open",
+          "rects": {
+            "canvas": {
+              "x": 0,
+              "y": 54,
+              "width": 844,
+              "height": 336
+            },
+            "seedPanel": {
+              "x": 8,
+              "y": 62,
+              "width": 335,
+              "height": 161
+            },
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 844,
+              "height": 54
+            },
+            "modeRail": null,
+            "driveHud": null,
+            "driveControls": null,
+            "panelToggle": {
+              "x": 255,
+              "y": 70,
+              "width": 74,
+              "height": 32
+            }
+          },
+          "overflow": [
+            {
+              "tag": "DIV",
+              "id": null,
+              "cls": "panel-scroll",
+              "cw": 333,
+              "sw": 333,
+              "ch": 159,
+              "sh": 1358
+            },
+            {
+              "tag": "FORM",
+              "id": "seed-form",
+              "cls": "seed-form",
+              "cw": 295,
+              "sw": 299,
+              "ch": 554,
+              "sh": 554
+            },
+            {
+              "tag": "INPUT",
+              "id": "radius-input",
+              "cls": "range",
+              "cw": 295,
+              "sw": 295,
+              "ch": 3,
+              "sh": 9
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch low-poly",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch anime",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch cyber",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch blueprint",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch quality",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            }
+          ],
+          "outsideViewport": [
+            {
+              "id": "radius-input",
+              "text": "",
+              "x": 30,
+              "y": 394.203125,
+              "right": 325,
+              "bottom": 397.203125
+            },
+            {
+              "id": null,
+              "text": "東京タワー",
+              "x": 28,
+              "y": 454.203125,
+              "right": 172.5,
+              "bottom": 480.203125
+            },
+            {
+              "id": null,
+              "text": "渋谷スクランブル",
+              "x": 178.5,
+              "y": 454.203125,
+              "right": 323,
+              "bottom": 480.203125
+            },
+            {
+              "id": null,
+              "text": "大阪城",
+              "x": 28,
+              "y": 486.203125,
+              "right": 172.5,
+              "bottom": 512.203125
+            },
+            {
+              "id": null,
+              "text": "清水寺",
+              "x": 178.5,
+              "y": 486.203125,
+              "right": 323,
+              "bottom": 512.203125
+            },
+            {
+              "id": null,
+              "text": "札幌時計台",
+              "x": 28,
+              "y": 518.203125,
+              "right": 172.5,
+              "bottom": 544.203125
+            },
+            {
+              "id": null,
+              "text": "エッフェル塔",
+              "x": 178.5,
+              "y": 518.203125,
+              "right": 323,
+              "bottom": 544.203125
+            },
+            {
+              "id": null,
+              "text": "自由の女神",
+              "x": 28,
+              "y": 550.203125,
+              "right": 172.5,
+              "bottom": 576.203125
+            },
+            {
+              "id": null,
+              "text": "ビッグ・ベン",
+              "x": 178.5,
+              "y": 550.203125,
+              "right": 323,
+              "bottom": 576.203125
+            },
+            {
+              "id": null,
+              "text": "オペラハウス",
+              "x": 28,
+              "y": 582.203125,
+              "right": 172.5,
+              "bottom": 608.203125
+            },
+            {
+              "id": null,
+              "text": "コロッセオ",
+              "x": 178.5,
+              "y": 582.203125,
+              "right": 323,
+              "bottom": 608.203125
+            },
+            {
+              "id": null,
+              "text": "ブルジュ・ハリファ",
+              "x": 28,
+              "y": 614.203125,
+              "right": 172.5,
+              "bottom": 640.203125
+            },
+            {
+              "id": null,
+              "text": "タージ・マハル",
+              "x": 178.5,
+              "y": 614.203125,
+              "right": 323,
+              "bottom": 640.203125
+            },
+            {
+              "id": "seed-button",
+              "text": "Seed this world",
+              "x": 28,
+              "y": 653.203125,
+              "right": 323,
+              "bottom": 700.203125
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 102.9375,
+              "y": 719.796875,
+              "right": 154.515625,
+              "bottom": 731.390625
+            },
+            {
+              "id": "demo-button",
+              "text": "Regenerate instant demo",
+              "x": 28,
+              "y": 738.390625,
+              "right": 323,
+              "bottom": 766.390625
+            },
+            {
+              "id": "plateau-import-button",
+              "text": "Import PLATEAU CityGML",
+              "x": 28,
+              "y": 769.390625,
+              "right": 323,
+              "bottom": 799.390625
+            },
+            {
+              "id": null,
+              "text": "Low poly",
+              "x": 28,
+              "y": 878.390625,
+              "right": 82.1875,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Anime",
+              "x": 88.1875,
+              "y": 878.390625,
+              "right": 142.390625,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Cyber",
+              "x": 148.390625,
+              "y": 878.390625,
+              "right": 202.59375,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Blueprint",
+              "x": 208.59375,
+              "y": 878.390625,
+              "right": 262.796875,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Data quality",
+              "x": 268.796875,
+              "y": 878.390625,
+              "right": 323,
+              "bottom": 938.390625
+            },
+            {
+              "id": "export-glb",
+              "text": "GLBScene model",
+              "x": 28,
+              "y": 1206.390625,
+              "right": 172,
+              "bottom": 1258.390625
+            },
+            {
+              "id": "export-kit",
+              "text": "Three.js kitReady to run",
+              "x": 179,
+              "y": 1206.390625,
+              "right": 323,
+              "bottom": 1258.390625
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 28,
+              "y": 1366.171875,
+              "right": 99.578125,
+              "bottom": 1391.171875
+            },
+            {
+              "id": "clear-local-data",
+              "text": "Clear local data",
+              "x": 106.578125,
+              "y": 1366.171875,
+              "right": 182.171875,
+              "bottom": 1391.171875
+            }
+          ],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "4",
+            "tiles": "21/21",
+            "speed": "0",
+            "driveRoad": "Ready road"
+          }
+        },
+        {
+          "name": "iphone-landscape-02-orbit-drag.png",
+          "viewport": {
+            "width": 844,
+            "height": 390,
+            "dpr": 2
+          },
+          "status": "Demo world ready",
+          "mode": "orbit",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 1519,
+            "drawingBufferHeight": 604
+          },
+          "bodyClasses": "world-panel-open",
+          "rects": {
+            "canvas": {
+              "x": 0,
+              "y": 54,
+              "width": 844,
+              "height": 336
+            },
+            "seedPanel": {
+              "x": 8,
+              "y": 62,
+              "width": 335,
+              "height": 161
+            },
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 844,
+              "height": 54
+            },
+            "modeRail": null,
+            "driveHud": null,
+            "driveControls": null,
+            "panelToggle": {
+              "x": 255,
+              "y": 70,
+              "width": 74,
+              "height": 32
+            }
+          },
+          "overflow": [
+            {
+              "tag": "DIV",
+              "id": null,
+              "cls": "panel-scroll",
+              "cw": 333,
+              "sw": 333,
+              "ch": 159,
+              "sh": 1358
+            },
+            {
+              "tag": "FORM",
+              "id": "seed-form",
+              "cls": "seed-form",
+              "cw": 295,
+              "sw": 299,
+              "ch": 554,
+              "sh": 554
+            },
+            {
+              "tag": "INPUT",
+              "id": "radius-input",
+              "cls": "range",
+              "cw": 295,
+              "sw": 295,
+              "ch": 3,
+              "sh": 9
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch low-poly",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch anime",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch cyber",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch blueprint",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch quality",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            }
+          ],
+          "outsideViewport": [
+            {
+              "id": "radius-input",
+              "text": "",
+              "x": 30,
+              "y": 394.203125,
+              "right": 325,
+              "bottom": 397.203125
+            },
+            {
+              "id": null,
+              "text": "東京タワー",
+              "x": 28,
+              "y": 454.203125,
+              "right": 172.5,
+              "bottom": 480.203125
+            },
+            {
+              "id": null,
+              "text": "渋谷スクランブル",
+              "x": 178.5,
+              "y": 454.203125,
+              "right": 323,
+              "bottom": 480.203125
+            },
+            {
+              "id": null,
+              "text": "大阪城",
+              "x": 28,
+              "y": 486.203125,
+              "right": 172.5,
+              "bottom": 512.203125
+            },
+            {
+              "id": null,
+              "text": "清水寺",
+              "x": 178.5,
+              "y": 486.203125,
+              "right": 323,
+              "bottom": 512.203125
+            },
+            {
+              "id": null,
+              "text": "札幌時計台",
+              "x": 28,
+              "y": 518.203125,
+              "right": 172.5,
+              "bottom": 544.203125
+            },
+            {
+              "id": null,
+              "text": "エッフェル塔",
+              "x": 178.5,
+              "y": 518.203125,
+              "right": 323,
+              "bottom": 544.203125
+            },
+            {
+              "id": null,
+              "text": "自由の女神",
+              "x": 28,
+              "y": 550.203125,
+              "right": 172.5,
+              "bottom": 576.203125
+            },
+            {
+              "id": null,
+              "text": "ビッグ・ベン",
+              "x": 178.5,
+              "y": 550.203125,
+              "right": 323,
+              "bottom": 576.203125
+            },
+            {
+              "id": null,
+              "text": "オペラハウス",
+              "x": 28,
+              "y": 582.203125,
+              "right": 172.5,
+              "bottom": 608.203125
+            },
+            {
+              "id": null,
+              "text": "コロッセオ",
+              "x": 178.5,
+              "y": 582.203125,
+              "right": 323,
+              "bottom": 608.203125
+            },
+            {
+              "id": null,
+              "text": "ブルジュ・ハリファ",
+              "x": 28,
+              "y": 614.203125,
+              "right": 172.5,
+              "bottom": 640.203125
+            },
+            {
+              "id": null,
+              "text": "タージ・マハル",
+              "x": 178.5,
+              "y": 614.203125,
+              "right": 323,
+              "bottom": 640.203125
+            },
+            {
+              "id": "seed-button",
+              "text": "Seed this world",
+              "x": 28,
+              "y": 653.203125,
+              "right": 323,
+              "bottom": 700.203125
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 102.9375,
+              "y": 719.796875,
+              "right": 154.515625,
+              "bottom": 731.390625
+            },
+            {
+              "id": "demo-button",
+              "text": "Regenerate instant demo",
+              "x": 28,
+              "y": 738.390625,
+              "right": 323,
+              "bottom": 766.390625
+            },
+            {
+              "id": "plateau-import-button",
+              "text": "Import PLATEAU CityGML",
+              "x": 28,
+              "y": 769.390625,
+              "right": 323,
+              "bottom": 799.390625
+            },
+            {
+              "id": null,
+              "text": "Low poly",
+              "x": 28,
+              "y": 878.390625,
+              "right": 82.1875,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Anime",
+              "x": 88.1875,
+              "y": 878.390625,
+              "right": 142.390625,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Cyber",
+              "x": 148.390625,
+              "y": 878.390625,
+              "right": 202.59375,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Blueprint",
+              "x": 208.59375,
+              "y": 878.390625,
+              "right": 262.796875,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Data quality",
+              "x": 268.796875,
+              "y": 878.390625,
+              "right": 323,
+              "bottom": 938.390625
+            },
+            {
+              "id": "export-glb",
+              "text": "GLBScene model",
+              "x": 28,
+              "y": 1206.390625,
+              "right": 172,
+              "bottom": 1258.390625
+            },
+            {
+              "id": "export-kit",
+              "text": "Three.js kitReady to run",
+              "x": 179,
+              "y": 1206.390625,
+              "right": 323,
+              "bottom": 1258.390625
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 28,
+              "y": 1366.171875,
+              "right": 99.578125,
+              "bottom": 1391.171875
+            },
+            {
+              "id": "clear-local-data",
+              "text": "Clear local data",
+              "x": 106.578125,
+              "y": 1366.171875,
+              "right": 182.171875,
+              "bottom": 1391.171875
+            }
+          ],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "7",
+            "tiles": "20/21",
+            "speed": "0",
+            "driveRoad": "Ready road"
+          }
+        },
+        {
+          "name": "iphone-landscape-03-drive-idle.png",
+          "viewport": {
+            "width": 844,
+            "height": 390,
+            "dpr": 2
+          },
+          "status": "Demo world ready",
+          "mode": "drive",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 1519,
+            "drawingBufferHeight": 604
+          },
+          "bodyClasses": "is-driving",
+          "rects": {
+            "canvas": {
+              "x": 0,
+              "y": 54,
+              "width": 844,
+              "height": 336
+            },
+            "seedPanel": null,
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 844,
+              "height": 54
+            },
+            "modeRail": null,
+            "driveHud": {
+              "x": 267,
+              "y": 273,
+              "width": 310,
+              "height": 52
+            },
+            "driveControls": null,
+            "panelToggle": {
+              "x": 8,
+              "y": 111,
+              "width": 76,
+              "height": 32
+            }
+          },
+          "overflow": [],
+          "outsideViewport": [],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "6",
+            "tiles": "17/21",
+            "speed": "0",
+            "driveRoad": "WorldSeed Avenue"
+          }
+        },
+        {
+          "name": "iphone-landscape-04-drive-turn.png",
+          "viewport": {
+            "width": 844,
+            "height": 390,
+            "dpr": 2
+          },
+          "status": "Demo world ready",
+          "mode": "drive",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 1519,
+            "drawingBufferHeight": 604
+          },
+          "bodyClasses": "is-driving",
+          "rects": {
+            "canvas": {
+              "x": 0,
+              "y": 54,
+              "width": 844,
+              "height": 336
+            },
+            "seedPanel": null,
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 844,
+              "height": 54
+            },
+            "modeRail": null,
+            "driveHud": {
+              "x": 267,
+              "y": 273,
+              "width": 310,
+              "height": 52
+            },
+            "driveControls": null,
+            "panelToggle": {
+              "x": 8,
+              "y": 111,
+              "width": 76,
+              "height": 32
+            }
+          },
+          "overflow": [],
+          "outsideViewport": [],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "3",
+            "tiles": "17/21",
+            "speed": "0",
+            "driveRoad": "WorldSeed Avenue"
+          }
+        },
+        {
+          "name": "iphone-landscape-05-drive-brake.png",
+          "viewport": {
+            "width": 844,
+            "height": 390,
+            "dpr": 2
+          },
+          "status": "Demo world ready",
+          "mode": "drive",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 1519,
+            "drawingBufferHeight": 604
+          },
+          "bodyClasses": "is-driving",
+          "rects": {
+            "canvas": {
+              "x": 0,
+              "y": 54,
+              "width": 844,
+              "height": 336
+            },
+            "seedPanel": null,
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 844,
+              "height": 54
+            },
+            "modeRail": null,
+            "driveHud": {
+              "x": 267,
+              "y": 273,
+              "width": 310,
+              "height": 52
+            },
+            "driveControls": null,
+            "panelToggle": {
+              "x": 8,
+              "y": 111,
+              "width": 76,
+              "height": 32
+            }
+          },
+          "overflow": [],
+          "outsideViewport": [],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "3",
+            "tiles": "17/21",
+            "speed": "0",
+            "driveRoad": "WorldSeed Avenue"
+          }
+        },
+        {
+          "name": "iphone-landscape-06-drone.png",
+          "viewport": {
+            "width": 844,
+            "height": 390,
+            "dpr": 2
+          },
+          "status": "Demo world ready",
+          "mode": "drone",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 1519,
+            "drawingBufferHeight": 604
+          },
+          "bodyClasses": "is-drone",
+          "rects": {
+            "canvas": {
+              "x": 0,
+              "y": 54,
+              "width": 844,
+              "height": 336
+            },
+            "seedPanel": null,
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 844,
+              "height": 54
+            },
+            "modeRail": null,
+            "driveHud": null,
+            "driveControls": null,
+            "panelToggle": {
+              "x": 8,
+              "y": 111,
+              "width": 76,
+              "height": 32
+            }
+          },
+          "overflow": [],
+          "outsideViewport": [],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "5",
+            "tiles": "21/21",
+            "speed": "0",
+            "driveRoad": "WorldSeed Avenue"
+          }
+        },
+        {
+          "name": "iphone-landscape-07-world-panel.png",
+          "viewport": {
+            "width": 844,
+            "height": 390,
+            "dpr": 2
+          },
+          "status": "Demo world ready",
+          "mode": "drone",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 1519,
+            "drawingBufferHeight": 604
+          },
+          "bodyClasses": "is-drone world-panel-open",
+          "rects": {
+            "canvas": {
+              "x": 0,
+              "y": 54,
+              "width": 844,
+              "height": 336
+            },
+            "seedPanel": {
+              "x": 8,
+              "y": 62,
+              "width": 335,
+              "height": 161
+            },
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 844,
+              "height": 54
+            },
+            "modeRail": null,
+            "driveHud": null,
+            "driveControls": null,
+            "panelToggle": {
+              "x": 255,
+              "y": 70,
+              "width": 74,
+              "height": 32
+            }
+          },
+          "overflow": [
+            {
+              "tag": "DIV",
+              "id": null,
+              "cls": "panel-scroll",
+              "cw": 333,
+              "sw": 333,
+              "ch": 159,
+              "sh": 1358
+            },
+            {
+              "tag": "FORM",
+              "id": "seed-form",
+              "cls": "seed-form",
+              "cw": 295,
+              "sw": 299,
+              "ch": 554,
+              "sh": 554
+            },
+            {
+              "tag": "INPUT",
+              "id": "radius-input",
+              "cls": "range",
+              "cw": 295,
+              "sw": 295,
+              "ch": 3,
+              "sh": 9
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch low-poly",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch anime",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch cyber",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch blueprint",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch quality",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            }
+          ],
+          "outsideViewport": [
+            {
+              "id": "radius-input",
+              "text": "",
+              "x": 30,
+              "y": 394.203125,
+              "right": 325,
+              "bottom": 397.203125
+            },
+            {
+              "id": null,
+              "text": "東京タワー",
+              "x": 28,
+              "y": 454.203125,
+              "right": 172.5,
+              "bottom": 480.203125
+            },
+            {
+              "id": null,
+              "text": "渋谷スクランブル",
+              "x": 178.5,
+              "y": 454.203125,
+              "right": 323,
+              "bottom": 480.203125
+            },
+            {
+              "id": null,
+              "text": "大阪城",
+              "x": 28,
+              "y": 486.203125,
+              "right": 172.5,
+              "bottom": 512.203125
+            },
+            {
+              "id": null,
+              "text": "清水寺",
+              "x": 178.5,
+              "y": 486.203125,
+              "right": 323,
+              "bottom": 512.203125
+            },
+            {
+              "id": null,
+              "text": "札幌時計台",
+              "x": 28,
+              "y": 518.203125,
+              "right": 172.5,
+              "bottom": 544.203125
+            },
+            {
+              "id": null,
+              "text": "エッフェル塔",
+              "x": 178.5,
+              "y": 518.203125,
+              "right": 323,
+              "bottom": 544.203125
+            },
+            {
+              "id": null,
+              "text": "自由の女神",
+              "x": 28,
+              "y": 550.203125,
+              "right": 172.5,
+              "bottom": 576.203125
+            },
+            {
+              "id": null,
+              "text": "ビッグ・ベン",
+              "x": 178.5,
+              "y": 550.203125,
+              "right": 323,
+              "bottom": 576.203125
+            },
+            {
+              "id": null,
+              "text": "オペラハウス",
+              "x": 28,
+              "y": 582.203125,
+              "right": 172.5,
+              "bottom": 608.203125
+            },
+            {
+              "id": null,
+              "text": "コロッセオ",
+              "x": 178.5,
+              "y": 582.203125,
+              "right": 323,
+              "bottom": 608.203125
+            },
+            {
+              "id": null,
+              "text": "ブルジュ・ハリファ",
+              "x": 28,
+              "y": 614.203125,
+              "right": 172.5,
+              "bottom": 640.203125
+            },
+            {
+              "id": null,
+              "text": "タージ・マハル",
+              "x": 178.5,
+              "y": 614.203125,
+              "right": 323,
+              "bottom": 640.203125
+            },
+            {
+              "id": "seed-button",
+              "text": "Seed this world",
+              "x": 28,
+              "y": 653.203125,
+              "right": 323,
+              "bottom": 700.203125
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 102.9375,
+              "y": 719.796875,
+              "right": 154.515625,
+              "bottom": 731.390625
+            },
+            {
+              "id": "demo-button",
+              "text": "Regenerate instant demo",
+              "x": 28,
+              "y": 738.390625,
+              "right": 323,
+              "bottom": 766.390625
+            },
+            {
+              "id": "plateau-import-button",
+              "text": "Import PLATEAU CityGML",
+              "x": 28,
+              "y": 769.390625,
+              "right": 323,
+              "bottom": 799.390625
+            },
+            {
+              "id": null,
+              "text": "Low poly",
+              "x": 28,
+              "y": 878.390625,
+              "right": 82.1875,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Anime",
+              "x": 88.1875,
+              "y": 878.390625,
+              "right": 142.390625,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Cyber",
+              "x": 148.390625,
+              "y": 878.390625,
+              "right": 202.59375,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Blueprint",
+              "x": 208.59375,
+              "y": 878.390625,
+              "right": 262.796875,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Data quality",
+              "x": 268.796875,
+              "y": 878.390625,
+              "right": 323,
+              "bottom": 938.390625
+            },
+            {
+              "id": "export-glb",
+              "text": "GLBScene model",
+              "x": 28,
+              "y": 1206.390625,
+              "right": 172,
+              "bottom": 1258.390625
+            },
+            {
+              "id": "export-kit",
+              "text": "Three.js kitReady to run",
+              "x": 179,
+              "y": 1206.390625,
+              "right": 323,
+              "bottom": 1258.390625
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 28,
+              "y": 1366.171875,
+              "right": 99.578125,
+              "bottom": 1391.171875
+            },
+            {
+              "id": "clear-local-data",
+              "text": "Clear local data",
+              "x": 106.578125,
+              "y": 1366.171875,
+              "right": 182.171875,
+              "bottom": 1391.171875
+            }
+          ],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "3",
+            "tiles": "21/21",
+            "speed": "0",
+            "driveRoad": "WorldSeed Avenue"
+          }
+        },
+        {
+          "name": "iphone-landscape-08-quality.png",
+          "viewport": {
+            "width": 844,
+            "height": 390,
+            "dpr": 2
+          },
+          "status": "Demo world ready",
+          "mode": "drone",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 1519,
+            "drawingBufferHeight": 604
+          },
+          "bodyClasses": "is-drone world-panel-open",
+          "rects": {
+            "canvas": {
+              "x": 0,
+              "y": 54,
+              "width": 844,
+              "height": 336
+            },
+            "seedPanel": {
+              "x": 8,
+              "y": 62,
+              "width": 335,
+              "height": 161
+            },
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 844,
+              "height": 54
+            },
+            "modeRail": null,
+            "driveHud": null,
+            "driveControls": null,
+            "panelToggle": {
+              "x": 255,
+              "y": 70,
+              "width": 74,
+              "height": 32
+            }
+          },
+          "overflow": [
+            {
+              "tag": "DIV",
+              "id": null,
+              "cls": "panel-scroll",
+              "cw": 333,
+              "sw": 333,
+              "ch": 159,
+              "sh": 1358
+            },
+            {
+              "tag": "FORM",
+              "id": "seed-form",
+              "cls": "seed-form",
+              "cw": 295,
+              "sw": 299,
+              "ch": 554,
+              "sh": 554
+            },
+            {
+              "tag": "INPUT",
+              "id": "radius-input",
+              "cls": "range",
+              "cw": 295,
+              "sw": 295,
+              "ch": 3,
+              "sh": 9
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch low-poly",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch anime",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch cyber",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch blueprint",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch quality",
+              "cw": 52,
+              "sw": 52,
+              "ch": 34,
+              "sh": 42
+            }
+          ],
+          "outsideViewport": [
+            {
+              "id": "coordinate-input",
+              "text": "",
+              "x": 62,
+              "y": -488.796875,
+              "right": 284,
+              "bottom": -444.796875
+            },
+            {
+              "id": "locate-button",
+              "text": "",
+              "x": 284,
+              "y": -479.296875,
+              "right": 322,
+              "bottom": -454.296875
+            },
+            {
+              "id": "radius-input",
+              "text": "",
+              "x": 30,
+              "y": -371.796875,
+              "right": 325,
+              "bottom": -368.796875
+            },
+            {
+              "id": null,
+              "text": "東京タワー",
+              "x": 28,
+              "y": -311.796875,
+              "right": 172.5,
+              "bottom": -285.796875
+            },
+            {
+              "id": null,
+              "text": "渋谷スクランブル",
+              "x": 178.5,
+              "y": -311.796875,
+              "right": 323,
+              "bottom": -285.796875
+            },
+            {
+              "id": null,
+              "text": "大阪城",
+              "x": 28,
+              "y": -279.796875,
+              "right": 172.5,
+              "bottom": -253.796875
+            },
+            {
+              "id": null,
+              "text": "清水寺",
+              "x": 178.5,
+              "y": -279.796875,
+              "right": 323,
+              "bottom": -253.796875
+            },
+            {
+              "id": null,
+              "text": "札幌時計台",
+              "x": 28,
+              "y": -247.796875,
+              "right": 172.5,
+              "bottom": -221.796875
+            },
+            {
+              "id": null,
+              "text": "エッフェル塔",
+              "x": 178.5,
+              "y": -247.796875,
+              "right": 323,
+              "bottom": -221.796875
+            },
+            {
+              "id": null,
+              "text": "自由の女神",
+              "x": 28,
+              "y": -215.796875,
+              "right": 172.5,
+              "bottom": -189.796875
+            },
+            {
+              "id": null,
+              "text": "ビッグ・ベン",
+              "x": 178.5,
+              "y": -215.796875,
+              "right": 323,
+              "bottom": -189.796875
+            },
+            {
+              "id": null,
+              "text": "オペラハウス",
+              "x": 28,
+              "y": -183.796875,
+              "right": 172.5,
+              "bottom": -157.796875
+            },
+            {
+              "id": null,
+              "text": "コロッセオ",
+              "x": 178.5,
+              "y": -183.796875,
+              "right": 323,
+              "bottom": -157.796875
+            },
+            {
+              "id": null,
+              "text": "ブルジュ・ハリファ",
+              "x": 28,
+              "y": -151.796875,
+              "right": 172.5,
+              "bottom": -125.796875
+            },
+            {
+              "id": null,
+              "text": "タージ・マハル",
+              "x": 178.5,
+              "y": -151.796875,
+              "right": 323,
+              "bottom": -125.796875
+            },
+            {
+              "id": "seed-button",
+              "text": "Seed this world",
+              "x": 28,
+              "y": -112.796875,
+              "right": 323,
+              "bottom": -65.796875
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 102.9375,
+              "y": -46.203125,
+              "right": 154.515625,
+              "bottom": -34.609375
+            },
+            {
+              "id": "demo-button",
+              "text": "Regenerate instant demo",
+              "x": 28,
+              "y": -27.609375,
+              "right": 323,
+              "bottom": 0.390625
+            },
+            {
+              "id": "export-glb",
+              "text": "GLBScene model",
+              "x": 28,
+              "y": 440.390625,
+              "right": 172,
+              "bottom": 492.390625
+            },
+            {
+              "id": "export-kit",
+              "text": "Three.js kitReady to run",
+              "x": 179,
+              "y": 440.390625,
+              "right": 323,
+              "bottom": 492.390625
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 28,
+              "y": 600.171875,
+              "right": 99.578125,
+              "bottom": 625.171875
+            },
+            {
+              "id": "clear-local-data",
+              "text": "Clear local data",
+              "x": 106.578125,
+              "y": 600.171875,
+              "right": 182.171875,
+              "bottom": 625.171875
+            }
+          ],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "23.9K",
+            "fps": "4",
+            "tiles": "21/21",
+            "speed": "0",
+            "driveRoad": "WorldSeed Avenue"
+          }
+        }
+      ],
+      "driveAvailable": true
+    },
+    {
+      "name": "iphone-portrait-390x844",
+      "errors": [
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 5. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 3. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 3. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 3. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 4. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 3. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 3. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 4. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 4. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 4. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 3. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 5. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 4. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 4. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. Make sure all geometries have the same number of attributes."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        },
+        {
+          "type": "console",
+          "text": "THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 2. All geometries must have compatible attributes; make sure \"uv\" attribute exists among all geometries, or in none of them."
+        }
+      ],
+      "states": [
+        {
+          "name": "iphone-portrait-01-orbit.png",
+          "viewport": {
+            "width": 390,
+            "height": 844,
+            "dpr": 2
+          },
+          "status": "Demo world ready",
+          "mode": "orbit",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 702,
+            "drawingBufferHeight": 1422
+          },
+          "bodyClasses": "world-panel-open",
+          "rects": {
+            "canvas": {
+              "x": 0,
+              "y": 54,
+              "width": 390,
+              "height": 790
+            },
+            "seedPanel": {
+              "x": 8,
+              "y": 62,
+              "width": 335,
+              "height": 356
+            },
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 390,
+              "height": 54
+            },
+            "modeRail": null,
+            "driveHud": null,
+            "driveControls": null,
+            "panelToggle": {
+              "x": 255,
+              "y": 70,
+              "width": 74,
+              "height": 32
+            }
+          },
+          "overflow": [
+            {
+              "tag": "DIV",
+              "id": null,
+              "cls": "panel-scroll",
+              "cw": 333,
+              "sw": 333,
+              "ch": 354,
+              "sh": 1358
+            },
+            {
+              "tag": "FORM",
+              "id": "seed-form",
+              "cls": "seed-form",
+              "cw": 295,
+              "sw": 299,
+              "ch": 554,
+              "sh": 554
+            },
+            {
+              "tag": "INPUT",
+              "id": "radius-input",
+              "cls": "range",
+              "cw": 295,
+              "sw": 295,
+              "ch": 3,
+              "sh": 9
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch low-poly",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch anime",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch cyber",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch blueprint",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch quality",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            }
+          ],
+          "outsideViewport": [
+            {
+              "id": null,
+              "text": "Low poly",
+              "x": 28,
+              "y": 878.390625,
+              "right": 83.796875,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Anime",
+              "x": 87.796875,
+              "y": 878.390625,
+              "right": 143.59375,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Cyber",
+              "x": 147.59375,
+              "y": 878.390625,
+              "right": 203.390625,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Blueprint",
+              "x": 207.390625,
+              "y": 878.390625,
+              "right": 263.1875,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Data quality",
+              "x": 267.1875,
+              "y": 878.390625,
+              "right": 322.984375,
+              "bottom": 938.390625
+            },
+            {
+              "id": "export-glb",
+              "text": "GLBScene model",
+              "x": 28,
+              "y": 1206.390625,
+              "right": 172,
+              "bottom": 1258.390625
+            },
+            {
+              "id": "export-kit",
+              "text": "Three.js kitReady to run",
+              "x": 179,
+              "y": 1206.390625,
+              "right": 323,
+              "bottom": 1258.390625
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 28,
+              "y": 1366.171875,
+              "right": 99.578125,
+              "bottom": 1391.171875
+            },
+            {
+              "id": "clear-local-data",
+              "text": "Clear local data",
+              "x": 106.578125,
+              "y": 1366.171875,
+              "right": 182.171875,
+              "bottom": 1391.171875
+            }
+          ],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "6",
+            "tiles": "21/21",
+            "speed": "0",
+            "driveRoad": "Ready road"
+          }
+        },
+        {
+          "name": "iphone-portrait-02-orbit-drag.png",
+          "viewport": {
+            "width": 390,
+            "height": 844,
+            "dpr": 2
+          },
+          "status": "Demo world ready",
+          "mode": "orbit",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 702,
+            "drawingBufferHeight": 1422
+          },
+          "bodyClasses": "world-panel-open",
+          "rects": {
+            "canvas": {
+              "x": 0,
+              "y": 54,
+              "width": 390,
+              "height": 790
+            },
+            "seedPanel": {
+              "x": 8,
+              "y": 62,
+              "width": 335,
+              "height": 356
+            },
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 390,
+              "height": 54
+            },
+            "modeRail": null,
+            "driveHud": null,
+            "driveControls": null,
+            "panelToggle": {
+              "x": 255,
+              "y": 70,
+              "width": 74,
+              "height": 32
+            }
+          },
+          "overflow": [
+            {
+              "tag": "DIV",
+              "id": null,
+              "cls": "panel-scroll",
+              "cw": 333,
+              "sw": 333,
+              "ch": 354,
+              "sh": 1358
+            },
+            {
+              "tag": "FORM",
+              "id": "seed-form",
+              "cls": "seed-form",
+              "cw": 295,
+              "sw": 299,
+              "ch": 554,
+              "sh": 554
+            },
+            {
+              "tag": "INPUT",
+              "id": "radius-input",
+              "cls": "range",
+              "cw": 295,
+              "sw": 295,
+              "ch": 3,
+              "sh": 9
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch low-poly",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch anime",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch cyber",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch blueprint",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch quality",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            }
+          ],
+          "outsideViewport": [
+            {
+              "id": null,
+              "text": "Low poly",
+              "x": 28,
+              "y": 878.390625,
+              "right": 83.796875,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Anime",
+              "x": 87.796875,
+              "y": 878.390625,
+              "right": 143.59375,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Cyber",
+              "x": 147.59375,
+              "y": 878.390625,
+              "right": 203.390625,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Blueprint",
+              "x": 207.390625,
+              "y": 878.390625,
+              "right": 263.1875,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Data quality",
+              "x": 267.1875,
+              "y": 878.390625,
+              "right": 322.984375,
+              "bottom": 938.390625
+            },
+            {
+              "id": "export-glb",
+              "text": "GLBScene model",
+              "x": 28,
+              "y": 1206.390625,
+              "right": 172,
+              "bottom": 1258.390625
+            },
+            {
+              "id": "export-kit",
+              "text": "Three.js kitReady to run",
+              "x": 179,
+              "y": 1206.390625,
+              "right": 323,
+              "bottom": 1258.390625
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 28,
+              "y": 1366.171875,
+              "right": 99.578125,
+              "bottom": 1391.171875
+            },
+            {
+              "id": "clear-local-data",
+              "text": "Clear local data",
+              "x": 106.578125,
+              "y": 1366.171875,
+              "right": 182.171875,
+              "bottom": 1391.171875
+            }
+          ],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "7",
+            "tiles": "20/21",
+            "speed": "0",
+            "driveRoad": "Ready road"
+          }
+        },
+        {
+          "name": "iphone-portrait-03-drive-idle.png",
+          "viewport": {
+            "width": 390,
+            "height": 844,
+            "dpr": 2
+          },
+          "status": "Demo world ready",
+          "mode": "drive",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 702,
+            "drawingBufferHeight": 1422
+          },
+          "bodyClasses": "is-driving",
+          "rects": {
+            "canvas": {
+              "x": 0,
+              "y": 54,
+              "width": 390,
+              "height": 790
+            },
+            "seedPanel": null,
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 390,
+              "height": 54
+            },
+            "modeRail": null,
+            "driveHud": {
+              "x": 95,
+              "y": 727,
+              "width": 200,
+              "height": 52
+            },
+            "driveControls": null,
+            "panelToggle": {
+              "x": 8,
+              "y": 111,
+              "width": 76,
+              "height": 32
+            }
+          },
+          "overflow": [],
+          "outsideViewport": [],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "5",
+            "tiles": "17/21",
+            "speed": "0",
+            "driveRoad": "WorldSeed Avenue"
+          }
+        },
+        {
+          "name": "iphone-portrait-04-drive-turn.png",
+          "viewport": {
+            "width": 390,
+            "height": 844,
+            "dpr": 2
+          },
+          "status": "Demo world ready",
+          "mode": "drive",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 702,
+            "drawingBufferHeight": 1422
+          },
+          "bodyClasses": "is-driving",
+          "rects": {
+            "canvas": {
+              "x": 0,
+              "y": 54,
+              "width": 390,
+              "height": 790
+            },
+            "seedPanel": null,
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 390,
+              "height": 54
+            },
+            "modeRail": null,
+            "driveHud": {
+              "x": 95,
+              "y": 727,
+              "width": 200,
+              "height": 52
+            },
+            "driveControls": null,
+            "panelToggle": {
+              "x": 8,
+              "y": 111,
+              "width": 76,
+              "height": 32
+            }
+          },
+          "overflow": [],
+          "outsideViewport": [],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "5",
+            "tiles": "17/21",
+            "speed": "0",
+            "driveRoad": "WorldSeed Avenue"
+          }
+        },
+        {
+          "name": "iphone-portrait-05-drive-brake.png",
+          "viewport": {
+            "width": 390,
+            "height": 844,
+            "dpr": 2
+          },
+          "status": "Demo world ready",
+          "mode": "drive",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 702,
+            "drawingBufferHeight": 1422
+          },
+          "bodyClasses": "is-driving",
+          "rects": {
+            "canvas": {
+              "x": 0,
+              "y": 54,
+              "width": 390,
+              "height": 790
+            },
+            "seedPanel": null,
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 390,
+              "height": 54
+            },
+            "modeRail": null,
+            "driveHud": {
+              "x": 95,
+              "y": 727,
+              "width": 200,
+              "height": 52
+            },
+            "driveControls": null,
+            "panelToggle": {
+              "x": 8,
+              "y": 111,
+              "width": 76,
+              "height": 32
+            }
+          },
+          "overflow": [],
+          "outsideViewport": [],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "4",
+            "tiles": "17/21",
+            "speed": "0",
+            "driveRoad": "WorldSeed Avenue"
+          }
+        },
+        {
+          "name": "iphone-portrait-06-drone.png",
+          "viewport": {
+            "width": 390,
+            "height": 844,
+            "dpr": 2
+          },
+          "status": "Demo world ready",
+          "mode": "drone",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 702,
+            "drawingBufferHeight": 1422
+          },
+          "bodyClasses": "is-drone",
+          "rects": {
+            "canvas": {
+              "x": 0,
+              "y": 54,
+              "width": 390,
+              "height": 790
+            },
+            "seedPanel": null,
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 390,
+              "height": 54
+            },
+            "modeRail": null,
+            "driveHud": null,
+            "driveControls": null,
+            "panelToggle": {
+              "x": 8,
+              "y": 111,
+              "width": 76,
+              "height": 32
+            }
+          },
+          "overflow": [],
+          "outsideViewport": [],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "4",
+            "tiles": "21/21",
+            "speed": "0",
+            "driveRoad": "WorldSeed Avenue"
+          }
+        },
+        {
+          "name": "iphone-portrait-07-world-panel.png",
+          "viewport": {
+            "width": 390,
+            "height": 844,
+            "dpr": 2
+          },
+          "status": "Demo world ready",
+          "mode": "drone",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 702,
+            "drawingBufferHeight": 1422
+          },
+          "bodyClasses": "is-drone world-panel-open",
+          "rects": {
+            "canvas": {
+              "x": 0,
+              "y": 54,
+              "width": 390,
+              "height": 790
+            },
+            "seedPanel": {
+              "x": 8,
+              "y": 62,
+              "width": 335,
+              "height": 356
+            },
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 390,
+              "height": 54
+            },
+            "modeRail": null,
+            "driveHud": null,
+            "driveControls": null,
+            "panelToggle": {
+              "x": 255,
+              "y": 70,
+              "width": 74,
+              "height": 32
+            }
+          },
+          "overflow": [
+            {
+              "tag": "DIV",
+              "id": null,
+              "cls": "panel-scroll",
+              "cw": 333,
+              "sw": 333,
+              "ch": 354,
+              "sh": 1358
+            },
+            {
+              "tag": "FORM",
+              "id": "seed-form",
+              "cls": "seed-form",
+              "cw": 295,
+              "sw": 299,
+              "ch": 554,
+              "sh": 554
+            },
+            {
+              "tag": "INPUT",
+              "id": "radius-input",
+              "cls": "range",
+              "cw": 295,
+              "sw": 295,
+              "ch": 3,
+              "sh": 9
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch low-poly",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch anime",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch cyber",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch blueprint",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch quality",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            }
+          ],
+          "outsideViewport": [
+            {
+              "id": null,
+              "text": "Low poly",
+              "x": 28,
+              "y": 878.390625,
+              "right": 83.796875,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Anime",
+              "x": 87.796875,
+              "y": 878.390625,
+              "right": 143.59375,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Cyber",
+              "x": 147.59375,
+              "y": 878.390625,
+              "right": 203.390625,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Blueprint",
+              "x": 207.390625,
+              "y": 878.390625,
+              "right": 263.1875,
+              "bottom": 938.390625
+            },
+            {
+              "id": null,
+              "text": "Data quality",
+              "x": 267.1875,
+              "y": 878.390625,
+              "right": 322.984375,
+              "bottom": 938.390625
+            },
+            {
+              "id": "export-glb",
+              "text": "GLBScene model",
+              "x": 28,
+              "y": 1206.390625,
+              "right": 172,
+              "bottom": 1258.390625
+            },
+            {
+              "id": "export-kit",
+              "text": "Three.js kitReady to run",
+              "x": 179,
+              "y": 1206.390625,
+              "right": 323,
+              "bottom": 1258.390625
+            },
+            {
+              "id": null,
+              "text": "Privacy & data",
+              "x": 28,
+              "y": 1366.171875,
+              "right": 99.578125,
+              "bottom": 1391.171875
+            },
+            {
+              "id": "clear-local-data",
+              "text": "Clear local data",
+              "x": 106.578125,
+              "y": 1366.171875,
+              "right": 182.171875,
+              "bottom": 1391.171875
+            }
+          ],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "24K",
+            "fps": "4",
+            "tiles": "21/21",
+            "speed": "0",
+            "driveRoad": "WorldSeed Avenue"
+          }
+        },
+        {
+          "name": "iphone-portrait-08-quality.png",
+          "viewport": {
+            "width": 390,
+            "height": 844,
+            "dpr": 2
+          },
+          "status": "Demo world ready",
+          "mode": "drone",
+          "webgl": {
+            "ok": true,
+            "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+            "vendor": "Google Inc. (Google)",
+            "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "drawingBufferWidth": 702,
+            "drawingBufferHeight": 1422
+          },
+          "bodyClasses": "is-drone world-panel-open",
+          "rects": {
+            "canvas": {
+              "x": 0,
+              "y": 54,
+              "width": 390,
+              "height": 790
+            },
+            "seedPanel": {
+              "x": 8,
+              "y": 62,
+              "width": 335,
+              "height": 356
+            },
+            "topbar": {
+              "x": 0,
+              "y": 0,
+              "width": 390,
+              "height": 54
+            },
+            "modeRail": null,
+            "driveHud": null,
+            "driveControls": null,
+            "panelToggle": {
+              "x": 255,
+              "y": 70,
+              "width": 74,
+              "height": 32
+            }
+          },
+          "overflow": [
+            {
+              "tag": "DIV",
+              "id": null,
+              "cls": "panel-scroll",
+              "cw": 333,
+              "sw": 333,
+              "ch": 354,
+              "sh": 1358
+            },
+            {
+              "tag": "FORM",
+              "id": "seed-form",
+              "cls": "seed-form",
+              "cw": 295,
+              "sw": 299,
+              "ch": 554,
+              "sh": 554
+            },
+            {
+              "tag": "INPUT",
+              "id": "radius-input",
+              "cls": "range",
+              "cw": 295,
+              "sw": 295,
+              "ch": 3,
+              "sh": 9
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch low-poly",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch anime",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch cyber",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch blueprint",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            },
+            {
+              "tag": "I",
+              "id": null,
+              "cls": "swatch quality",
+              "cw": 54,
+              "sw": 54,
+              "ch": 34,
+              "sh": 42
+            }
+          ],
+          "outsideViewport": [
+            {
+              "id": "coordinate-input",
+              "text": "",
+              "x": 62,
+              "y": -391.796875,
+              "right": 284,
+              "bottom": -347.796875
+            },
+            {
+              "id": "locate-button",
+              "text": "",
+              "x": 284,
+              "y": -382.296875,
+              "right": 322,
+              "bottom": -357.296875
+            },
+            {
+              "id": "radius-input",
+              "text": "",
+              "x": 30,
+              "y": -274.796875,
+              "right": 325,
+              "bottom": -271.796875
+            },
+            {
+              "id": null,
+              "text": "東京タワー",
+              "x": 28,
+              "y": -214.796875,
+              "right": 172.5,
+              "bottom": -188.796875
+            },
+            {
+              "id": null,
+              "text": "渋谷スクランブル",
+              "x": 178.5,
+              "y": -214.796875,
+              "right": 323,
+              "bottom": -188.796875
+            },
+            {
+              "id": null,
+              "text": "大阪城",
+              "x": 28,
+              "y": -182.796875,
+              "right": 172.5,
+              "bottom": -156.796875
+            },
+            {
+              "id": null,
+              "text": "清水寺",
+              "x": 178.5,
+              "y": -182.796875,
+              "right": 323,
+              "bottom": -156.796875
+            },
+            {
+              "id": null,
+              "text": "札幌時計台",
+              "x": 28,
+              "y": -150.796875,
+              "right": 172.5,
+              "bottom": -124.796875
+            },
+            {
+              "id": null,
+              "text": "エッフェル塔",
+              "x": 178.5,
+              "y": -150.796875,
+              "right": 323,
+              "bottom": -124.796875
+            },
+            {
+              "id": null,
+              "text": "自由の女神",
+              "x": 28,
+              "y": -118.796875,
+              "right": 172.5,
+              "bottom": -92.796875
+            },
+            {
+              "id": null,
+              "text": "ビッグ・ベン",
+              "x": 178.5,
+              "y": -118.796875,
+              "right": 323,
+              "bottom": -92.796875
+            },
+            {
+              "id": null,
+              "text": "オペラハウス",
+              "x": 28,
+              "y": -86.796875,
+              "right": 172.5,
+              "bottom": -60.796875
+            },
+            {
+              "id": null,
+              "text": "コロッセオ",
+              "x": 178.5,
+              "y": -86.796875,
+              "right": 323,
+              "bottom": -60.796875
+            },
+            {
+              "id": null,
+              "text": "ブルジュ・ハリファ",
+              "x": 28,
+              "y": -54.796875,
+              "right": 172.5,
+              "bottom": -28.796875
+            },
+            {
+              "id": null,
+              "text": "タージ・マハル",
+              "x": 178.5,
+              "y": -54.796875,
+              "right": 323,
+              "bottom": -28.796875
+            },
+            {
+              "id": "seed-button",
+              "text": "Seed this world",
+              "x": 28,
+              "y": -15.796875,
+              "right": 323,
+              "bottom": 31.203125
+            }
+          ],
+          "stats": {
+            "buildings": "224",
+            "roads": "40",
+            "triangles": "23.9K",
+            "fps": "6",
+            "tiles": "21/21",
+            "speed": "0",
+            "driveRoad": "WorldSeed Avenue"
+          }
+        }
+      ],
+      "driveAvailable": true
+    }
+  ]
+}
