@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T09:07:08.545Z",
+  "generatedAt": "2026-09-21T09:15:03.084Z",
   "executablePath": "/usr/bin/google-chrome",
   "scenarios": [
     {
@@ -449,7 +449,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "24K",
-            "fps": "5",
+            "fps": "3",
             "tiles": "21/21",
             "speed": "0",
             "driveRoad": "Ready road"
@@ -681,7 +681,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "24K",
-            "fps": "7",
+            "fps": "4",
             "tiles": "20/21",
             "speed": "0",
             "driveRoad": "Ready road"
@@ -918,7 +918,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "24K",
-            "fps": "6",
+            "fps": "4",
             "tiles": "17/21",
             "speed": "0",
             "driveRoad": "WorldSeed Avenue"
@@ -1155,7 +1155,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "24K",
-            "fps": "5",
+            "fps": "3",
             "tiles": "17/21",
             "speed": "0",
             "driveRoad": "WorldSeed Avenue"
@@ -1392,7 +1392,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "24K",
-            "fps": "5",
+            "fps": "2",
             "tiles": "17/21",
             "speed": "0",
             "driveRoad": "WorldSeed Avenue"
@@ -1856,7 +1856,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "23.9K",
-            "fps": "5",
+            "fps": "3",
             "tiles": "21/21",
             "speed": "0",
             "driveRoad": "WorldSeed Avenue"
@@ -2421,7 +2421,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "24K",
-            "fps": "4",
+            "fps": "3",
             "tiles": "21/21",
             "speed": "0",
             "driveRoad": "Ready road"
@@ -2762,7 +2762,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "24K",
-            "fps": "7",
+            "fps": "2",
             "tiles": "20/21",
             "speed": "0",
             "driveRoad": "Ready road"
@@ -2821,7 +2821,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "24K",
-            "fps": "6",
+            "fps": "1",
             "tiles": "17/21",
             "speed": "0",
             "driveRoad": "WorldSeed Avenue"
@@ -2880,7 +2880,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "24K",
-            "fps": "3",
+            "fps": "2",
             "tiles": "17/21",
             "speed": "0",
             "driveRoad": "WorldSeed Avenue"
@@ -2939,7 +2939,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "24K",
-            "fps": "3",
+            "fps": "2",
             "tiles": "17/21",
             "speed": "0",
             "driveRoad": "WorldSeed Avenue"
@@ -2993,7 +2993,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "24K",
-            "fps": "5",
+            "fps": "3",
             "tiles": "21/21",
             "speed": "0",
             "driveRoad": "WorldSeed Avenue"
@@ -3643,7 +3643,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "23.9K",
-            "fps": "4",
+            "fps": "3",
             "tiles": "21/21",
             "speed": "0",
             "driveRoad": "WorldSeed Avenue"
@@ -4072,7 +4072,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "24K",
-            "fps": "6",
+            "fps": "4",
             "tiles": "21/21",
             "speed": "0",
             "driveRoad": "Ready road"
@@ -4277,7 +4277,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "24K",
-            "fps": "7",
+            "fps": "5",
             "tiles": "20/21",
             "speed": "0",
             "driveRoad": "Ready road"
@@ -4336,7 +4336,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "24K",
-            "fps": "5",
+            "fps": "3",
             "tiles": "17/21",
             "speed": "0",
             "driveRoad": "WorldSeed Avenue"
@@ -4395,7 +4395,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "24K",
-            "fps": "5",
+            "fps": "2",
             "tiles": "17/21",
             "speed": "0",
             "driveRoad": "WorldSeed Avenue"
@@ -4454,7 +4454,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "24K",
-            "fps": "4",
+            "fps": "2",
             "tiles": "17/21",
             "speed": "0",
             "driveRoad": "WorldSeed Avenue"
@@ -4508,7 +4508,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "24K",
-            "fps": "4",
+            "fps": "3",
             "tiles": "21/21",
             "speed": "0",
             "driveRoad": "WorldSeed Avenue"
@@ -4713,7 +4713,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "24K",
-            "fps": "4",
+            "fps": "2",
             "tiles": "21/21",
             "speed": "0",
             "driveRoad": "WorldSeed Avenue"
@@ -4974,7 +4974,7 @@
             "buildings": "224",
             "roads": "40",
             "triangles": "23.9K",
-            "fps": "6",
+            "fps": "3",
             "tiles": "21/21",
             "speed": "0",
             "driveRoad": "WorldSeed Avenue"
