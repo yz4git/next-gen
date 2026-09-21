@@ -86,7 +86,7 @@ export function buildRoadGraph(
   const connectedNodeIds = new Set(edges.flatMap((edge) => [edge.from, edge.to]));
   return {
     schemaVersion: "1.0",
-    generator: "WorldSeed Drive Any City",
+    generator: "WorldSeed 0.9.0",
     coordinateSystem: "local meters; X east, Y up, Z south",
     nodes: [...nodes.values()].filter((node) => connectedNodeIds.has(node.id)),
     edges,
