@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#111820" />
+  <title>WorldSeed Export Consumer</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <main>
+    <section class="stage">
+      <canvas id="world"></canvas>
+      <div class="drop" id="drop">
+        <strong>WorldSeed Export Consumer</strong>
+        <p>Drop a <code>worldseed-threejs-kit.zip</code> here, or choose one below.</p>
+        <label>Choose ZIP<input id="file" type="file" accept=".zip,application/zip" /></label>
+        <small>This example imports no WorldSeed application code. It reads only the exported GLB + JSON contract.</small>
+      </div>
+      <div class="status" id="status">Waiting for an export…</div>
+    </section>
+    <aside>
+      <h1>Contract consumer</h1>
+      <p class="lede">A standalone integration example for WorldSeed v0.9.0.</p>
+      <dl>
+        <div><dt>Schema</dt><dd id="schema">—</dd></div>
+        <div><dt>Generator</dt><dd id="generator">—</dd></div>
+        <div><dt>Buildings</dt><dd id="buildings">—</dd></div>
+        <div><dt>Road edges</dt><dd id="roads">—</dd></div>
+        <div><dt>Semantic objects</dt><dd id="objects">—</dd></div>
+        <div><dt>Vehicle spawns</dt><dd id="spawns">—</dd></div>
+        <div><dt>Route</dt><dd id="route">—</dd></div>
+      </dl>
+      <section>
+        <h2>What this proves</h2>
+        <ul>
+          <li><code>city.glb</code> is renderable outside WorldSeed.</li>
+          <li><code>road-graph.json</code> is independently consumable.</li>
+          <li><code>spawn-points.json</code> can place downstream actors.</li>
+          <li><code>drive-route.json</code> can drive a separate route overlay.</li>
+          <li>Schema v1 is checked before import.</li>
+        </ul>
+      </section>
+    </aside>
+  </main>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

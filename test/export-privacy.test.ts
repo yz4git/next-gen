@@ -39,7 +39,7 @@ const stats: WorldStats = {
 describe("privacy-safe exports", () => {
   it("omits the exact origin from metadata unless opted in", () => {
     expect(createWorldMetadata(world, stats, "low-poly", false)).toMatchObject({
-      generator: "WorldSeed 0.7.0 Drive Any City",
+      generator: "WorldSeed 0.9.0",
       origin: null,
       exactOriginIncluded: false,
     });
@@ -58,6 +58,22 @@ describe("privacy-safe exports", () => {
     expect(createExportUserData(sceneData, true)).toEqual({
       ...sceneData,
       exactOriginIncluded: true,
+    });
+  });
+});
+
+
+describe("versioned export contract", () => {
+  it("publishes schema v1 paths from worldseed metadata", () => {
+    const metadata = createWorldMetadata(world, stats, "low-poly", false);
+    expect(metadata["schemaVersion"]).toBe("1.0");
+    expect(metadata["generator"]).toBe("WorldSeed 0.9.0");
+    expect(metadata["schemas"]).toEqual({
+      metadata: "schemas/v1/worldseed.schema.json",
+      objects: "schemas/v1/worldseed-objects.schema.json",
+      roadGraph: "schemas/v1/road-graph.schema.json",
+      spawnPoints: "schemas/v1/spawn-points.schema.json",
+      driveRoute: "schemas/v1/drive-route.schema.json",
     });
   });
 });

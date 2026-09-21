@@ -1,0 +1,56 @@
+name: Integration report
+description: Share a public project that consumes WorldSeed exports or schemas
+title: "Integration report: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying WorldSeed in another project. Public, reproducible integrations help stabilize the export contract.
+  - type: input
+    id: project
+    attributes:
+      label: Public project or demo URL
+      description: Repository, live demo, article with source, benchmark, or other inspectable artifact.
+      placeholder: https://github.com/...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: WorldSeed / schema version
+      placeholder: WorldSeed v0.9.0 / schema v1.0
+    validations:
+      required: true
+  - type: checkboxes
+    id: files
+    attributes:
+      label: Export files used
+      options:
+        - label: city.glb
+        - label: terrain.glb
+        - label: colliders.glb
+        - label: worldseed.json
+        - label: worldseed-objects.json
+        - label: road-graph.json
+        - label: spawn-points.json
+        - label: drive-route.json
+        - label: schemas/v1
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime / engine
+      placeholder: Three.js, Babylon.js, Godot, Unity, Blender, custom...
+    validations:
+      required: true
+  - type: textarea
+    id: experience
+    attributes:
+      label: Integration notes
+      description: What worked well? What was awkward or missing from the contract?
+  - type: checkboxes
+    id: listing
+    attributes:
+      label: ADOPTERS.md
+      options:
+        - label: I am okay with this public integration being listed in ADOPTERS.md.

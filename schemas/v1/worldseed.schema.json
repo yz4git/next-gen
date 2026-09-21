@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/yz4git/next-gen/v0.9.0/schemas/v1/worldseed.schema.json",
+  "title": "WorldSeed metadata v1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "generator",
+    "coordinateSystem",
+    "origin",
+    "exactOriginIncluded",
+    "radiusMeters",
+    "style",
+    "source",
+    "generatedAt",
+    "stats",
+    "warnings",
+    "semanticManifest",
+    "roadGraph",
+    "spawnPoints",
+    "schemas"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "generator": {
+      "type": "string"
+    },
+    "coordinateSystem": {
+      "type": "string"
+    },
+    "origin": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "required": [
+            "longitude",
+            "latitude"
+          ],
+          "properties": {
+            "longitude": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            },
+            "latitude": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "exactOriginIncluded": {
+      "type": "boolean"
+    },
+    "radiusMeters": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "style": {
+      "enum": [
+        "low-poly",
+        "anime",
+        "cyber",
+        "blueprint",
+        "quality"
+      ]
+    },
+    "source": {
+      "type": "string"
+    },
+    "sourceDetails": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "stats": {
+      "type": "object",
+      "required": [
+        "buildings",
+        "roads",
+        "areas",
+        "providedHeights",
+        "levelHeights",
+        "inferredHeights",
+        "triangles",
+        "drawCalls",
+        "truncatedBuildings",
+        "terrainRelief",
+        "roofs",
+        "shapedRoofs",
+        "semanticObjects",
+        "tiles",
+        "plateauBuildings",
+        "plateauLod2Buildings",
+        "roadNodes",
+        "roadEdges",
+        "drivableRoadMeters"
+      ],
+      "properties": {
+        "buildings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "roads": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "areas": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "providedHeights": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "levelHeights": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "inferredHeights": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "triangles": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "drawCalls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "truncatedBuildings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "terrainRelief": {
+          "type": "number",
+          "minimum": 0
+        },
+        "roofs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "shapedRoofs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "semanticObjects": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tiles": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "plateauBuildings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "plateauLod2Buildings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "roadNodes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "roadEdges": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "drivableRoadMeters": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "semanticManifest": {
+      "const": "worldseed-objects.json"
+    },
+    "roadGraph": {
+      "const": "road-graph.json"
+    },
+    "spawnPoints": {
+      "const": "spawn-points.json"
+    },
+    "schemas": {
+      "type": "object",
+      "required": [
+        "metadata",
+        "objects",
+        "roadGraph",
+        "spawnPoints",
+        "driveRoute"
+      ],
+      "properties": {
+        "metadata": {
+          "const": "schemas/v1/worldseed.schema.json"
+        },
+        "objects": {
+          "const": "schemas/v1/worldseed-objects.schema.json"
+        },
+        "roadGraph": {
+          "const": "schemas/v1/road-graph.schema.json"
+        },
+        "spawnPoints": {
+          "const": "schemas/v1/spawn-points.schema.json"
+        },
+        "driveRoute": {
+          "const": "schemas/v1/drive-route.schema.json"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

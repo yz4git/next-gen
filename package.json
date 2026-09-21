@@ -1,16 +1,17 @@
 {
   "name": "worldseed",
-  "version": "0.8.2",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "description": "Turn any latitude and longitude into a playable, game-ready Three.js city.",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
+    "build:example": "vite build examples/export-consumer --outDir ../../dist-example",
     "check": "tsc -b --pretty false",
     "test": "vitest run",
     "test:watch": "vitest",
-    "validate": "npm run check && npm run test && npm run build && node scripts/validate-build.mjs",
+    "validate": "npm run check && npm run test && npm run build && npm run build:example && node scripts/validate-build.mjs",
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
