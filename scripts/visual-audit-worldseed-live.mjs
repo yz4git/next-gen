@@ -108,7 +108,6 @@ async function inspectPreset(name, coordinate, prefix) {
   await context.close();
 }
 
-await inspectPreset("Osaka Castle", "34.687300, 135.526200", "live-osaka");
 await inspectPreset("Shibuya Crossing", "35.659500, 139.700500", "live-shibuya");
 
 await fs.writeFile(path.join(outDir, "report-live.json"), JSON.stringify(report, null, 2));
