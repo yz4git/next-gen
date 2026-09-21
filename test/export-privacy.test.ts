@@ -39,7 +39,7 @@ const stats: WorldStats = {
 describe("privacy-safe exports", () => {
   it("omits the exact origin from metadata unless opted in", () => {
     expect(createWorldMetadata(world, stats, "low-poly", false)).toMatchObject({
-      generator: "WorldSeed 0.9.0",
+      generator: "WorldSeed 0.9.1",
       origin: null,
       exactOriginIncluded: false,
     });
@@ -67,7 +67,7 @@ describe("versioned export contract", () => {
   it("publishes schema v1 paths from worldseed metadata", () => {
     const metadata = createWorldMetadata(world, stats, "low-poly", false);
     expect(metadata["schemaVersion"]).toBe("1.0");
-    expect(metadata["generator"]).toBe("WorldSeed 0.9.0");
+    expect(metadata["generator"]).toBe("WorldSeed 0.9.1");
     expect(metadata["schemas"]).toEqual({
       metadata: "schemas/v1/worldseed.schema.json",
       objects: "schemas/v1/worldseed-objects.schema.json",
