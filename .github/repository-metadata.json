@@ -1,7 +1,7 @@
 {
-  "syncVersion": 2,
+  "syncVersion": 3,
   "description": "Turn open geospatial data into playable, exportable 3D worlds with Three.js, GLB, road graphs, colliders, spawn points and JSON Schema.",
-  "homepage": "https://github.com/yz4git/next-gen/releases/latest",
+  "homepage": "https://yz4git.github.io/next-gen/",
   "topics": [
     "threejs",
     "webgl",
