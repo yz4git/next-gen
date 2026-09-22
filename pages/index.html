@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="description" content="WorldSeed turns open geospatial data into playable, exportable Three.js worlds." />
+  <meta name="theme-color" content="#0d120f" />
+  <title>WorldSeed — Open data to playable worlds</title>
+  <link rel="stylesheet" href="./site.css" />
+</head>
+<body>
+  <header class="nav">
+    <a class="brand" href="./" aria-label="WorldSeed home">
+      <span class="mark" aria-hidden="true">✳</span>
+      <span>WorldSeed</span>
+      <small>v0.9.1</small>
+    </a>
+    <nav>
+      <a href="#why">Why WorldSeed</a>
+      <a href="#contract">Export contract</a>
+      <a href="#adopt">Integrate</a>
+      <a class="nav-cta" href="./demo/">Open demo</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">OPEN GEOSPATIAL DATA → PLAYABLE 3D WORLD</p>
+        <h1>Grow a playable city<br />from one coordinate.</h1>
+        <p class="lede">
+          WorldSeed turns public geospatial data into a browser-native Three.js world with terrain-aware roads,
+          buildings, semantic objects, colliders, routes, spawn points, and a versioned export contract.
+        </p>
+        <div class="actions">
+          <a class="button primary" href="./demo/">Launch the live demo</a>
+          <a class="button secondary" href="https://github.com/yz4git/next-gen">View on GitHub</a>
+        </div>
+        <div class="proof">
+          <span>MIT licensed</span>
+          <span>Schema v1</span>
+          <span>GLB + JSON</span>
+          <span>No signup required</span>
+        </div>
+      </div>
+
+      <figure class="hero-shot">
+        <img src="./assets/worldseed-tokyo-tower.png" alt="WorldSeed live Tokyo Tower world rendered from open geospatial data" />
+        <figcaption>
+          <strong>Live Tokyo Tower seed</strong>
+          <span>Production WebGL build · open geospatial data</span>
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="stats" aria-label="Tokyo Tower live capture stats">
+      <article><strong>1,299</strong><span>buildings</span></article>
+      <article><strong>928</strong><span>roads</span></article>
+      <article><strong>107.9K</strong><span>triangles</span></article>
+      <article><strong>3,527</strong><span>semantic objects</span></article>
+    </section>
+
+    <section class="section" id="why">
+      <div class="section-heading">
+        <p class="eyebrow">WHY WORLDSEED</p>
+        <h2>Not just a city viewer.</h2>
+        <p>WorldSeed is designed as an open pipeline that other games, simulations, tools, and engines can consume.</p>
+      </div>
+      <div class="cards">
+        <article class="card">
+          <span class="card-index">01</span>
+          <h3>Real open data</h3>
+          <p>Combine Overture Maps, OpenStreetMap, terrain data, and optional local PLATEAU CityGML with provenance and attribution intact.</p>
+        </article>
+        <article class="card">
+          <span class="card-index">02</span>
+          <h3>Gameplay structure</h3>
+          <p>Generate terrain-following roads, dedicated junction geometry, colliders, road graphs, routes, and spawn points instead of geometry alone.</p>
+        </article>
+        <article class="card">
+          <span class="card-index">03</span>
+          <h3>Reusable exports</h3>
+          <p>Export GLB plus schema-versioned JSON so downstream tools can consume the world without importing WorldSeed runtime code.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section contract" id="contract">
+      <div class="section-heading">
+        <p class="eyebrow">INTEROPERABLE CITY EXPORT</p>
+        <h2>A public contract, not an internal dump.</h2>
+      </div>
+      <div class="contract-grid">
+        <div class="terminal" aria-label="WorldSeed export files">
+          <div class="terminal-bar"><span></span><span></span><span></span><em>worldseed-kit/</em></div>
+          <pre><code>city.glb
+terrain.glb
+colliders.glb
+worldseed.json
+worldseed-objects.json
+road-graph.json
+spawn-points.json
+drive-route.json
+ATTRIBUTION.md
+schemas/v1/*.schema.json</code></pre>
+        </div>
+        <div class="contract-copy">
+          <h3>Schema v1 is independently consumable.</h3>
+          <p>
+            The standalone consumer example imports the public export ZIP only. It does not depend on WorldSeed's internal
+            <code>src/</code> modules.
+          </p>
+          <a class="text-link" href="https://github.com/yz4git/next-gen/blob/main/docs/SCHEMA_VERSIONING.md">Read the schema policy →</a>
+          <a class="text-link" href="https://github.com/yz4git/next-gen/blob/main/docs/TRY_WORLDSEED.md">Try the export in five minutes →</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section demo-callout">
+      <div>
+        <p class="eyebrow">LIVE DEMO</p>
+        <h2>Orbit it. Drive it. Export it.</h2>
+        <p>The Pages build includes the real WorldSeed production app under <code>/demo/</code>.</p>
+      </div>
+      <a class="button primary big" href="./demo/">Open WorldSeed</a>
+    </section>
+
+    <section class="section" id="adopt">
+      <div class="section-heading">
+        <p class="eyebrow">EARLY ADOPTERS WANTED</p>
+        <h2>Use WorldSeed somewhere we didn't.</h2>
+        <p>
+          Babylon.js, Godot, Blender, simulation, procedural games, validators, converters, and other public integrations are welcome.
+          Verified downstream projects can be listed in <code>ADOPTERS.md</code>.
+        </p>
+      </div>
+      <div class="actions centered">
+        <a class="button primary" href="https://github.com/yz4git/next-gen/issues/19">Integration challenge</a>
+        <a class="button secondary" href="https://github.com/yz4git/next-gen/releases/tag/v0.9.1">Download v0.9.1</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div>
+      <strong>WorldSeed</strong>
+      <span>MIT-licensed open-source geospatial world pipeline.</span>
+    </div>
+    <div class="footer-links">
+      <a href="https://github.com/yz4git/next-gen">GitHub</a>
+      <a href="https://github.com/yz4git/next-gen/releases/latest">Release</a>
+      <a href="https://github.com/yz4git/next-gen/blob/main/SECURITY.md">Security</a>
+      <a href="https://github.com/yz4git/next-gen/blob/main/MAINTENANCE.md">Maintenance</a>
+    </div>
+  </footer>
+</body>
+</html>
