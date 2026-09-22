@@ -1,0 +1,73 @@
+name: Submit WorldSeed to Awesome-Geospatial
+
+on:
+  push:
+    branches:
+      - outreach/awesome-geospatial-submit-20260922
+    paths:
+      - ".github/workflows/submit-awesome-geospatial.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare fork contribution
+        env:
+          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/yz4git/Awesome-Geospatial.git"
+          cd Awesome-Geospatial
+
+          git config user.name "yz4git"
+          git config user.email "65384484+yz4git@users.noreply.github.com"
+
+          git checkout master
+          git pull --ff-only origin master
+          git checkout -B add-worldseed
+
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("README.md")
+          text = path.read_text()
+          line = "* [WorldSeed](https://github.com/yz4git/next-gen) - MIT-licensed browser tool that turns open geospatial data into playable, exportable Three.js worlds with terrain-aware roads, GLB, road graphs, spawn points, and versioned JSON Schema."
+          if line not in text:
+              needle = "* [World Wind](http://worldwind.arc.nasa.gov/java/) -  Providing features for displaying with geographic data\n"
+              if needle not in text:
+                  raise SystemExit("3D Application insertion point not found")
+              text = text.replace(needle, needle + line + "\n", 1)
+              path.write_text(text)
+          PY
+
+          git add README.md
+          if ! git diff --cached --quiet; then
+            git commit -m "Add WorldSeed to 3D Application"
+          fi
+          git push --force-with-lease origin add-worldseed
+
+      - name: Try to open upstream pull request
+        id: pr
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+        run: |
+          gh pr create \
+            --repo sacridini/Awesome-Geospatial \
+            --base master \
+            --head yz4git:add-worldseed \
+            --title "Add WorldSeed to 3D Application" \
+            --body "Adds WorldSeed, an MIT-licensed browser tool that turns open geospatial data into playable, exportable Three.js worlds with terrain-aware roads, GLB, road graphs, spawn points, and versioned JSON Schema."
+
+      - name: Report result
+        env:
+          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+        run: |
+          echo "Fork branch:"
+          git ls-remote "https://x-access-token:${GH_TOKEN}@github.com/yz4git/Awesome-Geospatial.git" refs/heads/add-worldseed
+          echo "Upstream PR lookup:"
+          gh pr list --repo sacridini/Awesome-Geospatial --head yz4git:add-worldseed --state all --json number,title,url,state || true
