@@ -1,0 +1,23 @@
+name: Test Awesome list fork access
+
+on:
+  push:
+    branches:
+      - outreach/awesome-listings-20260922
+    paths:
+      - ".github/workflows/awesome-outreach.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  fork-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Try to fork Awesome-Geospatial with maintainer token
+        env:
+          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh api --method POST repos/sacridini/Awesome-Geospatial/forks             -f default_branch_only=true > /tmp/fork.json
+          cat /tmp/fork.json | jq '{full_name, fork, default_branch, html_url}'
