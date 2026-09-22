@@ -1,0 +1,87 @@
+name: Prepare WorldSeed awesome-list submissions
+
+on:
+  push:
+    branches:
+      - outreach/awesome-threejs-webgl-20260922
+    paths:
+      - ".github/workflows/prepare-awesome-list-submissions.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare awesome-threejs fork
+        env:
+          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+        run: |
+          set -euo pipefail
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/yz4git/awesome-threejs.git"
+          cd awesome-threejs
+          git config user.name "yz4git"
+          git config user.email "65384484+yz4git@users.noreply.github.com"
+          git checkout main
+          git pull --ff-only origin main
+          git checkout -B add-worldseed
+          python - <<'PY'
+          from pathlib import Path
+          p=Path("README.md")
+          t=p.read_text()
+          line="- [WorldSeed](https://github.com/yz4git/next-gen): Turns open geospatial data into playable, exportable Three.js worlds with terrain-aware roads, semantic objects, GLB, road graphs, spawn points and versioned JSON Schema by [@yz4git](https://github.com/yz4git)."
+          if line not in t:
+              needle="- [Three-Blender](https://github.com/ppmpreetham/three-blender): Blender based tool, to convert your Blender files directly to threeJS.\n"
+              if needle not in t:
+                  raise SystemExit("Scene Creation insertion point not found")
+              t=t.replace(needle, needle+line+"\n", 1)
+              p.write_text(t)
+          PY
+          git add README.md
+          if ! git diff --cached --quiet; then
+            git commit -m "Add WorldSeed to Scene Creation"
+          fi
+          git push --force-with-lease origin add-worldseed
+          cd ..
+
+      - name: Prepare awesome-webgl fork
+        env:
+          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+        run: |
+          set -euo pipefail
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/yz4git/awesome-webgl.git"
+          cd awesome-webgl
+          git config user.name "yz4git"
+          git config user.email "65384484+yz4git@users.noreply.github.com"
+          git checkout master
+          git pull --ff-only origin master
+          git checkout -B add-worldseed
+          python - <<'PY'
+          from pathlib import Path
+          p=Path("README.md")
+          t=p.read_text()
+          line="* [WorldSeed](https://github.com/yz4git/next-gen) - Turns open geospatial data into playable, exportable Three.js worlds with terrain-aware roads, GLB, road graphs, spawn points, and versioned JSON Schema."
+          if line not in t:
+              needle="* [xeokit](https://xeokit.io/) - Web Graphics SDK for AEC/BIM applications with 3D-tiles, real-world coordinates and double precision.\n"
+              if needle not in t:
+                  raise SystemExit("Maps and Visualizations insertion point not found")
+              t=t.replace(needle, needle+line+"\n", 1)
+              p.write_text(t)
+          PY
+          git add README.md
+          if ! git diff --cached --quiet; then
+            git commit -m "Add WorldSeed to Maps and Visualizations"
+          fi
+          git push --force-with-lease origin add-worldseed
+          cd ..
+
+      - name: Report branches
+        env:
+          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+        run: |
+          echo "awesome-threejs:"
+          git ls-remote "https://x-access-token:${GH_TOKEN}@github.com/yz4git/awesome-threejs.git" refs/heads/add-worldseed
+          echo "awesome-webgl:"
+          git ls-remote "https://x-access-token:${GH_TOKEN}@github.com/yz4git/awesome-webgl.git" refs/heads/add-worldseed
