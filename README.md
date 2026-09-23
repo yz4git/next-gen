@@ -1,10 +1,12 @@
 <div align="center">
   <img src="public/worldseed-mark.svg" width="84" alt="WorldSeed mark" />
   <h1>WorldSeed</h1>
-  <p><strong>Drive a playable Three.js city from one coordinate.</strong></p>
-  <p>Overture buildings + routable streets · arcade driving · game-ready GLB + data kit</p>
+  <p><strong>Turn open geospatial data into playable, exportable 3D worlds.</strong></p>
+  <p>Three.js · terrain-aware roads · arcade driving · GLB + road graphs + colliders + spawn points + JSON Schema</p>
   <p>
-    <a href="https://github.com/yz4git/next-gen/releases/tag/v0.9.1"><strong>Latest release</strong></a>
+    <a href="https://yz4git.github.io/next-gen/demo/"><strong>Live demo</strong></a>
+    ·
+    <a href="https://github.com/yz4git/next-gen/releases/latest"><strong>Latest release</strong></a>
     ·
     <a href="docs/TRY_WORLDSEED.md"><strong>Try it in 5 minutes</strong></a>
     ·
@@ -13,6 +15,10 @@
     <a href="https://github.com/yz4git/next-gen/issues/19"><strong>Early adopters wanted</strong></a>
   </p>
 </div>
+
+![WorldSeed live Tokyo Tower world generated from open geospatial data](docs/worldseed-preview.png)
+
+*Live Tokyo Tower seed rendered by the production WebGL build from open geospatial data.*
 
 WorldSeed turns a WGS84 latitude and longitude into a local-meter, browser-generated 3D world. Paste coordinates (or a Google Maps URL containing coordinates), choose a 100–1,000 m radius, and immediately orbit, walk, fly, or drive through the result.
 
@@ -30,10 +36,6 @@ WorldSeed is an open-source bridge between public geospatial data and interactiv
 - **Open geospatial workflows** — combine Overture Maps, OpenStreetMap, Mapzen terrain, and local PLATEAU CityGML without relying on scraped proprietary map geometry.
 
 See [docs/REUSE.md](docs/REUSE.md) for concrete integration paths and export-file responsibilities.
-
-![WorldSeed live Tokyo Tower world generated from open geospatial data](docs/worldseed-preview.png)
-
-*Live Tokyo Tower seed rendered by the production WebGL build from open geospatial data.*
 
 ## What works in v0.9.x — Interoperable City Export
 
@@ -120,7 +122,7 @@ The Three.js scene uses a local tangent approximation: X points east, Y points u
 
 ## Public safety and privacy
 
-v0.1.1 makes coordinate disclosure an explicit action:
+WorldSeed makes coordinate disclosure an explicit action:
 
 - Generating or changing a world no longer writes coordinates into the browser URL.
 - **Use my location** explains the data flow before requesting browser permission.

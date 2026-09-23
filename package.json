@@ -3,7 +3,7 @@
   "version": "0.9.1",
   "private": true,
   "type": "module",
-  "description": "Turn any latitude and longitude into a playable, game-ready Three.js city.",
+  "description": "Turn open geospatial data into playable, exportable 3D worlds with Three.js, GLB, road graphs, colliders, spawn points and JSON Schema.",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
