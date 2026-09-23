@@ -13,7 +13,7 @@ const html = await readFile("dist/index.html", "utf8");
 for (const marker of [
   "WorldSeed",
   "type=\"module\"",
-  "v0.1.1 PUBLIC SAFETY",
+  "PRIVACY &amp; DATA",
   "v0.9.1",
   "id=\"privacy-dialog\"",
   "id=\"viewport-attribution\"",
