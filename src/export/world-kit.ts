@@ -19,6 +19,12 @@ export interface WorldSeedGeometryTileDescriptor {
   detailPath?: string;
   byteLength?: number;
   detailByteLength?: number;
+  vertexCount?: number;
+  detailVertexCount?: number;
+  geometryByteLength?: number;
+  detailGeometryByteLength?: number;
+  materialCount?: number;
+  detailMaterialCount?: number;
   x: number;
   z: number;
   centerX: number;
@@ -230,6 +236,8 @@ export function createGeometryTileGroups(root: THREE.Object3D): {
           size: bucket.tile.size,
           objectCount: bucket.baseObjects.length + bucket.detailObjects.length,
           detailObjectCount: bucket.detailObjects.length,
+          ...geometryUploadStats(group),
+          ...(detailGroup ? prefixDetailGeometryStats(geometryUploadStats(detailGroup)) : {}),
           layers: [...bucket.layers].sort(),
         },
         group,
@@ -322,6 +330,62 @@ async function createGeometryTileArchiveFiles(root: THREE.Object3D): Promise<Rec
   }
   files["worldseed-tiles.index.json"] = strToU8(serializeCanonicalJson(index));
   return files;
+}
+
+function geometryUploadStats(root: THREE.Object3D): {
+  vertexCount: number;
+  geometryByteLength: number;
+  materialCount: number;
+} {
+  const geometries = new Set<string>();
+  const materials = new Set<string>();
+  let vertexCount = 0;
+  let geometryByteLength = 0;
+
+  root.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    const geometry = mesh.geometry;
+    if (geometry?.isBufferGeometry && !geometries.has(geometry.uuid)) {
+      geometries.add(geometry.uuid);
+      const position = geometry.getAttribute("position");
+      if (position) vertexCount += position.count;
+      for (const attribute of Object.values(geometry.attributes)) {
+        const array = attribute?.array;
+        if (array && "byteLength" in array) geometryByteLength += array.byteLength;
+      }
+      const index = geometry.getIndex();
+      if (index?.array && "byteLength" in index.array) geometryByteLength += index.array.byteLength;
+    }
+
+    const material = mesh.material;
+    if (Array.isArray(material)) {
+      for (const item of material) if (item?.uuid) materials.add(item.uuid);
+    } else if (material?.uuid) {
+      materials.add(material.uuid);
+    }
+  });
+
+  return {
+    vertexCount,
+    geometryByteLength,
+    materialCount: materials.size,
+  };
+}
+
+function prefixDetailGeometryStats(stats: {
+  vertexCount: number;
+  geometryByteLength: number;
+  materialCount: number;
+}): {
+  detailVertexCount: number;
+  detailGeometryByteLength: number;
+  detailMaterialCount: number;
+} {
+  return {
+    detailVertexCount: stats.vertexCount,
+    detailGeometryByteLength: stats.geometryByteLength,
+    detailMaterialCount: stats.materialCount,
+  };
 }
 
 function geometryTileFromUserData(value: unknown): {
