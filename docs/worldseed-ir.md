@@ -75,3 +75,21 @@ Structured-data chunks and render geometry use the same 300 m tile coordinate sy
 The generated starter viewer loads `terrain.glb` once, then prioritizes tile jobs by distance from the current OrbitControls target. At most two GLB jobs run concurrently. Base tiles use a wider streaming radius; optional detail tiles use a shorter radius and a small priority penalty so nearby playable structure appears before decorative geometry. Distant tile scenes are removed and their geometry/material GPU resources are disposed. A queued or completed tile that is no longer desired is discarded instead of being attached to the scene.
 
 The IR index exposes `geometryIndexPath` so tools that begin from structured data can discover the geometry tile index without hard-coding a second entry point.
+
+
+## Predictive prefetch and cache
+
+The generated starter viewer keeps visible work and predictive work separate.
+
+- visible base/detail jobs remain distance-prioritized and capped at two concurrent GLB loads
+- movement of the current view target is smoothed into a forward direction
+- one or two base tiles in a narrow forward corridor can be prefetched before they enter the normal base radius
+- prefetch downloads only the base GLB and matching IR chunk; it does not parse the GLB or attach anything to the scene
+- prefetch runs only when it does not displace queued visible work
+- GLB ArrayBuffers and IR chunk text are stored in IndexedDB via `idb-keyval`
+- cache records expire after seven days
+- cache keys include the export generator, generation timestamp, and radius so different exports do not reuse stale tile bytes
+- old WorldSeed starter-cache namespaces on the same origin are removed on boot
+- IndexedDB failure is non-fatal; the viewer falls back to normal network loading
+
+This keeps network latency ahead of camera/player movement while leaving GLTF parsing and GPU upload on the normal visible-tile path.
