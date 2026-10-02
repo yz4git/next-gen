@@ -106,3 +106,29 @@ The WorldSeed application itself already owns generated geometry in CPU memory, 
 The runtime tile streamer uses that hint to select at most two base tiles in a narrow corridor ahead of the vehicle. Those base objects become visible slightly earlier than the normal camera-distance rule, which lets Three.js perform GPU upload before the vehicle reaches the tile. Detail objects are never pulled forward by this rule.
 
 The look-ahead distance scales with speed and is capped, so stopped/slow vehicles do not keep unnecessary tiles active.
+
+
+## Adaptive streaming budgets
+
+WorldSeed uses three streaming tiers: `economy`, `balanced`, and `quality`.
+
+Mobile devices, low-memory devices when that information is available, and low-core-count devices start at `balanced`. Other devices start at `quality`. The renderer then adjusts from measured frame rate rather than trusting the device label alone.
+
+- below 48 FPS for two samples: drop one tier
+- below 36 FPS: drop immediately
+- 57 FPS or better for six samples: recover one tier
+- hysteresis resets when a tier changes, preventing rapid oscillation
+
+The budget controls:
+
+- base-tile visibility distance
+- detail-tile visibility distance
+- Drive/predictive prefetch distance
+- visible GLB concurrency
+- background prefetch concurrency
+- render DPR cap
+- generated Starter Kit IndexedDB record count
+
+Current cache caps are 20 records in `economy`, 40 in `balanced`, and 72 in `quality`. Starter Kit cache entries are LRU-like using a last-access timestamp, retain the existing seven-day TTL, and are trimmed whenever the tier drops or after batches of new writes.
+
+This makes Safari/iPhone behavior conservative at startup while still allowing a capable device to recover visual range after sustained smooth rendering.
