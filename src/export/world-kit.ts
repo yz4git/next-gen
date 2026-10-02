@@ -317,7 +317,7 @@ function starterReadme(includeExactOrigin: boolean): string {
   const originNote = includeExactOrigin
     ? "The model origin is the selected latitude/longitude."
     : "The exact latitude/longitude was intentionally omitted from this privacy-safe export.";
-  return `# WorldSeed Drive Any City Starter\n\nA local-meter Three.js city and gameplay-data bundle exported by WorldSeed.\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n\n${originNote} X points east, Y points up, and Z points south.\n\n- city.glb — complete rendered city\n- terrain.glb — terrain-only mesh\n- colliders.glb — merged building collision boxes\n- road-graph.json — routable local-meter graph with road class, direction, surface, width, and speed\n- spawn-points.json — vehicle and pedestrian starts\n- drive-route.json — the active time-attack route, when available\n- worldseed-objects.json — stable semantic objects and bounds\n- worldseed-ir.json — unified, versioned WorldSeed intermediate representation\n- worldseed-ir.index.json — lightweight chunk index for selective loading\n- worldseed-ir/chunks/*.json — tile-local semantic, road-graph, and spawn data\n- worldseed-tiles.index.json — lightweight geometry tile index\n- worldseed-tiles/*.glb — 300 m tile-local rendered geometry for streaming\n- ATTRIBUTION.md — data-source obligations to preserve\n`;
+  return `# WorldSeed Drive Any City Starter\n\nA local-meter Three.js city and gameplay-data bundle exported by WorldSeed. The included viewer streams 300 m geometry tiles and matching IR chunks around the current view.\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n\n${originNote} X points east, Y points up, and Z points south.\n\n- city.glb — complete rendered city\n- terrain.glb — terrain-only mesh\n- colliders.glb — merged building collision boxes\n- road-graph.json — routable local-meter graph with road class, direction, surface, width, and speed\n- spawn-points.json — vehicle and pedestrian starts\n- drive-route.json — the active time-attack route, when available\n- worldseed-objects.json — stable semantic objects and bounds\n- worldseed-ir.json — unified, versioned WorldSeed intermediate representation\n- worldseed-ir.index.json — lightweight chunk index for selective loading\n- worldseed-ir/chunks/*.json — tile-local semantic, road-graph, and spawn data\n- worldseed-tiles.index.json — lightweight geometry tile index\n- worldseed-tiles/*.glb — 300 m tile-local rendered geometry for streaming\n- ATTRIBUTION.md — data-source obligations to preserve\n`;
 }
 
 function starterPackage(): string {
@@ -339,24 +339,132 @@ function starterMain(): string {
   return `import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-const scene = new THREE.Scene(); scene.background = new THREE.Color(0xc9e8ed);
-const camera = new THREE.PerspectiveCamera(52, innerWidth / innerHeight, .1, 6000); camera.position.set(300, 220, 300);
-const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); document.querySelector("#app").append(renderer.domElement);
-const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
-scene.add(new THREE.HemisphereLight(0xffffff, 0x52606d, 2)); const sun = new THREE.DirectionalLight(0xffffff, 2.5); sun.position.set(-200, 400, 180); scene.add(sun);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xc9e8ed);
+const camera = new THREE.PerspectiveCamera(52, innerWidth / innerHeight, .1, 6000);
+camera.position.set(300, 220, 300);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+document.querySelector("#app").append(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(0, 20, 0);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x52606d, 2));
+const sun = new THREE.DirectionalLight(0xffffff, 2.5);
+sun.position.set(-200, 400, 180);
+scene.add(sun);
+
+const loader = new GLTFLoader();
+const streamedRoot = new THREE.Group();
+streamedRoot.name = "WorldSeed streamed tiles";
+scene.add(streamedRoot);
+
+const loadedTiles = new Map();
+const pendingTiles = new Set();
+let geometryIndex = null;
+let lastStreamUpdate = 0;
+
 Promise.all([
-  new GLTFLoader().loadAsync("/city.glb"),
-  fetch("/worldseed-objects.json").then((response) => response.json()),
-  fetch("/road-graph.json").then((response) => response.json()),
-  fetch("/spawn-points.json").then((response) => response.json()),
-]).then(([{ scene: city }, manifest, roadGraph, spawnPoints]) => {
-  city.userData.worldseedManifest = manifest;
-  city.userData.roadGraph = roadGraph;
-  city.userData.spawnPoints = spawnPoints;
-  scene.add(city);
+  fetchJson("./worldseed.json"),
+  fetchJson("./worldseed-tiles.index.json", true),
+  loader.loadAsync("./terrain.glb").catch(() => null),
+]).then(async ([metadata, index, terrain]) => {
+  if (terrain) scene.add(terrain.scene);
+  if (index?.tiles?.length) {
+    geometryIndex = index;
+    updateStreamedTiles(true);
+  } else {
+    const fallback = await loader.loadAsync("./city.glb");
+    scene.add(fallback.scene);
+  }
+
+  const radius = Number(metadata?.radiusMeters) || 500;
+  const distance = Math.max(180, radius * 0.92);
+  camera.position.set(distance * 0.72, Math.max(150, distance * 0.5), distance * 0.72);
+  controls.target.set(0, 20, 0);
+  controls.update();
+}).catch((error) => {
+  console.error("WorldSeed starter failed to load", error);
 });
-addEventListener("resize", () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
-renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+
+async function fetchJson(path, nullable = false) {
+  const response = await fetch(path);
+  if (!response.ok) {
+    if (nullable) return null;
+    throw new Error(`${path}: HTTP ${response.status}`);
+  }
+  return await response.json();
+}
+
+function updateStreamedTiles(force = false) {
+  if (!geometryIndex) return;
+  const now = performance.now();
+  if (!force && now - lastStreamUpdate < 180) return;
+  lastStreamUpdate = now;
+
+  const focus = controls.target;
+  const cameraDistance = camera.position.distanceTo(focus);
+  const loadDistance = Math.max(360, Math.min(950, cameraDistance * 1.1));
+  const unloadDistance = loadDistance + 240;
+
+  for (const tile of geometryIndex.tiles) {
+    const padding = tile.size * Math.SQRT2 / 2;
+    const distance = Math.hypot(tile.centerX - focus.x, tile.centerZ - focus.z);
+    if (distance <= loadDistance + padding) {
+      void ensureTileLoaded(tile);
+    } else if (distance > unloadDistance + padding) {
+      unloadTile(tile.id);
+    }
+  }
+}
+
+async function ensureTileLoaded(tile) {
+  if (loadedTiles.has(tile.id) || pendingTiles.has(tile.id)) return;
+  pendingTiles.add(tile.id);
+  try {
+    const [gltf, chunk] = await Promise.all([
+      loader.loadAsync(`./${tile.path}`),
+      fetchJson(`./worldseed-ir/chunks/${tile.x}_${tile.z}.json`, true),
+    ]);
+    gltf.scene.userData.worldseedTileId = tile.id;
+    gltf.scene.userData.worldseedChunk = chunk;
+    streamedRoot.add(gltf.scene);
+    loadedTiles.set(tile.id, gltf.scene);
+  } catch (error) {
+    console.warn(`WorldSeed tile ${tile.id} failed to load`, error);
+  } finally {
+    pendingTiles.delete(tile.id);
+  }
+}
+
+function unloadTile(id) {
+  const tile = loadedTiles.get(id);
+  if (!tile) return;
+  streamedRoot.remove(tile);
+  tile.traverse((object) => {
+    object.geometry?.dispose?.();
+    if (Array.isArray(object.material)) object.material.forEach((material) => material.dispose?.());
+    else object.material?.dispose?.();
+  });
+  loadedTiles.delete(id);
+}
+
+addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+renderer.setAnimationLoop(() => {
+  controls.update();
+  updateStreamedTiles();
+  renderer.render(scene, camera);
+});
 `;
 }
 
