@@ -27,6 +27,7 @@ const drone = new DroneCameraController(renderer.camera);
 renderer.setUpdate((delta) => {
   explore.update(delta);
   drive.update(delta);
+  renderer.setStreamingMotionHint(drive.getStreamingHint());
   drone.update(delta);
 });
 renderer.onFps((fps) => { required("#metric-fps").textContent = String(fps); });
