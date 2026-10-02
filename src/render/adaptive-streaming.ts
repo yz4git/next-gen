@@ -179,3 +179,76 @@ export function updateFrameTimeSchedulerState(
 export function optionalStreamingWorkAllowed(state: FrameTimeSchedulerState): boolean {
   return state.deferOptionalFrames <= 0;
 }
+
+
+export type StreamingParseKind = "base" | "detail";
+
+export interface StreamingParseCostState {
+  baseMsPerMb: number;
+  detailMsPerMb: number;
+  baseSamples: number;
+  detailSamples: number;
+}
+
+export function initialStreamingParseCostState(): StreamingParseCostState {
+  return {
+    baseMsPerMb: 14,
+    detailMsPerMb: 16,
+    baseSamples: 0,
+    detailSamples: 0,
+  };
+}
+
+export function estimateStreamingParseCostMs(
+  state: StreamingParseCostState,
+  kind: StreamingParseKind,
+  byteLength: number,
+): number {
+  const bytes = Number.isFinite(byteLength) && byteLength > 0 ? byteLength : 1_500_000;
+  const megabytes = Math.max(0.15, bytes / (1024 * 1024));
+  const rate = kind === "detail" ? state.detailMsPerMb : state.baseMsPerMb;
+  return Math.max(1, megabytes * rate);
+}
+
+export function recordStreamingParseCost(
+  state: StreamingParseCostState,
+  kind: StreamingParseKind,
+  byteLength: number,
+  elapsedMs: number,
+): StreamingParseCostState {
+  if (!Number.isFinite(elapsedMs) || elapsedMs <= 0) return state;
+  const bytes = Number.isFinite(byteLength) && byteLength > 0 ? byteLength : 1_500_000;
+  const megabytes = Math.max(0.15, bytes / (1024 * 1024));
+  const sampleRate = Math.min(180, Math.max(2, elapsedMs / megabytes));
+  const alpha = 0.35;
+
+  if (kind === "detail") {
+    return {
+      ...state,
+      detailMsPerMb: state.detailSamples === 0
+        ? sampleRate
+        : state.detailMsPerMb * (1 - alpha) + sampleRate * alpha,
+      detailSamples: state.detailSamples + 1,
+    };
+  }
+
+  return {
+    ...state,
+    baseMsPerMb: state.baseSamples === 0
+      ? sampleRate
+      : state.baseMsPerMb * (1 - alpha) + sampleRate * alpha,
+    baseSamples: state.baseSamples + 1,
+  };
+}
+
+export function costAwareStreamingConcurrency(
+  maximumConcurrency: number,
+  activeEstimatedParseMs: number,
+  nextEstimatedParseMs: number,
+): number {
+  const maximum = Math.max(1, Math.floor(maximumConcurrency));
+  if (maximum <= 1) return 1;
+  const activeCost = Number.isFinite(activeEstimatedParseMs) ? Math.max(0, activeEstimatedParseMs) : 0;
+  const nextCost = Number.isFinite(nextEstimatedParseMs) ? Math.max(0, nextEstimatedParseMs) : 0;
+  return activeCost >= 18 || nextCost >= 18 ? 1 : maximum;
+}
