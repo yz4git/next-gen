@@ -37,6 +37,7 @@ export class TileStreamer {
     maxConcurrentLoads: 2,
     maxConcurrentPrefetches: 1,
     maxCacheRecords: 72,
+    maxCacheBytes: 128 * 1024 * 1024,
     dprCap: 1.8,
   };
   private lastSignature = "";
