@@ -8,6 +8,7 @@
 - Added 300 m chunked IR exports with a lightweight spatial index, tile-local semantic objects, road graph subsets, spawn data, boundary-aware chunk selection, and a storage-agnostic lazy chunk reader.
 - Added per-tile GLB geometry exports, a geometry tile index, transform-preserving tile extraction, and a starter viewer that lazy-loads nearby geometry plus matching IR chunks and disposes distant GPU resources.
 - Added nearest-first tile scheduling with a two-load concurrency cap, stale-job dropping, and frame-yielded ZIP parsing to reduce mobile CPU/GPU spikes.
+- Added directional low-priority prefetch for one or two forward base tiles plus matching IR chunks, backed by a seven-day export-namespaced IndexedDB cache in generated starter kits.
 - Split exported tile geometry into wider-range base GLBs and optional close-range detail GLBs while keeping terrain global and `city.glb` as a compatibility fallback.
 - Distant runtime tiles now release GPU geometry/material resources outside a hysteresis margin while retaining CPU-side data for automatic re-upload when the tile becomes visible again.
 
