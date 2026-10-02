@@ -17,6 +17,14 @@ export interface DriveTelemetry {
   distanceFromRoad: number;
 }
 
+export interface DriveStreamingHint {
+  x: number;
+  z: number;
+  directionX: number;
+  directionZ: number;
+  speedMetersPerSecond: number;
+}
+
 export interface DriveChallengeTelemetry {
   status: "ready" | "running" | "finished";
   elapsedSeconds: number;
@@ -155,6 +163,19 @@ export class DriveController {
   isAvailable(): boolean {
     return Boolean(this.graph && this.graph.edges.length > 0 && this.spawn);
   }
+
+  getStreamingHint(): DriveStreamingHint | null {
+    if (!this.active || Math.abs(this.state.speed) < 1.5) return null;
+    const direction = this.state.speed < 0 ? -1 : 1;
+    return {
+      x: this.state.x,
+      z: this.state.z,
+      directionX: Math.sin(this.state.heading) * direction,
+      directionZ: Math.cos(this.state.heading) * direction,
+      speedMetersPerSecond: Math.abs(this.state.speed),
+    };
+  }
+
 
   setButton(button: DriveButton, pressed: boolean): void {
     if (pressed) this.touchButtons.add(button);
