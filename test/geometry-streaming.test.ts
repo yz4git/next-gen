@@ -41,6 +41,12 @@ describe("geometry tile export", () => {
       detailPath: "worldseed-tiles/detail/0_0.glb",
       objectCount: 2,
       detailObjectCount: 1,
+      vertexCount: 24,
+      detailVertexCount: 24,
+      geometryByteLength: expect.any(Number),
+      detailGeometryByteLength: expect.any(Number),
+      materialCount: 1,
+      detailMaterialCount: 1,
       layers: ["roads"],
     });
     expect(tiles[0]?.group.children).toHaveLength(1);
