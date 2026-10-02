@@ -3,6 +3,7 @@ import {
   createWorldSeedIr,
   createWorldSeedIrChunkSet,
   encodeWorldSeedIrFiles,
+  loadWorldSeedIrChunks,
   migrateWorldSeedIr,
   parseWorldSeedIr,
   parseWorldSeedIrChunk,
@@ -128,6 +129,19 @@ describe("WorldSeed IR", () => {
     const { index } = createWorldSeedIrChunkSet(createDocument(), 300);
     expect(selectWorldSeedIrChunks(index, 200, 0, 40).map((chunk) => chunk.id)).toEqual(["0:0", "1:0"]);
     expect(selectWorldSeedIrChunks(index, 0, 0, 40).map((chunk) => chunk.id)).toEqual(["0:0"]);
+  });
+
+  it("reads only selected chunk paths through the lazy loader", async () => {
+    const files = encodeWorldSeedIrFiles(createDocument(), 300);
+    const index = parseWorldSeedIrIndex(files["worldseed-ir.index.json"] ?? "{}");
+    const reads: string[] = [];
+    const chunks = await loadWorldSeedIrChunks(index, 0, 0, 40, async (path) => {
+      reads.push(path);
+      return files[path] ?? "{}";
+    });
+
+    expect(reads).toEqual(["worldseed-ir/chunks/0_0.json"]);
+    expect(chunks.map((chunk) => chunk.tile.id)).toEqual(["0:0"]);
   });
 
   it("normalizes the legacy internal 1.0 version marker to IR version 1", () => {
