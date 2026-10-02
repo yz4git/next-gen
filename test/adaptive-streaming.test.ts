@@ -41,6 +41,7 @@ describe("adaptive streaming budget", () => {
       maxConcurrentLoads: 1,
       maxConcurrentPrefetches: 0,
       maxCacheRecords: 20,
+      maxCacheBytes: 32 * 1024 * 1024,
       dprCap: 1.35,
     });
     expect(state.budget.detailScale).toBeLessThan(state.budget.baseScale);
