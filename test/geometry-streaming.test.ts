@@ -100,6 +100,6 @@ describe("geometry tile export", () => {
     };
 
     expect(selectGeometryTiles(index, 0, 0, 40).map((tile) => tile.id)).toEqual(["0:0"]);
-    expect(selectGeometryTiles(index, 200, 0, 40).map((tile) => tile.id)).toEqual(["0:0", "1:0"]);
+    expect(selectGeometryTiles(index, 200, 0, 40).map((tile) => tile.id)).toEqual(["1:0", "0:0"]);
   });
 });
