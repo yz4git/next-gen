@@ -59,3 +59,18 @@ The chunk format is an **internal IR contract**, not a replacement for the publi
 `loadWorldSeedIrChunks(index, x, z, distanceMeters, read)` separates spatial selection from storage. The `read` callback receives only the paths selected for the requested local-meter position and range.
 
 That means the same loader can be backed by browser `fetch()`, an extracted starter-kit directory, an IndexedDB cache, or another archive reader without changing the chunk-selection rules. Loaded chunks are checked against the descriptor ID before being returned.
+
+
+## Geometry streaming
+
+Structured-data chunks and render geometry use the same 300 m tile coordinate system.
+
+- `worldseed-tiles.index.json` lists renderable geometry tiles.
+- `worldseed-tiles/<x>_<z>.glb` contains the render objects assigned to one tile.
+- `worldseed-ir/chunks/<x>_<z>.json` carries the matching semantic, navigation, and spawn data when present.
+- `terrain.glb` remains global because terrain continuity crosses tile boundaries.
+- `city.glb` remains in the starter kit as a compatibility fallback.
+
+The generated starter viewer loads `terrain.glb` once, then loads nearby geometry tiles and matching IR chunks around the current OrbitControls target. Distant tile scenes are removed and their geometry/material GPU resources are disposed. This makes the generated kit a working example of selective world streaming rather than only a chunked file format.
+
+The IR index exposes `geometryIndexPath` so tools that begin from structured data can discover the geometry tile index without hard-coding a second entry point.
