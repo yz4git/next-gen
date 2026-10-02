@@ -5,7 +5,7 @@
 - Added a REDox-inspired, dependency-free WorldSeed IR v1 that normalizes metadata, semantic objects, road graphs, spawn points, and drive routes behind one versioned intermediate representation.
 - Starter-kit exports now route structured data through the IR, emit deterministic JSON key ordering, and include `worldseed-ir.json` while preserving all existing schema v1 filenames and semantics.
 - Added an explicit IR migration boundary plus regression tests for round-tripping, deterministic serialization, and unsupported versions.
-- Added 300 m chunked IR exports with a lightweight spatial index, tile-local semantic objects, road graph subsets, spawn data, boundary-aware chunk selection, and a storage-agnostic lazy chunk reader.\n- Added per-tile GLB geometry exports, a geometry tile index, transform-preserving tile extraction, and a starter viewer that lazy-loads nearby geometry plus matching IR chunks and disposes distant GPU resources.
+- Added 300 m chunked IR exports with a lightweight spatial index, tile-local semantic objects, road graph subsets, spawn data, boundary-aware chunk selection, and a storage-agnostic lazy chunk reader.\n- Added per-tile GLB geometry exports, a geometry tile index, transform-preserving tile extraction, and a starter viewer that lazy-loads nearby geometry plus matching IR chunks and disposes distant GPU resources.\n- Distant runtime tiles now release GPU geometry/material resources outside a hysteresis margin while retaining CPU-side data for automatic re-upload when the tile becomes visible again.
 
 ## 0.9.1 — Schema validation hotfix
 
