@@ -29,6 +29,8 @@ export class TileStreamer {
   private readonly tiles = new Map<string, WorldTile>();
   private readonly gpuReleased = new WeakSet<THREE.Object3D>();
   private motionHint: StreamingMotionHint | null = null;
+  private optionalWorkAllowed = true;
+  private readonly activatedDetail = new WeakSet<THREE.Object3D>();
   private budget: AdaptiveStreamingBudget = {
     tier: "quality",
     baseScale: 1,
@@ -69,12 +71,18 @@ export class TileStreamer {
     this.budget = budget;
   }
 
+  setOptionalWorkAllowed(allowed: boolean): void {
+    this.optionalWorkAllowed = allowed;
+  }
+
 
   update(camera: THREE.Camera, mode: ExploreMode): void {
     const range = streamingRange(mode, this.radius);
     const baseDistance = range.base * this.budget.baseScale;
     const detailDistance = range.detail * this.budget.detailScale;
-    const prefetchedTiles = mode === "drive" ? this.selectDrivePrefetchTiles() : new Set<string>();
+    const prefetchedTiles = mode === "drive" && this.optionalWorkAllowed
+      ? this.selectDrivePrefetchTiles()
+      : new Set<string>();
     const active = new Set<string>();
     for (const entry of this.objects) {
       const distance = entry.detail ? detailDistance : baseDistance;
@@ -84,13 +92,18 @@ export class TileStreamer {
         camera.position.z,
         distance,
       );
-      const visible = normalVisible || (!entry.detail && prefetchedTiles.has(entry.tile.id));
+      const detailVisible = entry.detail
+        ? normalVisible && (this.optionalWorkAllowed || this.activatedDetail.has(entry.object))
+        : normalVisible;
+      const visible = detailVisible || (!entry.detail && prefetchedTiles.has(entry.tile.id));
       entry.object.visible = visible;
       if (visible) {
         active.add(entry.tile.id);
+        if (entry.detail) this.activatedDetail.add(entry.object);
         this.gpuReleased.delete(entry.object);
         continue;
       }
+      if (entry.detail && !normalVisible) this.activatedDetail.delete(entry.object);
 
       const safelyDistant = !tileIsVisible(
         entry.tile,
