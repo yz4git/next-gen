@@ -396,7 +396,7 @@ async function fetchJson(path, nullable = false) {
   const response = await fetch(path);
   if (!response.ok) {
     if (nullable) return null;
-    throw new Error(`${path}: HTTP ${response.status}`);
+    throw new Error(path + ": HTTP " + response.status);
   }
   return await response.json();
 }
@@ -428,15 +428,15 @@ async function ensureTileLoaded(tile) {
   pendingTiles.add(tile.id);
   try {
     const [gltf, chunk] = await Promise.all([
-      loader.loadAsync(`./${tile.path}`),
-      fetchJson(`./worldseed-ir/chunks/${tile.x}_${tile.z}.json`, true),
+      loader.loadAsync("./" + tile.path),
+      fetchJson("./worldseed-ir/chunks/" + tile.x + "_" + tile.z + ".json", true),
     ]);
     gltf.scene.userData.worldseedTileId = tile.id;
     gltf.scene.userData.worldseedChunk = chunk;
     streamedRoot.add(gltf.scene);
     loadedTiles.set(tile.id, gltf.scene);
   } catch (error) {
-    console.warn(`WorldSeed tile ${tile.id} failed to load`, error);
+    console.warn("WorldSeed tile " + tile.id + " failed to load", error);
   } finally {
     pendingTiles.delete(tile.id);
   }
