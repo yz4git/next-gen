@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CollisionIndex } from "../src/generation/collision";
-import { getDriveSteeringInput, selectSafeDriveSpawn, type DriveButton } from "../src/interaction/drive-controller";
+import { driveStreamingHintForState, getDriveSteeringInput, selectSafeDriveSpawn, type DriveButton } from "../src/interaction/drive-controller";
 import type { RoadGraph } from "../src/types";
 
 describe("drive steering input", () => {
@@ -17,6 +17,27 @@ describe("drive steering input", () => {
   });
 });
 
+
+
+describe("drive streaming hint", () => {
+  it("points forward for positive speed and backwards while reversing", () => {
+    const forward = driveStreamingHintForState({ x: 10, z: 20, heading: Math.PI / 2, speed: 8, steering: 0 });
+    expect(forward).not.toBeNull();
+    expect(forward!.directionX).toBeCloseTo(1);
+    expect(forward!.directionZ).toBeCloseTo(0);
+    expect(forward!.speedMetersPerSecond).toBe(8);
+
+    const reverse = driveStreamingHintForState({ x: 10, z: 20, heading: Math.PI / 2, speed: -4, steering: 0 });
+    expect(reverse).not.toBeNull();
+    expect(reverse!.directionX).toBeCloseTo(-1);
+    expect(reverse!.directionZ).toBeCloseTo(0);
+  });
+
+  it("does not prefetch while stopped or inactive", () => {
+    expect(driveStreamingHintForState({ x: 0, z: 0, heading: 0, speed: 0, steering: 0 })).toBeNull();
+    expect(driveStreamingHintForState({ x: 0, z: 0, heading: 0, speed: 10, steering: 0 }, false)).toBeNull();
+  });
+});
 
 describe("drive spawn safety", () => {
   it("moves an unsafe preferred spawn to a clear point on the road network", () => {
