@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import {
   createGeometryTileGroups,
+  selectGeometryPrefetchTiles,
   selectGeometryTiles,
   type WorldSeedGeometryIndex,
 } from "../src/export/world-kit";
@@ -68,6 +69,80 @@ describe("geometry tile export", () => {
     expect(position.x).toBeCloseTo(15);
     expect(position.y).toBeCloseTo(4);
     expect(position.z).toBeCloseTo(-2);
+  });
+
+  it("prefetches only tiles ahead of movement and prefers the nearest corridor", () => {
+    const index: WorldSeedGeometryIndex = {
+      format: "worldseed-geometry-index",
+      version: "1",
+      coordinateSystem: "local meters; X east, Y up, Z south",
+      tiles: [
+        {
+          id: "0:0",
+          path: "worldseed-tiles/0_0.glb",
+          x: 0,
+          z: 0,
+          centerX: 0,
+          centerZ: 0,
+          size: 300,
+          objectCount: 1,
+          detailObjectCount: 0,
+          layers: ["roads"],
+        },
+        {
+          id: "1:0",
+          path: "worldseed-tiles/1_0.glb",
+          x: 1,
+          z: 0,
+          centerX: 300,
+          centerZ: 0,
+          size: 300,
+          objectCount: 1,
+          detailObjectCount: 0,
+          layers: ["roads"],
+        },
+        {
+          id: "2:0",
+          path: "worldseed-tiles/2_0.glb",
+          x: 2,
+          z: 0,
+          centerX: 600,
+          centerZ: 0,
+          size: 300,
+          objectCount: 1,
+          detailObjectCount: 0,
+          layers: ["roads"],
+        },
+        {
+          id: "1:1",
+          path: "worldseed-tiles/1_1.glb",
+          x: 1,
+          z: 1,
+          centerX: 300,
+          centerZ: 300,
+          size: 300,
+          objectCount: 1,
+          detailObjectCount: 0,
+          layers: ["roads"],
+        },
+        {
+          id: "-1:0",
+          path: "worldseed-tiles/-1_0.glb",
+          x: -1,
+          z: 0,
+          centerX: -300,
+          centerZ: 0,
+          size: 300,
+          objectCount: 1,
+          detailObjectCount: 0,
+          layers: ["roads"],
+        },
+      ],
+    };
+
+    expect(selectGeometryPrefetchTiles(index, 0, 0, 1, 0, 700, 2).map((tile) => tile.id))
+      .toEqual(["1:0", "2:0"]);
+    expect(selectGeometryPrefetchTiles(index, 0, 0, 0, 0, 700, 2)).toEqual([]);
   });
 
   it("selects geometry tiles with the same padded boundary policy as runtime streaming", () => {
