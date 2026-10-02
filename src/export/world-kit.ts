@@ -411,9 +411,9 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const STREAMING_BUDGETS = {
-  economy: { tier: "economy", baseScale: 0.72, detailScale: 0.55, prefetchScale: 0.62, maxConcurrentLoads: 1, maxConcurrentPrefetches: 0, dprCap: 1.35 },
-  balanced: { tier: "balanced", baseScale: 0.9, detailScale: 0.78, prefetchScale: 0.82, maxConcurrentLoads: 2, maxConcurrentPrefetches: 1, dprCap: 1.65 },
-  quality: { tier: "quality", baseScale: 1.08, detailScale: 1, prefetchScale: 1, maxConcurrentLoads: 2, maxConcurrentPrefetches: 1, dprCap: 1.8 },
+  economy: { tier: "economy", baseScale: 0.72, detailScale: 0.55, prefetchScale: 0.62, maxConcurrentLoads: 1, maxConcurrentPrefetches: 0, maxCacheRecords: 20, dprCap: 1.35 },
+  balanced: { tier: "balanced", baseScale: 0.9, detailScale: 0.78, prefetchScale: 0.82, maxConcurrentLoads: 2, maxConcurrentPrefetches: 1, maxCacheRecords: 40, dprCap: 1.65 },
+  quality: { tier: "quality", baseScale: 1.08, detailScale: 1, prefetchScale: 1, maxConcurrentLoads: 2, maxConcurrentPrefetches: 1, maxCacheRecords: 72, dprCap: 1.8 },
 };
 const PREFETCH_LOOKAHEAD_METERS = 700;
 const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -456,6 +456,7 @@ let activeTileLoads = 0;
 let activePrefetches = 0;
 let geometryIndex = null;
 let cacheNamespace = "uninitialized";
+let cacheWritesSincePrune = 0;
 let lastStreamUpdate = 0;
 let previousFocusX = null;
 let previousFocusZ = null;
@@ -569,9 +570,13 @@ async function cacheGet(path) {
   try {
     const key = cacheKey(path);
     const record = await get(key);
-    if (!record || record.expiresAt < Date.now()) {
+    const now = Date.now();
+    if (!record || record.expiresAt < now) {
       if (record) void del(key);
       return null;
+    }
+    if (now - (record.lastAccessedAt || 0) > 60_000) {
+      void set(key, { ...record, lastAccessedAt: now });
     }
     return record.value;
   } catch {
@@ -581,10 +586,17 @@ async function cacheGet(path) {
 
 async function cacheSet(path, value) {
   try {
+    const now = Date.now();
     await set(cacheKey(path), {
-      expiresAt: Date.now() + CACHE_MAX_AGE_MS,
+      expiresAt: now + CACHE_MAX_AGE_MS,
+      lastAccessedAt: now,
       value,
     });
+    cacheWritesSincePrune += 1;
+    if (cacheWritesSincePrune >= 6) {
+      cacheWritesSincePrune = 0;
+      void pruneCurrentCacheNamespace();
+    }
   } catch {
     // IndexedDB may be unavailable in private browsing or restrictive storage modes.
   }
@@ -599,8 +611,30 @@ async function pruneOldTileCaches() {
       && key.startsWith(CACHE_PREFIX)
       && !key.startsWith(keepPrefix));
     await Promise.all(stale.map((key) => del(key)));
+    await pruneCurrentCacheNamespace();
   } catch {
     // Cache cleanup is best-effort.
+  }
+}
+
+async function pruneCurrentCacheNamespace() {
+  try {
+    const prefix = CACHE_PREFIX + cacheNamespace + ":";
+    const currentKeys = (await keys()).filter((key) =>
+      typeof key === "string" && key.startsWith(prefix));
+    const maximum = streamingState.budget.maxCacheRecords;
+    if (currentKeys.length <= maximum) return;
+
+    const records = await Promise.all(currentKeys.map(async (key) => ({
+      key,
+      record: await get(key),
+    })));
+    records.sort((first, second) =>
+      Number(first.record?.lastAccessedAt || 0) - Number(second.record?.lastAccessedAt || 0));
+    const removeCount = Math.max(0, records.length - maximum);
+    await Promise.all(records.slice(0, removeCount).map(({ key }) => del(key)));
+  } catch {
+    // Cache trimming is best-effort.
   }
 }
 
@@ -858,6 +892,7 @@ function sampleStreamingFps(fps) {
   if (nextTier !== streamingState.budget.tier) {
     streamingState.budget = STREAMING_BUDGETS[nextTier];
     renderer.setPixelRatio(Math.min(devicePixelRatio, streamingState.budget.dprCap));
+    void pruneCurrentCacheNamespace();
     renderer.setSize(innerWidth, innerHeight, false);
     updateStreamedTiles(true);
   }
