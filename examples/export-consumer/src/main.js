@@ -31,10 +31,11 @@ const MAX_CONCURRENT_TILE_LOADS = 2;
 const loader = new GLTFLoader();
 const streamedTiles = new THREE.Group();
 streamedTiles.name = "Streamed WorldSeed tiles";
-const loadedTiles = new Map();
-const pendingTiles = new Set();
-const queuedTiles = new Map();
-const desiredTiles = new Set();
+const loadedBaseTiles = new Map();
+const loadedDetailTiles = new Map();
+const pendingJobs = new Set();
+const queuedJobs = new Map();
+const desiredJobs = new Set();
 let activeTileLoads = 0;
 let activeArchive = null;
 let activeGeometryIndex = null;
@@ -102,7 +103,8 @@ async function importZip(file) {
     fitCamera(metadata.radiusMeters ?? 500);
     writeDetails(metadata, objects, graph, spawns, route);
     drop.classList.add("is-hidden");
-    const geometryMode = activeGeometryIndex ? ` · streamed ${activeGeometryIndex.tiles.length} geometry tiles` : "";
+    const detailTileCount = activeGeometryIndex?.tiles?.filter((tile) => tile.detailPath).length ?? 0;
+    const geometryMode = activeGeometryIndex ? ` · streamed ${activeGeometryIndex.tiles.length} base / ${detailTileCount} detail tiles` : "";
     status.textContent = `Loaded ${file.name} · schema ${metadata.schemaVersion}${geometryMode}`;
   } catch (error) {
     status.textContent = error instanceof Error ? error.message : String(error);
@@ -145,76 +147,100 @@ function updateStreamedGeometry(force = false) {
 
   const focus = controls.target;
   const cameraDistance = camera.position.distanceTo(focus);
-  const loadDistance = Math.max(360, Math.min(950, cameraDistance * 1.1));
-  const unloadDistance = loadDistance + 240;
+  const baseDistance = Math.max(360, Math.min(950, cameraDistance * 1.1));
+  const detailDistance = Math.max(220, Math.min(520, baseDistance * 0.62));
+  const baseUnloadDistance = baseDistance + 240;
+  const detailUnloadDistance = detailDistance + 140;
   const candidates = [];
 
-  desiredTiles.clear();
-  queuedTiles.clear();
+  desiredJobs.clear();
+  queuedJobs.clear();
 
   for (const tile of activeGeometryIndex.tiles) {
     const padding = tile.size * Math.SQRT2 / 2;
     const distance = Math.hypot(tile.centerX - focus.x, tile.centerZ - focus.z);
-    if (distance <= loadDistance + padding) {
-      desiredTiles.add(tile.id);
-      if (!loadedTiles.has(tile.id) && !pendingTiles.has(tile.id)) {
-        candidates.push({ tile, distance });
+    const baseKey = "base:" + tile.id;
+    const detailKey = "detail:" + tile.id;
+
+    if (distance <= baseDistance + padding) {
+      desiredJobs.add(baseKey);
+      if (!loadedBaseTiles.has(tile.id) && !pendingJobs.has(baseKey)) {
+        candidates.push({ key: baseKey, tile, kind: "base", distance, priority: distance });
       }
-    } else if (distance > unloadDistance + padding) {
-      unloadGeometryTile(tile.id);
+    } else if (distance > baseUnloadDistance + padding) {
+      unloadGeometryTile(tile.id, "base");
+      unloadGeometryTile(tile.id, "detail");
+    }
+
+    if (tile.detailPath && distance <= detailDistance + padding) {
+      desiredJobs.add(detailKey);
+      if (!loadedDetailTiles.has(tile.id) && !pendingJobs.has(detailKey)) {
+        candidates.push({ key: detailKey, tile, kind: "detail", distance, priority: distance + 90 });
+      }
+    } else if (distance > detailUnloadDistance + padding) {
+      unloadGeometryTile(tile.id, "detail");
     }
   }
 
   candidates.sort((first, second) =>
-    first.distance - second.distance
+    first.priority - second.priority
     || first.tile.z - second.tile.z
     || first.tile.x - second.tile.x);
-  for (const candidate of candidates) queuedTiles.set(candidate.tile.id, candidate.tile);
+  for (const candidate of candidates) queuedJobs.set(candidate.key, candidate);
   pumpGeometryQueue();
 }
 
 function pumpGeometryQueue() {
-  while (activeTileLoads < MAX_CONCURRENT_TILE_LOADS && queuedTiles.size > 0) {
-    const next = queuedTiles.entries().next().value;
+  while (activeTileLoads < MAX_CONCURRENT_TILE_LOADS && queuedJobs.size > 0) {
+    const next = queuedJobs.entries().next().value;
     if (!next) return;
-    const [id, tile] = next;
-    queuedTiles.delete(id);
-    if (!desiredTiles.has(id) || loadedTiles.has(id) || pendingTiles.has(id)) continue;
-    void runGeometryTileLoad(tile, importGeneration);
+    const [key, job] = next;
+    queuedJobs.delete(key);
+    if (!desiredJobs.has(key) || pendingJobs.has(key)) continue;
+    const loaded = job.kind === "detail" ? loadedDetailTiles : loadedBaseTiles;
+    if (loaded.has(job.tile.id)) continue;
+    void runGeometryTileLoad(job, importGeneration);
   }
 }
 
-async function runGeometryTileLoad(tile, generation) {
+async function runGeometryTileLoad(job, generation) {
   if (!activeArchive) return;
-  const bytes = activeArchive[tile.path];
+  const key = job.kind + ":" + job.tile.id;
+  const path = job.kind === "detail" ? job.tile.detailPath : job.tile.path;
+  if (!path) return;
+  const bytes = activeArchive[path];
   if (!bytes) return;
 
   activeTileLoads += 1;
-  pendingTiles.add(tile.id);
+  pendingJobs.add(key);
   try {
     await new Promise((resolve) => requestAnimationFrame(resolve));
     const gltf = await loader.parseAsync(exactArrayBuffer(bytes), "");
-    if (generation !== importGeneration || !activeArchive || !desiredTiles.has(tile.id)) {
+    if (generation !== importGeneration || !activeArchive || !desiredJobs.has(key)) {
       disposeObject(gltf.scene);
       return;
     }
-    gltf.scene.userData.worldseedTileId = tile.id;
+    gltf.scene.userData.worldseedTileId = job.tile.id;
+    gltf.scene.userData.worldseedLod = job.kind;
     streamedTiles.add(gltf.scene);
-    loadedTiles.set(tile.id, gltf.scene);
+    if (job.kind === "detail") loadedDetailTiles.set(job.tile.id, gltf.scene);
+    else loadedBaseTiles.set(job.tile.id, gltf.scene);
   } finally {
-    pendingTiles.delete(tile.id);
+    pendingJobs.delete(key);
     activeTileLoads = Math.max(0, activeTileLoads - 1);
     pumpGeometryQueue();
   }
 }
 
-function unloadGeometryTile(id) {
-  queuedTiles.delete(id);
-  const tile = loadedTiles.get(id);
+function unloadGeometryTile(id, kind) {
+  const key = kind + ":" + id;
+  queuedJobs.delete(key);
+  const loaded = kind === "detail" ? loadedDetailTiles : loadedBaseTiles;
+  const tile = loaded.get(id);
   if (!tile) return;
   streamedTiles.remove(tile);
   disposeObject(tile);
-  loadedTiles.delete(id);
+  loaded.delete(id);
 }
 
 function createRoadGraphOverlay(graph) {
@@ -262,11 +288,13 @@ function clearImported() {
   importGeneration += 1;
   activeArchive = null;
   activeGeometryIndex = null;
-  desiredTiles.clear();
-  queuedTiles.clear();
-  pendingTiles.clear();
-  for (const tile of loadedTiles.values()) disposeObject(tile);
-  loadedTiles.clear();
+  desiredJobs.clear();
+  queuedJobs.clear();
+  pendingJobs.clear();
+  for (const tile of loadedBaseTiles.values()) disposeObject(tile);
+  for (const tile of loadedDetailTiles.values()) disposeObject(tile);
+  loadedBaseTiles.clear();
+  loadedDetailTiles.clear();
   streamedTiles.clear();
   while (imported.children.length) {
     const child = imported.children.pop();
