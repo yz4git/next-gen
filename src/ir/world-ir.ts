@@ -1,6 +1,17 @@
-import type { DriveRoute, RoadGraph, WorldManifest } from "../types";
+import { WORLD_TILE_SIZE } from "../config";
+import { tileForPoint } from "../generation/tiling";
+import type {
+  DriveRoute,
+  RoadGraph,
+  RoadGraphEdge,
+  RoadGraphNode,
+  SemanticObject,
+  WorldManifest,
+} from "../types";
 
 export const WORLDSEED_IR_FORMAT = "worldseed-ir" as const;
+export const WORLDSEED_IR_INDEX_FORMAT = "worldseed-ir-index" as const;
+export const WORLDSEED_IR_CHUNK_FORMAT = "worldseed-ir-chunk" as const;
 export const WORLDSEED_IR_VERSION = "1" as const;
 
 export interface WorldSeedIrDocument {
@@ -23,6 +34,74 @@ export interface CreateWorldSeedIrInput {
   driveRoute: DriveRoute | null;
 }
 
+export interface WorldSeedIrChunkDescriptor {
+  id: string;
+  path: string;
+  x: number;
+  z: number;
+  centerX: number;
+  centerZ: number;
+  size: number;
+  bounds: {
+    minX: number;
+    maxX: number;
+    minZ: number;
+    maxZ: number;
+  };
+  counts: {
+    semanticObjects: number;
+    roadNodes: number;
+    roadEdges: number;
+    spawnPoints: number;
+  };
+}
+
+export interface WorldSeedIrIndex {
+  format: typeof WORLDSEED_IR_INDEX_FORMAT;
+  version: typeof WORLDSEED_IR_VERSION;
+  tileSizeMeters: number;
+  coordinateSystem: string;
+  global: {
+    metadataPath: "worldseed.json";
+    fullDocumentPath: "worldseed-ir.json";
+    driveRoutePath: "drive-route.json";
+    semanticObjects: SemanticObject[];
+  };
+  chunks: WorldSeedIrChunkDescriptor[];
+}
+
+export interface WorldSeedIrChunk {
+  format: typeof WORLDSEED_IR_CHUNK_FORMAT;
+  version: typeof WORLDSEED_IR_VERSION;
+  tile: {
+    id: string;
+    x: number;
+    z: number;
+    centerX: number;
+    centerZ: number;
+    size: number;
+  };
+  semantic: {
+    objects: SemanticObject[];
+  };
+  navigation: {
+    roadGraph: RoadGraph;
+    spawnPoints: {
+      vehicles: Record<string, unknown>[];
+      pedestrians: Record<string, unknown>[];
+    };
+  };
+}
+
+interface MutableChunk {
+  tile: WorldSeedIrChunk["tile"];
+  semanticObjects: SemanticObject[];
+  roadEdges: RoadGraphEdge[];
+  roadNodeIds: Set<string>;
+  vehicles: Record<string, unknown>[];
+  pedestrians: Record<string, unknown>[];
+}
+
 export function createWorldSeedIr(input: CreateWorldSeedIrInput): WorldSeedIrDocument {
   return {
     format: WORLDSEED_IR_FORMAT,
@@ -40,6 +119,35 @@ export function createWorldSeedIr(input: CreateWorldSeedIrInput): WorldSeedIrDoc
 export function parseWorldSeedIr(input: string | unknown): WorldSeedIrDocument {
   const document = typeof input === "string" ? JSON.parse(input) as unknown : input;
   return migrateWorldSeedIr(document);
+}
+
+export function parseWorldSeedIrIndex(input: string | unknown): WorldSeedIrIndex {
+  const value = typeof input === "string" ? JSON.parse(input) as unknown : input;
+  const document = requireRecord(value, "WorldSeed IR index");
+  if (document["format"] !== WORLDSEED_IR_INDEX_FORMAT) {
+    throw new Error(`Unsupported WorldSeed IR index format: ${String(document["format"])}`);
+  }
+  if (document["version"] !== WORLDSEED_IR_VERSION) {
+    throw new Error(`Unsupported WorldSeed IR index version: ${String(document["version"])}`);
+  }
+  if (!Array.isArray(document["chunks"])) throw new Error("WorldSeed IR index chunks must be an array");
+  requireRecord(document["global"], "WorldSeed IR index global");
+  return document as unknown as WorldSeedIrIndex;
+}
+
+export function parseWorldSeedIrChunk(input: string | unknown): WorldSeedIrChunk {
+  const value = typeof input === "string" ? JSON.parse(input) as unknown : input;
+  const document = requireRecord(value, "WorldSeed IR chunk");
+  if (document["format"] !== WORLDSEED_IR_CHUNK_FORMAT) {
+    throw new Error(`Unsupported WorldSeed IR chunk format: ${String(document["format"])}`);
+  }
+  if (document["version"] !== WORLDSEED_IR_VERSION) {
+    throw new Error(`Unsupported WorldSeed IR chunk version: ${String(document["version"])}`);
+  }
+  requireRecord(document["tile"], "WorldSeed IR chunk tile");
+  requireRecord(document["semantic"], "WorldSeed IR chunk semantic");
+  requireRecord(document["navigation"], "WorldSeed IR chunk navigation");
+  return document as unknown as WorldSeedIrChunk;
 }
 
 export function migrateWorldSeedIr(input: unknown): WorldSeedIrDocument {
@@ -78,19 +186,194 @@ export function serializeWorldSeedIr(document: WorldSeedIrDocument, pretty = tru
   return serializeCanonicalJson(document, pretty);
 }
 
-export function encodeWorldSeedIrFiles(document: WorldSeedIrDocument): Record<string, string> {
-  return {
+export function createWorldSeedIrChunkSet(
+  document: WorldSeedIrDocument,
+  tileSizeMeters = WORLD_TILE_SIZE,
+): { index: WorldSeedIrIndex; chunks: WorldSeedIrChunk[] } {
+  if (!(tileSizeMeters > 0) || !Number.isFinite(tileSizeMeters)) {
+    throw new Error("WorldSeed IR tile size must be a positive finite number");
+  }
+
+  const chunks = new Map<string, MutableChunk>();
+  const ensureChunk = (x: number, z: number): MutableChunk => {
+    const tile = tileForPoint(x, z, tileSizeMeters);
+    const existing = chunks.get(tile.id);
+    if (existing) return existing;
+    const chunk: MutableChunk = {
+      tile,
+      semanticObjects: [],
+      roadEdges: [],
+      roadNodeIds: new Set<string>(),
+      vehicles: [],
+      pedestrians: [],
+    };
+    chunks.set(tile.id, chunk);
+    return chunk;
+  };
+
+  const globalSemanticObjects: SemanticObject[] = [];
+  for (const object of document.semantic.objects) {
+    if (object.layer === "terrain") {
+      globalSemanticObjects.push(object);
+      continue;
+    }
+    ensureChunk(object.center[0], object.center[2]).semanticObjects.push(object);
+  }
+
+  for (const edge of document.navigation.roadGraph.edges) {
+    const anchor = edgeAnchor(edge);
+    const chunk = ensureChunk(anchor.x, anchor.z);
+    chunk.roadEdges.push(edge);
+    chunk.roadNodeIds.add(edge.from);
+    chunk.roadNodeIds.add(edge.to);
+  }
+
+  distributeSpawnPoints(document.navigation.spawnPoints["vehicles"], "vehicles", ensureChunk);
+  distributeSpawnPoints(document.navigation.spawnPoints["pedestrians"], "pedestrians", ensureChunk);
+
+  const nodeById = new Map(document.navigation.roadGraph.nodes.map((node) => [node.id, node]));
+  const sorted = [...chunks.values()].sort((first, second) =>
+    first.tile.z - second.tile.z || first.tile.x - second.tile.x);
+
+  const chunkDocuments = sorted.map((chunk): WorldSeedIrChunk => ({
+    format: WORLDSEED_IR_CHUNK_FORMAT,
+    version: WORLDSEED_IR_VERSION,
+    tile: chunk.tile,
+    semantic: {
+      objects: chunk.semanticObjects,
+    },
+    navigation: {
+      roadGraph: {
+        schemaVersion: document.navigation.roadGraph.schemaVersion,
+        generator: document.navigation.roadGraph.generator,
+        coordinateSystem: document.navigation.roadGraph.coordinateSystem,
+        nodes: document.navigation.roadGraph.nodes.filter((node) => chunk.roadNodeIds.has(node.id)),
+        edges: chunk.roadEdges,
+      },
+      spawnPoints: {
+        vehicles: chunk.vehicles,
+        pedestrians: chunk.pedestrians,
+      },
+    },
+  }));
+
+  const index: WorldSeedIrIndex = {
+    format: WORLDSEED_IR_INDEX_FORMAT,
+    version: WORLDSEED_IR_VERSION,
+    tileSizeMeters,
+    coordinateSystem: document.navigation.roadGraph.coordinateSystem,
+    global: {
+      metadataPath: "worldseed.json",
+      fullDocumentPath: "worldseed-ir.json",
+      driveRoutePath: "drive-route.json",
+      semanticObjects: globalSemanticObjects,
+    },
+    chunks: chunkDocuments.map((chunk) => descriptorForChunk(chunk)),
+  };
+
+  for (const chunk of chunkDocuments) {
+    for (const node of chunk.navigation.roadGraph.nodes) {
+      if (!nodeById.has(node.id)) throw new Error(`WorldSeed IR chunk references missing road node: ${node.id}`);
+    }
+  }
+
+  return { index, chunks: chunkDocuments };
+}
+
+export function selectWorldSeedIrChunks(
+  index: WorldSeedIrIndex,
+  x: number,
+  z: number,
+  distanceMeters: number,
+): WorldSeedIrChunkDescriptor[] {
+  if (!(distanceMeters >= 0) || !Number.isFinite(distanceMeters)) {
+    throw new Error("WorldSeed IR streaming distance must be a non-negative finite number");
+  }
+  return index.chunks.filter((chunk) => {
+    const padding = chunk.size * Math.SQRT2 / 2;
+    return Math.hypot(chunk.centerX - x, chunk.centerZ - z) <= distanceMeters + padding;
+  });
+}
+
+export function encodeWorldSeedIrFiles(
+  document: WorldSeedIrDocument,
+  tileSizeMeters = WORLD_TILE_SIZE,
+): Record<string, string> {
+  const chunkSet = createWorldSeedIrChunkSet(document, tileSizeMeters);
+  const files: Record<string, string> = {
     "worldseed.json": serializeCanonicalJson(document.metadata),
     "worldseed-objects.json": serializeCanonicalJson(document.semantic),
     "road-graph.json": serializeCanonicalJson(document.navigation.roadGraph),
     "spawn-points.json": serializeCanonicalJson(document.navigation.spawnPoints),
     "drive-route.json": serializeCanonicalJson(document.navigation.driveRoute),
     "worldseed-ir.json": serializeWorldSeedIr(document),
+    "worldseed-ir.index.json": serializeCanonicalJson(chunkSet.index),
   };
+  for (const chunk of chunkSet.chunks) {
+    files[chunkPath(chunk.tile.x, chunk.tile.z)] = serializeCanonicalJson(chunk);
+  }
+  return files;
 }
 
 export function serializeCanonicalJson(value: unknown, pretty = true): string {
   return JSON.stringify(canonicalize(value), null, pretty ? 2 : undefined);
+}
+
+function distributeSpawnPoints(
+  value: unknown,
+  target: "vehicles" | "pedestrians",
+  ensureChunk: (x: number, z: number) => MutableChunk,
+): void {
+  if (!Array.isArray(value)) return;
+  for (const item of value) {
+    const record = asRecord(item);
+    if (!record) continue;
+    const position = asRecord(record["position"]);
+    const x = finiteNumber(position?.["x"]);
+    const z = finiteNumber(position?.["z"]);
+    if (x === undefined || z === undefined) continue;
+    ensureChunk(x, z)[target].push(record);
+  }
+}
+
+function edgeAnchor(edge: RoadGraphEdge): { x: number; z: number } {
+  if (edge.path.length === 0) return { x: 0, z: 0 };
+  let x = 0;
+  let z = 0;
+  for (const point of edge.path) {
+    x += point.x;
+    z += point.z;
+  }
+  return { x: x / edge.path.length, z: z / edge.path.length };
+}
+
+function descriptorForChunk(chunk: WorldSeedIrChunk): WorldSeedIrChunkDescriptor {
+  const half = chunk.tile.size / 2;
+  return {
+    id: chunk.tile.id,
+    path: chunkPath(chunk.tile.x, chunk.tile.z),
+    x: chunk.tile.x,
+    z: chunk.tile.z,
+    centerX: chunk.tile.centerX,
+    centerZ: chunk.tile.centerZ,
+    size: chunk.tile.size,
+    bounds: {
+      minX: chunk.tile.centerX - half,
+      maxX: chunk.tile.centerX + half,
+      minZ: chunk.tile.centerZ - half,
+      maxZ: chunk.tile.centerZ + half,
+    },
+    counts: {
+      semanticObjects: chunk.semantic.objects.length,
+      roadNodes: chunk.navigation.roadGraph.nodes.length,
+      roadEdges: chunk.navigation.roadGraph.edges.length,
+      spawnPoints: chunk.navigation.spawnPoints.vehicles.length + chunk.navigation.spawnPoints.pedestrians.length,
+    },
+  };
+}
+
+function chunkPath(x: number, z: number): string {
+  return `worldseed-ir/chunks/${x}_${z}.json`;
 }
 
 function canonicalize(value: unknown): unknown {
@@ -115,9 +398,17 @@ function canonicalize(value: unknown): unknown {
   throw new Error(`WorldSeed IR cannot encode ${typeof value} values`);
 }
 
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   return value as Record<string, unknown>;
+}
+
+function finiteNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function requireRecord(value: unknown, label: string): Record<string, unknown> {
+  const record = asRecord(value);
+  if (!record) throw new Error(`${label} must be an object`);
+  return record;
 }
