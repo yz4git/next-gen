@@ -48,7 +48,7 @@ See [docs/REUSE.md](docs/REUSE.md) for concrete integration paths and export-fil
 - Browser-side terrain sampling from Mapzen Terrarium elevation tiles, with an offline procedural demo and flat fallback
 - Separate flat, gabled, hipped, and skillion roof meshes using provider shape, height, and color tags when available
 - Stable semantic layers and local-bound game-object records for terrain, areas, roads, buildings, and roofs
-- 300 m runtime world tiles with distance-based base/detail visibility, distant-tile GPU resource release, nearest-first loading, a two-load concurrency cap, forward-direction prefetch, IndexedDB tile reuse, and exported per-tile GLBs for downstream lazy loading
+- 300 m runtime world tiles with distance-based base/detail visibility, distant-tile GPU resource release, Drive-mode forward base-tile prewarm, nearest-first loading, a two-load concurrency cap, forward-direction prefetch, IndexedDB tile reuse, and exported per-tile GLBs for downstream lazy loading
 - Local-only Project PLATEAU CityGML import with EPSG:6697 coordinates and LOD1/LOD2 Ground, Wall, Roof, and Closure surfaces
 - Height resolution in order: supplied height → floor count → deterministic semantic inference
 - Bounded generation at 100–1,000 m with 2,500-building safety cap and merged geometry batches
