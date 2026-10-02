@@ -324,6 +324,9 @@ function createRouteOverlay(route) {
 }
 
 function jobByteLength(job) {
+  const path = job.kind === "detail" ? job.tile.detailPath : job.tile.path;
+  const archiveBytes = path && activeArchive ? activeArchive[path] : null;
+  if (archiveBytes?.byteLength > 0) return archiveBytes.byteLength;
   const value = job.kind === "detail" ? job.tile.detailByteLength : job.tile.byteLength;
   return Number.isFinite(value) && value > 0 ? value : 1_500_000;
 }
