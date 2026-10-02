@@ -250,5 +250,5 @@ export function costAwareStreamingConcurrency(
   if (maximum <= 1) return 1;
   const activeCost = Number.isFinite(activeEstimatedParseMs) ? Math.max(0, activeEstimatedParseMs) : 0;
   const nextCost = Number.isFinite(nextEstimatedParseMs) ? Math.max(0, nextEstimatedParseMs) : 0;
-  return activeCost >= 18 || nextCost >= 18 ? 1 : maximum;
+  return activeCost >= 18 || nextCost >= 18 || activeCost + nextCost >= 24 ? 1 : maximum;
 }
