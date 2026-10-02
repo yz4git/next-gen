@@ -26,6 +26,15 @@ const imported = new THREE.Group();
 imported.name = "Imported WorldSeed";
 scene.add(imported);
 
+const loader = new GLTFLoader();
+const streamedTiles = new THREE.Group();
+streamedTiles.name = "Streamed WorldSeed tiles";
+const loadedTiles = new Map();
+const pendingTiles = new Set();
+let activeArchive = null;
+let activeGeometryIndex = null;
+let lastStreamUpdate = 0;
+
 fileInput.addEventListener("change", () => {
   const file = fileInput.files?.[0];
   if (file) void importZip(file);
@@ -56,13 +65,28 @@ async function importZip(file) {
     const graph = readJson(archive, "road-graph.json");
     const spawns = readJson(archive, "spawn-points.json");
     const route = readJson(archive, "drive-route.json", true);
+    const geometryIndex = readJson(archive, "worldseed-tiles.index.json", true);
     checkContract(metadata, objects, graph, spawns, route);
 
-    const glb = archive["city.glb"];
-    if (!glb) throw new Error("city.glb is missing");
     clearImported();
-    const gltf = await new GLTFLoader().parseAsync(exactArrayBuffer(glb), "");
-    imported.add(gltf.scene);
+    activeArchive = archive;
+    activeGeometryIndex = geometryIndex?.tiles?.length ? geometryIndex : null;
+
+    if (activeGeometryIndex) {
+      const terrain = archive["terrain.glb"];
+      if (terrain) {
+        const terrainGltf = await loader.parseAsync(exactArrayBuffer(terrain), "");
+        imported.add(terrainGltf.scene);
+      }
+      imported.add(streamedTiles);
+      updateStreamedGeometry(true);
+    } else {
+      const glb = archive["city.glb"];
+      if (!glb) throw new Error("city.glb is missing");
+      const gltf = await loader.parseAsync(exactArrayBuffer(glb), "");
+      imported.add(gltf.scene);
+    }
+
     imported.add(createRoadGraphOverlay(graph));
     imported.add(createSpawnOverlay(spawns));
     if (route) imported.add(createRouteOverlay(route));
@@ -70,7 +94,8 @@ async function importZip(file) {
     fitCamera(metadata.radiusMeters ?? 500);
     writeDetails(metadata, objects, graph, spawns, route);
     drop.classList.add("is-hidden");
-    status.textContent = `Loaded ${file.name} · schema ${metadata.schemaVersion}`;
+    const geometryMode = activeGeometryIndex ? ` · streamed ${activeGeometryIndex.tiles.length} geometry tiles` : "";
+    status.textContent = `Loaded ${file.name} · schema ${metadata.schemaVersion}${geometryMode}`;
   } catch (error) {
     status.textContent = error instanceof Error ? error.message : String(error);
   }
@@ -102,6 +127,51 @@ function checkContract(metadata, objects, graph, spawns, route) {
   for (const path of Object.values(schemaPaths)) {
     if (typeof path !== "string") throw new Error("worldseed.json: invalid schema path");
   }
+}
+
+function updateStreamedGeometry(force = false) {
+  if (!activeArchive || !activeGeometryIndex) return;
+  const now = performance.now();
+  if (!force && now - lastStreamUpdate < 180) return;
+  lastStreamUpdate = now;
+
+  const focus = controls.target;
+  const cameraDistance = camera.position.distanceTo(focus);
+  const loadDistance = Math.max(360, Math.min(950, cameraDistance * 1.1));
+  const unloadDistance = loadDistance + 240;
+
+  for (const tile of activeGeometryIndex.tiles) {
+    const padding = tile.size * Math.SQRT2 / 2;
+    const distance = Math.hypot(tile.centerX - focus.x, tile.centerZ - focus.z);
+    if (distance <= loadDistance + padding) {
+      void ensureGeometryTile(tile);
+    } else if (distance > unloadDistance + padding) {
+      unloadGeometryTile(tile.id);
+    }
+  }
+}
+
+async function ensureGeometryTile(tile) {
+  if (!activeArchive || loadedTiles.has(tile.id) || pendingTiles.has(tile.id)) return;
+  const bytes = activeArchive[tile.path];
+  if (!bytes) return;
+  pendingTiles.add(tile.id);
+  try {
+    const gltf = await loader.parseAsync(exactArrayBuffer(bytes), "");
+    gltf.scene.userData.worldseedTileId = tile.id;
+    streamedTiles.add(gltf.scene);
+    loadedTiles.set(tile.id, gltf.scene);
+  } finally {
+    pendingTiles.delete(tile.id);
+  }
+}
+
+function unloadGeometryTile(id) {
+  const tile = loadedTiles.get(id);
+  if (!tile) return;
+  streamedTiles.remove(tile);
+  disposeObject(tile);
+  loadedTiles.delete(id);
 }
 
 function createRoadGraphOverlay(graph) {
@@ -146,14 +216,23 @@ function exactArrayBuffer(bytes) {
 }
 
 function clearImported() {
+  activeArchive = null;
+  activeGeometryIndex = null;
+  pendingTiles.clear();
+  loadedTiles.clear();
+  streamedTiles.clear();
   while (imported.children.length) {
     const child = imported.children.pop();
-    child?.traverse((object) => {
-      object.geometry?.dispose?.();
-      if (Array.isArray(object.material)) object.material.forEach((m) => m.dispose?.());
-      else object.material?.dispose?.();
-    });
+    if (child) disposeObject(child);
   }
+}
+
+function disposeObject(root) {
+  root.traverse((object) => {
+    object.geometry?.dispose?.();
+    if (Array.isArray(object.material)) object.material.forEach((material) => material.dispose?.());
+    else object.material?.dispose?.();
+  });
 }
 
 function fitCamera(radius) {
@@ -161,6 +240,7 @@ function fitCamera(radius) {
   camera.position.set(distance * 0.72, Math.max(150, distance * 0.5), distance * 0.72);
   controls.target.set(0, 20, 0);
   controls.update();
+  updateStreamedGeometry(true);
 }
 
 function writeDetails(metadata, objects, graph, spawns, route) {
@@ -188,5 +268,6 @@ function resize() {
 renderer.setAnimationLoop(() => {
   resize();
   controls.update();
+  updateStreamedGeometry();
   renderer.render(scene, camera);
 });
