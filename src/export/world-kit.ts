@@ -7,7 +7,8 @@ import worldseedObjectsSchema from "../../schemas/v1/worldseed-objects.schema.js
 import roadGraphSchema from "../../schemas/v1/road-graph.schema.json";
 import spawnPointsSchema from "../../schemas/v1/spawn-points.schema.json";
 import driveRouteSchema from "../../schemas/v1/drive-route.schema.json";
-import { createWorldSeedIr, encodeWorldSeedIrFiles } from "../ir/world-ir";\nimport type { DriveRoute, RoadGraph, WorldData, WorldManifest, WorldStats, WorldStyle } from "../types";
+import { createWorldSeedIr, encodeWorldSeedIrFiles } from "../ir/world-ir";
+import type { DriveRoute, RoadGraph, WorldData, WorldManifest, WorldStats, WorldStyle } from "../types";
 
 export async function exportGlb(
   group: THREE.Group,
@@ -32,18 +33,26 @@ export async function exportStarterKit(
   const binary = await createGlb(group, includeExactOrigin);
   const terrainBinary = await createGlb(createTerrainExport(group), false);
   const colliderBinary = await createGlb(createColliderExport(manifest), false);
-  const metadata = JSON.stringify(createWorldMetadata(data, stats, style, includeExactOrigin), null, 2);
+  const metadata = createWorldMetadata(data, stats, style, includeExactOrigin);
   const spawnPoints = createSpawnPoints(roadGraph, route, pedestrianSpawn);
+  const irFiles = encodeWorldSeedIrFiles(createWorldSeedIr({
+    metadata,
+    manifest,
+    roadGraph,
+    spawnPoints,
+    driveRoute: route,
+  }));
   const archive = zipSync(
     {
       "city.glb": new Uint8Array(binary),
       "terrain.glb": new Uint8Array(terrainBinary),
       "colliders.glb": new Uint8Array(colliderBinary),
-      "worldseed.json": strToU8(metadata),
-      "worldseed-objects.json": strToU8(JSON.stringify(manifest, null, 2)),
-      "road-graph.json": strToU8(JSON.stringify(roadGraph, null, 2)),
-      "spawn-points.json": strToU8(JSON.stringify(spawnPoints, null, 2)),
-      "drive-route.json": strToU8(JSON.stringify(route, null, 2)),
+      "worldseed.json": strToU8(irFiles["worldseed.json"] ?? "{}"),
+      "worldseed-objects.json": strToU8(irFiles["worldseed-objects.json"] ?? "{}"),
+      "road-graph.json": strToU8(irFiles["road-graph.json"] ?? "{}"),
+      "spawn-points.json": strToU8(irFiles["spawn-points.json"] ?? "{}"),
+      "drive-route.json": strToU8(irFiles["drive-route.json"] ?? "null"),
+      "worldseed-ir.json": strToU8(irFiles["worldseed-ir.json"] ?? "{}"),
       "schemas/v1/worldseed.schema.json": strToU8(JSON.stringify(worldseedSchema, null, 2)),
       "schemas/v1/worldseed-objects.schema.json": strToU8(JSON.stringify(worldseedObjectsSchema, null, 2)),
       "schemas/v1/road-graph.schema.json": strToU8(JSON.stringify(roadGraphSchema, null, 2)),
@@ -147,7 +156,7 @@ function starterReadme(includeExactOrigin: boolean): string {
   const originNote = includeExactOrigin
     ? "The model origin is the selected latitude/longitude."
     : "The exact latitude/longitude was intentionally omitted from this privacy-safe export.";
-  return `# WorldSeed Drive Any City Starter\n\nA local-meter Three.js city and gameplay-data bundle exported by WorldSeed.\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n\n${originNote} X points east, Y points up, and Z points south.\n\n- city.glb — complete rendered city\n- terrain.glb — terrain-only mesh\n- colliders.glb — merged building collision boxes\n- road-graph.json — routable local-meter graph with road class, direction, surface, width, and speed\n- spawn-points.json — vehicle and pedestrian starts\n- drive-route.json — the active time-attack route, when available\n- worldseed-objects.json — stable semantic objects and bounds\n- ATTRIBUTION.md — data-source obligations to preserve\n`;
+  return `# WorldSeed Drive Any City Starter\n\nA local-meter Three.js city and gameplay-data bundle exported by WorldSeed.\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n\n${originNote} X points east, Y points up, and Z points south.\n\n- city.glb — complete rendered city\n- terrain.glb — terrain-only mesh\n- colliders.glb — merged building collision boxes\n- road-graph.json — routable local-meter graph with road class, direction, surface, width, and speed\n- spawn-points.json — vehicle and pedestrian starts\n- drive-route.json — the active time-attack route, when available\n- worldseed-objects.json — stable semantic objects and bounds\n- worldseed-ir.json — unified, versioned WorldSeed intermediate representation\n- ATTRIBUTION.md — data-source obligations to preserve\n`;
 }
 
 function starterPackage(): string {
