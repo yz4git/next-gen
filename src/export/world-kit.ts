@@ -406,10 +406,15 @@ function starterHtml(): string {
 
 function starterMain(): string {
   return `import * as THREE from "three";
+import { del, get, keys, set } from "idb-keyval";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const MAX_CONCURRENT_TILE_LOADS = 2;
+const MAX_CONCURRENT_PREFETCHES = 1;
+const PREFETCH_LOOKAHEAD_METERS = 700;
+const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const CACHE_PREFIX = "worldseed-kit:v1:";
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xc9e8ed);
@@ -440,41 +445,156 @@ const loadedDetailTiles = new Map();
 const pendingJobs = new Set();
 const queuedJobs = new Map();
 const desiredJobs = new Set();
+const queuedPrefetches = new Map();
+const prefetchedPaths = new Set();
 let activeTileLoads = 0;
+let activePrefetches = 0;
 let geometryIndex = null;
+let cacheNamespace = "uninitialized";
 let lastStreamUpdate = 0;
+let previousFocusX = null;
+let previousFocusZ = null;
+let movementX = 0;
+let movementZ = 0;
 
-Promise.all([
-  fetchJson("./worldseed.json"),
-  fetchJson("./worldseed-tiles.index.json", true),
-  loader.loadAsync("./terrain.glb").catch(() => null),
-]).then(async ([metadata, index, terrain]) => {
-  if (terrain) scene.add(terrain.scene);
-  if (index?.tiles?.length) {
-    geometryIndex = index;
+void boot();
+
+async function boot() {
+  try {
+    const metadata = await fetchJson("./worldseed.json");
+    cacheNamespace = [
+      metadata?.generator ?? "worldseed",
+      metadata?.generatedAt ?? "unknown",
+      metadata?.radiusMeters ?? "unknown",
+    ].join("|");
+    void pruneOldTileCaches();
+
+    const [index, terrain] = await Promise.all([
+      fetchJson("./worldseed-tiles.index.json", true),
+      loadGlbCached("terrain.glb").catch(() => null),
+    ]);
+
+    if (terrain) scene.add(terrain.scene);
+    if (index?.tiles?.length) {
+      geometryIndex = index;
+      updateStreamedTiles(true);
+    } else {
+      const fallback = await loadGlbCached("city.glb");
+      scene.add(fallback.scene);
+    }
+
+    const radius = Number(metadata?.radiusMeters) || 500;
+    const distance = Math.max(180, radius * 0.92);
+    camera.position.set(distance * 0.72, Math.max(150, distance * 0.5), distance * 0.72);
+    controls.target.set(0, 20, 0);
+    controls.update();
+    previousFocusX = controls.target.x;
+    previousFocusZ = controls.target.z;
     updateStreamedTiles(true);
-  } else {
-    const fallback = await loader.loadAsync("./city.glb");
-    scene.add(fallback.scene);
+  } catch (error) {
+    console.error("WorldSeed starter failed to load", error);
   }
+}
 
-  const radius = Number(metadata?.radiusMeters) || 500;
-  const distance = Math.max(180, radius * 0.92);
-  camera.position.set(distance * 0.72, Math.max(150, distance * 0.5), distance * 0.72);
-  controls.target.set(0, 20, 0);
-  controls.update();
-  updateStreamedTiles(true);
-}).catch((error) => {
-  console.error("WorldSeed starter failed to load", error);
-});
-
-async function fetchJson(path, nullable = false) {
-  const response = await fetch(path);
-  if (!response.ok) {
+async function fetchJson(path, nullable = false, cached = false) {
+  const normalized = normalizePath(path);
+  try {
+    const text = cached ? await fetchTextCached(normalized) : await fetchText(normalized);
+    return JSON.parse(text);
+  } catch (error) {
     if (nullable) return null;
-    throw new Error(path + ": HTTP " + response.status);
+    throw error;
   }
-  return await response.json();
+}
+
+async function fetchText(path) {
+  const response = await fetch("./" + normalizePath(path));
+  if (!response.ok) throw new Error(path + ": HTTP " + response.status);
+  return await response.text();
+}
+
+async function fetchTextCached(path) {
+  const normalized = normalizePath(path);
+  const cached = await cacheGet(normalized);
+  if (typeof cached === "string") {
+    prefetchedPaths.add(normalized);
+    return cached;
+  }
+  const text = await fetchText(normalized);
+  prefetchedPaths.add(normalized);
+  void cacheSet(normalized, text);
+  return text;
+}
+
+async function fetchBinaryCached(path) {
+  const normalized = normalizePath(path);
+  const cached = await cacheGet(normalized);
+  if (cached instanceof ArrayBuffer) {
+    prefetchedPaths.add(normalized);
+    return cached;
+  }
+  if (cached instanceof Uint8Array) {
+    prefetchedPaths.add(normalized);
+    return cached.buffer.slice(cached.byteOffset, cached.byteOffset + cached.byteLength);
+  }
+
+  const response = await fetch("./" + normalized);
+  if (!response.ok) throw new Error(normalized + ": HTTP " + response.status);
+  const binary = await response.arrayBuffer();
+  prefetchedPaths.add(normalized);
+  void cacheSet(normalized, binary);
+  return binary;
+}
+
+async function loadGlbCached(path) {
+  return await loader.parseAsync(await fetchBinaryCached(path), "");
+}
+
+function normalizePath(path) {
+  return String(path).replace(/^\.\//, "");
+}
+
+function cacheKey(path) {
+  return CACHE_PREFIX + cacheNamespace + ":" + normalizePath(path);
+}
+
+async function cacheGet(path) {
+  try {
+    const key = cacheKey(path);
+    const record = await get(key);
+    if (!record || record.expiresAt < Date.now()) {
+      if (record) void del(key);
+      return null;
+    }
+    return record.value;
+  } catch {
+    return null;
+  }
+}
+
+async function cacheSet(path, value) {
+  try {
+    await set(cacheKey(path), {
+      expiresAt: Date.now() + CACHE_MAX_AGE_MS,
+      value,
+    });
+  } catch {
+    // IndexedDB may be unavailable in private browsing or restrictive storage modes.
+  }
+}
+
+async function pruneOldTileCaches() {
+  try {
+    const keepPrefix = CACHE_PREFIX + cacheNamespace + ":";
+    const storedKeys = await keys();
+    const stale = storedKeys.filter((key) =>
+      typeof key === "string"
+      && key.startsWith(CACHE_PREFIX)
+      && !key.startsWith(keepPrefix));
+    await Promise.all(stale.map((key) => del(key)));
+  } catch {
+    // Cache cleanup is best-effort.
+  }
 }
 
 function updateStreamedTiles(force = false) {
@@ -484,6 +604,8 @@ function updateStreamedTiles(force = false) {
   lastStreamUpdate = now;
 
   const focus = controls.target;
+  updateMovementHint(focus.x, focus.z);
+
   const cameraDistance = camera.position.distanceTo(focus);
   const baseDistance = Math.max(360, Math.min(950, cameraDistance * 1.1));
   const detailDistance = Math.max(220, Math.min(520, baseDistance * 0.62));
@@ -525,7 +647,71 @@ function updateStreamedTiles(force = false) {
     || first.tile.z - second.tile.z
     || first.tile.x - second.tile.x);
   for (const candidate of candidates) queuedJobs.set(candidate.key, candidate);
+
+  refreshPrefetchQueue(focus.x, focus.z, baseDistance);
   pumpTileQueue();
+}
+
+function updateMovementHint(x, z) {
+  if (previousFocusX === null || previousFocusZ === null) {
+    previousFocusX = x;
+    previousFocusZ = z;
+    return;
+  }
+  const dx = x - previousFocusX;
+  const dz = z - previousFocusZ;
+  previousFocusX = x;
+  previousFocusZ = z;
+
+  const length = Math.hypot(dx, dz);
+  if (length < 1.5) return;
+  const nx = dx / length;
+  const nz = dz / length;
+  movementX = movementX * 0.65 + nx * 0.35;
+  movementZ = movementZ * 0.65 + nz * 0.35;
+  const smoothedLength = Math.hypot(movementX, movementZ);
+  if (smoothedLength > 0.001) {
+    movementX /= smoothedLength;
+    movementZ /= smoothedLength;
+  }
+}
+
+function refreshPrefetchQueue(x, z, baseDistance) {
+  queuedPrefetches.clear();
+  const directionLength = Math.hypot(movementX, movementZ);
+  if (directionLength < 0.5) return;
+
+  const candidates = geometryIndex.tiles
+    .map((tile) => {
+      const offsetX = tile.centerX - x;
+      const offsetZ = tile.centerZ - z;
+      const forward = offsetX * movementX + offsetZ * movementZ;
+      const lateral = Math.abs(offsetX * movementZ - offsetZ * movementX);
+      const directDistance = Math.hypot(offsetX, offsetZ);
+      return { tile, forward, lateral, directDistance };
+    })
+    .filter(({ tile, forward, lateral, directDistance }) => {
+      const padding = tile.size * Math.SQRT2 / 2;
+      return forward > Math.max(80, baseDistance * 0.55)
+        && forward <= PREFETCH_LOOKAHEAD_METERS + padding
+        && lateral <= tile.size * 1.15
+        && directDistance > baseDistance + padding
+        && !loadedBaseTiles.has(tile.id)
+        && !pendingJobs.has("base:" + tile.id);
+    })
+    .sort((first, second) =>
+      first.forward - second.forward
+      || first.lateral - second.lateral
+      || first.tile.z - second.tile.z
+      || first.tile.x - second.tile.x)
+    .slice(0, 2);
+
+  for (const candidate of candidates) {
+    const glbPath = normalizePath(candidate.tile.path);
+    const chunkPath = "worldseed-ir/chunks/" + candidate.tile.x + "_" + candidate.tile.z + ".json";
+    if (prefetchedPaths.has(glbPath) && prefetchedPaths.has(chunkPath)) continue;
+    queuedPrefetches.set(candidate.tile.id, candidate.tile);
+  }
 }
 
 function pumpTileQueue() {
@@ -539,6 +725,39 @@ function pumpTileQueue() {
     if (loaded.has(job.tile.id)) continue;
     void runTileLoad(job);
   }
+  pumpPrefetchQueue();
+}
+
+function pumpPrefetchQueue() {
+  if (
+    activePrefetches >= MAX_CONCURRENT_PREFETCHES
+    || activeTileLoads >= MAX_CONCURRENT_TILE_LOADS
+    || queuedJobs.size > 0
+    || queuedPrefetches.size === 0
+  ) return;
+
+  const next = queuedPrefetches.entries().next().value;
+  if (!next) return;
+  const [id, tile] = next;
+  queuedPrefetches.delete(id);
+  void runPrefetch(tile);
+}
+
+async function runPrefetch(tile) {
+  activePrefetches += 1;
+  const glbPath = normalizePath(tile.path);
+  const chunkPath = "worldseed-ir/chunks/" + tile.x + "_" + tile.z + ".json";
+  try {
+    await Promise.all([
+      prefetchedPaths.has(glbPath) ? Promise.resolve() : fetchBinaryCached(glbPath),
+      prefetchedPaths.has(chunkPath) ? Promise.resolve() : fetchTextCached(chunkPath).catch(() => null),
+    ]);
+  } catch {
+    // Prefetch failure is non-fatal; visible loading will retry normally.
+  } finally {
+    activePrefetches = Math.max(0, activePrefetches - 1);
+    pumpPrefetchQueue();
+  }
 }
 
 async function runTileLoad(job) {
@@ -549,9 +768,9 @@ async function runTileLoad(job) {
   activeTileLoads += 1;
   pendingJobs.add(key);
   try {
-    const gltfPromise = loader.loadAsync("./" + path);
+    const gltfPromise = loadGlbCached(path);
     const chunkPromise = job.kind === "base"
-      ? fetchJson("./worldseed-ir/chunks/" + job.tile.x + "_" + job.tile.z + ".json", true)
+      ? fetchJson("worldseed-ir/chunks/" + job.tile.x + "_" + job.tile.z + ".json", true, true)
       : Promise.resolve(null);
     const [gltf, chunk] = await Promise.all([gltfPromise, chunkPromise]);
 
