@@ -13,6 +13,7 @@ export interface AdaptiveStreamingBudget {
   prefetchScale: number;
   maxConcurrentLoads: number;
   maxConcurrentPrefetches: number;
+  maxCacheRecords: number;
   dprCap: number;
 }
 
@@ -30,6 +31,7 @@ const BUDGETS: Record<AdaptiveStreamingTier, AdaptiveStreamingBudget> = {
     prefetchScale: 0.62,
     maxConcurrentLoads: 1,
     maxConcurrentPrefetches: 0,
+    maxCacheRecords: 20,
     dprCap: 1.35,
   },
   balanced: {
@@ -39,6 +41,7 @@ const BUDGETS: Record<AdaptiveStreamingTier, AdaptiveStreamingBudget> = {
     prefetchScale: 0.82,
     maxConcurrentLoads: 2,
     maxConcurrentPrefetches: 1,
+    maxCacheRecords: 40,
     dprCap: 1.65,
   },
   quality: {
@@ -48,6 +51,7 @@ const BUDGETS: Record<AdaptiveStreamingTier, AdaptiveStreamingBudget> = {
     prefetchScale: 1,
     maxConcurrentLoads: 2,
     maxConcurrentPrefetches: 1,
+    maxCacheRecords: 72,
     dprCap: 1.8,
   },
 };
