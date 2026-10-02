@@ -464,6 +464,8 @@ let movementX = 0;
 let movementZ = 0;
 let fpsFrames = 0;
 let fpsStartedAt = performance.now();
+let lastFrameAt = performance.now();
+let deferOptionalFrames = 0;
 
 void boot();
 
@@ -631,7 +633,6 @@ async function pruneCurrentCacheNamespace() {
     const currentKeys = (await keys()).filter((key) =>
       typeof key === "string" && key.startsWith(prefix));
     const maximum = streamingState.budget.maxCacheRecords;
-    if (currentKeys.length <= maximum) return;
 
     const records = await Promise.all(currentKeys.map(async (key) => ({
       key,
@@ -780,6 +781,7 @@ function pumpTileQueue() {
     const [key, job] = next;
     queuedJobs.delete(key);
     if (!desiredJobs.has(key) || pendingJobs.has(key)) continue;
+    if (job.kind === "detail" && !optionalWorkAllowed()) continue;
     const loaded = job.kind === "detail" ? loadedDetailTiles : loadedBaseTiles;
     if (loaded.has(job.tile.id)) continue;
     void runTileLoad(job);
@@ -789,7 +791,8 @@ function pumpTileQueue() {
 
 function pumpPrefetchQueue() {
   if (
-    streamingState.budget.maxConcurrentPrefetches <= 0
+    !optionalWorkAllowed()
+    || streamingState.budget.maxConcurrentPrefetches <= 0
     || activePrefetches >= streamingState.budget.maxConcurrentPrefetches
     || activeTileLoads >= streamingState.budget.maxConcurrentLoads
     || queuedJobs.size > 0
@@ -874,6 +877,18 @@ function disposeTileScene(root) {
   });
 }
 
+function sampleFrameTime(frameTimeMs) {
+  if (!Number.isFinite(frameTimeMs) || frameTimeMs <= 0) return;
+  if (frameTimeMs >= 45) deferOptionalFrames = Math.max(deferOptionalFrames, 24);
+  else if (frameTimeMs >= 28) deferOptionalFrames = Math.max(deferOptionalFrames, 10);
+  else if (frameTimeMs <= 20) deferOptionalFrames = Math.max(0, deferOptionalFrames - 2);
+  else deferOptionalFrames = Math.max(0, deferOptionalFrames - 1);
+}
+
+function optionalWorkAllowed() {
+  return deferOptionalFrames <= 0;
+}
+
 function createInitialStreamingState() {
   const userAgent = navigator.userAgent || "";
   const mobile = /iPhone|iPad|iPod|Android/i.test(userAgent)
@@ -921,6 +936,10 @@ addEventListener("resize", () => {
 });
 
 renderer.setAnimationLoop(() => {
+  const frameNow = performance.now();
+  sampleFrameTime(frameNow - lastFrameAt);
+  lastFrameAt = frameNow;
+
   controls.update();
   updateStreamedTiles();
   renderer.render(scene, camera);
