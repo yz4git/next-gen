@@ -7,7 +7,7 @@ import worldseedObjectsSchema from "../../schemas/v1/worldseed-objects.schema.js
 import roadGraphSchema from "../../schemas/v1/road-graph.schema.json";
 import spawnPointsSchema from "../../schemas/v1/spawn-points.schema.json";
 import driveRouteSchema from "../../schemas/v1/drive-route.schema.json";
-import type { DriveRoute, RoadGraph, WorldData, WorldManifest, WorldStats, WorldStyle } from "../types";
+import { createWorldSeedIr, encodeWorldSeedIrFiles } from "../ir/world-ir";\nimport type { DriveRoute, RoadGraph, WorldData, WorldManifest, WorldStats, WorldStyle } from "../types";
 
 export async function exportGlb(
   group: THREE.Group,
