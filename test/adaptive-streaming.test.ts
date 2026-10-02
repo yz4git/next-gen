@@ -40,6 +40,7 @@ describe("adaptive streaming budget", () => {
       tier: "economy",
       maxConcurrentLoads: 1,
       maxConcurrentPrefetches: 0,
+      maxCacheRecords: 20,
       dprCap: 1.35,
     });
     expect(state.budget.detailScale).toBeLessThan(state.budget.baseScale);
