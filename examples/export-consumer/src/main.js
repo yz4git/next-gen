@@ -230,7 +230,9 @@ function pumpGeometryQueue() {
     }
 
     const estimatedParseMs = estimateJobParseCostMs(job);
-    const costLimit = activeEstimatedParseMs >= 18 || estimatedParseMs >= 18
+    const costLimit = activeEstimatedParseMs >= 18
+      || estimatedParseMs >= 18
+      || activeEstimatedParseMs + estimatedParseMs >= 24
       ? 1
       : streamingState.budget.maxConcurrentLoads;
     if (activeTileLoads >= costLimit) break;
