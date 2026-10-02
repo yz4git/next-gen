@@ -54,7 +54,7 @@ See [docs/REUSE.md](docs/REUSE.md) for concrete integration paths and export-fil
 - Bounded generation at 100–1,000 m with 2,500-building safety cap and merged geometry batches
 - Five views: Low poly, Anime, Cyber, Blueprint, and Data quality
 - Orbit, first-person walk with footprint collision, free-flight, and Drive modes
-- GLB download and a zipped Three.js game kit with separated terrain, colliders, road graph, route, spawn points, versioned JSON Schema contracts, and a unified `worldseed-ir.json` intermediate representation
+- GLB download and a zipped Three.js game kit with separated terrain, colliders, road graph, route, spawn points, versioned JSON Schema contracts, and chunkable WorldSeed IR data
 - Always-visible viewport attribution, provenance warnings, and a per-seed height-quality meter
 - IndexedDB request caching, coordinate-safe service-worker shell caching, and an offline synthetic first-run demo
 - Just-in-time location disclosure, explicit share choices, privacy-safe export defaults, and local-data clearing
@@ -162,6 +162,8 @@ The starter-kit ZIP contains:
 - `road-graph.json` with connector topology, direction, road class, surface, width, and speed
 - `spawn-points.json` with collision-safe vehicle and pedestrian starts
 - `drive-route.json` with the current deterministic time-attack route
+- `worldseed-ir.json` with the unified developer-facing intermediate representation
+- `worldseed-ir.index.json` plus `worldseed-ir/chunks/*.json` for 300 m tile-local structured-data loading
 - `ATTRIBUTION.md` generated for that seed
 - `schemas/v1/*.schema.json` with machine-readable contracts for every exported JSON document
 - a minimal Vite + Three.js viewer
