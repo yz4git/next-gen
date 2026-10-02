@@ -269,7 +269,7 @@ export function selectGeometryPrefetchTiles(
     })
     .filter(({ tile, forward, lateral }) => {
       const padding = tile.size * Math.SQRT2 / 2;
-      return forward > 0 && forward <= lookAheadMeters + padding && lateral <= tile.size * 1.15;
+      return forward > 0 && forward <= lookAheadMeters + padding && lateral <= tile.size * 0.75;
     })
     .sort((first, second) =>
       first.forward - second.forward
@@ -694,7 +694,7 @@ function refreshPrefetchQueue(x, z, baseDistance) {
       const padding = tile.size * Math.SQRT2 / 2;
       return forward > Math.max(80, baseDistance * 0.55)
         && forward <= PREFETCH_LOOKAHEAD_METERS + padding
-        && lateral <= tile.size * 1.15
+        && lateral <= tile.size * 0.75
         && directDistance > baseDistance + padding
         && !loadedBaseTiles.has(tile.id)
         && !pendingJobs.has("base:" + tile.id);
