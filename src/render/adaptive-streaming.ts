@@ -252,3 +252,15 @@ export function costAwareStreamingConcurrency(
   const nextCost = Number.isFinite(nextEstimatedParseMs) ? Math.max(0, nextEstimatedParseMs) : 0;
   return activeCost >= 18 || nextCost >= 18 || activeCost + nextCost >= 24 ? 1 : maximum;
 }
+
+
+export function streamingFetchBufferSlots(
+  maximumBufferedJobs: number,
+  activeFetches: number,
+  readyJobs: number,
+): number {
+  const maximum = Math.max(0, Math.floor(maximumBufferedJobs));
+  const active = Number.isFinite(activeFetches) ? Math.max(0, Math.floor(activeFetches)) : 0;
+  const ready = Number.isFinite(readyJobs) ? Math.max(0, Math.floor(readyJobs)) : 0;
+  return Math.max(0, maximum - active - ready);
+}
