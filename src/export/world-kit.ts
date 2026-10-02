@@ -520,6 +520,7 @@ const fetchingJobs = new Set();
 const parsingJobs = new Set();
 const queuedJobs = new Map();
 const readyJobs = new Map();
+const uploadJobs = new Map();
 const desiredJobs = new Set();
 const queuedPrefetches = new Map();
 const prefetchedPaths = new Set();
@@ -541,6 +542,7 @@ let fpsStartedAt = performance.now();
 let lastFrameAt = performance.now();
 let deferOptionalFrames = 0;
 let activeEstimatedParseMs = 0;
+let renderFrameIndex = 0;
 let parseCostState = {
   baseMsPerMb: 14,
   detailMsPerMb: 16,
@@ -880,7 +882,10 @@ function refreshPrefetchQueue(x, z, baseDistance) {
 }
 
 function jobIsPending(key) {
-  return fetchingJobs.has(key) || parsingJobs.has(key) || readyJobs.has(key);
+  return fetchingJobs.has(key)
+    || parsingJobs.has(key)
+    || readyJobs.has(key)
+    || uploadJobs.has(key);
 }
 
 function pumpTileQueue() {
@@ -996,10 +1001,15 @@ async function runTileParse(prepared, estimatedParseMs) {
     gltf.scene.userData.worldseedTileId = job.tile.id;
     gltf.scene.userData.worldseedLod = job.kind;
     if (prepared.chunk) gltf.scene.userData.worldseedChunk = prepared.chunk;
-    streamedRoot.add(gltf.scene);
 
-    if (job.kind === "detail") loadedDetailTiles.set(job.tile.id, gltf.scene);
-    else loadedBaseTiles.set(job.tile.id, gltf.scene);
+    const uploadHints = collectGpuUploadHints(gltf.scene);
+    const delayFrames = gpuUploadDelayFrames(uploadHints);
+    uploadJobs.set(key, {
+      job,
+      scene: gltf.scene,
+      delayFrames,
+      availableAtFrame: renderFrameIndex + delayFrames,
+    });
   } catch (error) {
     console.warn("WorldSeed " + job.kind + " tile " + job.tile.id + " failed to parse", error);
   } finally {
@@ -1049,6 +1059,11 @@ function unloadTileLod(id, kind) {
   const key = kind + ":" + id;
   queuedJobs.delete(key);
   readyJobs.delete(key);
+  const upload = uploadJobs.get(key);
+  if (upload) {
+    disposeTileScene(upload.scene);
+    uploadJobs.delete(key);
+  }
   const loaded = kind === "detail" ? loadedDetailTiles : loadedBaseTiles;
   const tile = loaded.get(id);
   if (!tile) return;
@@ -1063,6 +1078,86 @@ function disposeTileScene(root) {
     if (Array.isArray(object.material)) object.material.forEach((material) => material.dispose?.());
     else object.material?.dispose?.();
   });
+}
+
+function pumpGpuUploadQueue() {
+  if (uploadJobs.size === 0) return;
+
+  for (const [key, upload] of uploadJobs) {
+    const loaded = upload.job.kind === "detail" ? loadedDetailTiles : loadedBaseTiles;
+    if (!desiredJobs.has(key) || loaded.has(upload.job.tile.id)) {
+      disposeTileScene(upload.scene);
+      uploadJobs.delete(key);
+    }
+  }
+
+  const candidates = [...uploadJobs.entries()]
+    .filter(([, upload]) =>
+      renderFrameIndex >= upload.availableAtFrame
+      && (upload.job.kind !== "detail" || optionalWorkAllowed()))
+    .sort((first, second) =>
+      first[1].job.priority - second[1].job.priority
+      || first[1].job.tile.z - second[1].job.tile.z
+      || first[1].job.tile.x - second[1].job.tile.x);
+
+  let attachments = 0;
+  for (const [key, upload] of candidates) {
+    const heavy = upload.delayFrames > 0;
+    if (heavy && attachments > 0) continue;
+    if (!heavy && attachments >= 2) break;
+
+    uploadJobs.delete(key);
+    streamedRoot.add(upload.scene);
+    if (upload.job.kind === "detail") loadedDetailTiles.set(upload.job.tile.id, upload.scene);
+    else loadedBaseTiles.set(upload.job.tile.id, upload.scene);
+    attachments += 1;
+
+    if (heavy) break;
+  }
+}
+
+function collectGpuUploadHints(root) {
+  const geometries = new Set();
+  const materials = new Set();
+  let vertexCount = 0;
+  let geometryByteLength = 0;
+
+  root.traverse((object) => {
+    const geometry = object.geometry;
+    if (geometry?.isBufferGeometry && !geometries.has(geometry.uuid)) {
+      geometries.add(geometry.uuid);
+      const position = geometry.getAttribute("position");
+      if (position) vertexCount += position.count;
+      for (const attribute of Object.values(geometry.attributes)) {
+        if (attribute?.array?.byteLength) geometryByteLength += attribute.array.byteLength;
+      }
+      const index = geometry.getIndex();
+      if (index?.array?.byteLength) geometryByteLength += index.array.byteLength;
+    }
+
+    const material = object.material;
+    if (Array.isArray(material)) {
+      for (const item of material) if (item?.uuid) materials.add(item.uuid);
+    } else if (material?.uuid) {
+      materials.add(material.uuid);
+    }
+  });
+
+  return { vertexCount, geometryByteLength, materialCount: materials.size };
+}
+
+function gpuUploadDelayFrames(hints) {
+  if (
+    hints.vertexCount >= 350_000
+    || hints.geometryByteLength >= 12 * 1024 * 1024
+    || hints.materialCount >= 32
+  ) return 2;
+  if (
+    hints.vertexCount >= 180_000
+    || hints.geometryByteLength >= 6 * 1024 * 1024
+    || hints.materialCount >= 16
+  ) return 1;
+  return 0;
 }
 
 function jobByteLength(job) {
@@ -1155,12 +1250,14 @@ addEventListener("resize", () => {
 });
 
 renderer.setAnimationLoop(() => {
+  renderFrameIndex += 1;
   const frameNow = performance.now();
   sampleFrameTime(frameNow - lastFrameAt);
   lastFrameAt = frameNow;
 
   controls.update();
   updateStreamedTiles();
+  pumpGpuUploadQueue();
   renderer.render(scene, camera);
 
   fpsFrames += 1;
