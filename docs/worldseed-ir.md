@@ -66,8 +66,8 @@ That means the same loader can be backed by browser `fetch()`, an extracted star
 Structured-data chunks and render geometry use the same 300 m tile coordinate system.
 
 - `worldseed-tiles.index.json` lists renderable geometry tiles.
-- `worldseed-tiles/<x>_<z>.glb` contains base render geometry for one tile.
-- `worldseed-tiles/detail/<x>_<z>.glb` is optional and carries objects marked `worldseedDetail`, such as roofs, road markings, street furniture, and other close-range decoration.
+- `worldseed-tiles/<x>_<z>.glb` contains base render geometry for one tile. Its descriptor can include `byteLength` for pre-parse cost estimation.
+- `worldseed-tiles/detail/<x>_<z>.glb` is optional and carries objects marked `worldseedDetail`, such as roofs, road markings, street furniture, and other close-range decoration. Its descriptor can include `detailByteLength`.
 - `worldseed-ir/chunks/<x>_<z>.json` carries the matching semantic, navigation, and spawn data when present.
 - `terrain.glb` remains global because terrain continuity crosses tile boundaries.
 - `city.glb` remains in the starter kit as a compatibility fallback.
@@ -153,3 +153,18 @@ Base geometry is never blocked by this scheduler. It only postpones work that ca
 Already-visible live detail stays visible during a spike, avoiding a quality flicker. Already-started asynchronous GLB work is allowed to finish rather than being discarded after the expensive parse has already begun.
 
 The scheduler therefore reacts much faster than the multi-sample FPS tier while keeping structural/base world loading responsive.
+
+
+## Parse-cost aware concurrency
+
+Generated geometry descriptors record base/detail GLB byte sizes. The starter viewer combines those byte hints with measured `GLTFLoader.parseAsync()` time.
+
+- base and detail maintain separate exponentially smoothed milliseconds-per-megabyte estimates
+- before enough samples exist, conservative default rates are used
+- a predicted parse of 18 ms or more is serialized
+- if active estimated parse work plus the next candidate reaches 24 ms, the next parse also waits
+- light jobs can still use the adaptive tier's two-job limit
+- the standalone ZIP consumer uses the actual archived byte length when available, so even older indexes can be scheduled accurately
+- download/cache time is not included in the learned parse rate; the timing specifically surrounds GLTF parsing
+
+This complements the frame-time scheduler: cost prediction prevents likely spikes before a parse begins, while frame-time gating reacts to spikes that still occur.
