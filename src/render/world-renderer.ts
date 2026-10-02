@@ -13,6 +13,11 @@ import {
   type TerrainLodLevel,
 } from "../terrain/quality";
 import type { ExploreMode, LonLat, WorldStyle } from "../types";
+import {
+  detectStreamingCapabilities,
+  initialAdaptiveStreamingState,
+  updateAdaptiveStreamingState,
+} from "./adaptive-streaming";
 import { DriveTerrainDetailPatch } from "./drive-terrain-detail";
 import { TileStreamer, type StreamingMotionHint, type StreamingStats } from "./tile-streamer";
 
@@ -33,6 +38,7 @@ export class WorldRenderer {
   private readonly clock = new THREE.Clock();
   private readonly sun = new THREE.DirectionalLight(0xffffff, 2.4);
   private readonly ambient = new THREE.HemisphereLight(0xffffff, 0x52606d, 1.7);
+  private adaptiveStreaming = initialAdaptiveStreamingState(detectStreamingCapabilities());
   private currentCity: THREE.Group | null = null;
   private tileStreamer: TileStreamer | null = null;
   private exploreMode: ExploreMode = "orbit";
@@ -126,6 +132,7 @@ export class WorldRenderer {
     this.conformRoadsToTerrain(group);
     this.rebuildDriveTerrainDetail();
     this.tileStreamer = new TileStreamer(group, radius);
+    this.tileStreamer.setAdaptiveBudget(this.adaptiveStreaming.budget);
     if (this.streamingListener) this.tileStreamer.onChange(this.streamingListener);
     this.orbit.maxDistance = Math.max(350, radius * 3.4);
     this.camera.far = Math.max(3_000, radius * 7);
@@ -351,7 +358,7 @@ export class WorldRenderer {
   private resize(): void {
     const width = this.canvas.clientWidth || window.innerWidth;
     const height = this.canvas.clientHeight || window.innerHeight;
-    const ratio = Math.min(window.devicePixelRatio, 1.8);
+    const ratio = Math.min(window.devicePixelRatio, this.adaptiveStreaming.budget.dprCap);
     this.renderer.setPixelRatio(ratio);
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / Math.max(1, height);
@@ -371,7 +378,14 @@ export class WorldRenderer {
     this.frame += 1;
     const now = performance.now();
     if (now - this.fpsStartedAt > 700) {
-      this.fpsListener?.(Math.round((this.frame * 1_000) / (now - this.fpsStartedAt)));
+      const fps = Math.round((this.frame * 1_000) / (now - this.fpsStartedAt));
+      this.fpsListener?.(fps);
+      const previousTier = this.adaptiveStreaming.budget.tier;
+      this.adaptiveStreaming = updateAdaptiveStreamingState(this.adaptiveStreaming, fps);
+      if (this.adaptiveStreaming.budget.tier !== previousTier) {
+        this.tileStreamer?.setAdaptiveBudget(this.adaptiveStreaming.budget);
+        this.resize();
+      }
       this.frame = 0;
       this.fpsStartedAt = now;
     }
