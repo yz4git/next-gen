@@ -350,6 +350,8 @@ function starterMain(): string {
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
+const MAX_CONCURRENT_TILE_LOADS = 2;
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xc9e8ed);
 const camera = new THREE.PerspectiveCamera(52, innerWidth / innerHeight, .1, 6000);
@@ -376,6 +378,9 @@ scene.add(streamedRoot);
 
 const loadedTiles = new Map();
 const pendingTiles = new Set();
+const queuedTiles = new Map();
+const desiredTiles = new Set();
+let activeTileLoads = 0;
 let geometryIndex = null;
 let lastStreamUpdate = 0;
 
@@ -398,6 +403,7 @@ Promise.all([
   camera.position.set(distance * 0.72, Math.max(150, distance * 0.5), distance * 0.72);
   controls.target.set(0, 20, 0);
   controls.update();
+  updateStreamedTiles(true);
 }).catch((error) => {
   console.error("WorldSeed starter failed to load", error);
 });
@@ -421,26 +427,55 @@ function updateStreamedTiles(force = false) {
   const cameraDistance = camera.position.distanceTo(focus);
   const loadDistance = Math.max(360, Math.min(950, cameraDistance * 1.1));
   const unloadDistance = loadDistance + 240;
+  const candidates = [];
+
+  desiredTiles.clear();
+  queuedTiles.clear();
 
   for (const tile of geometryIndex.tiles) {
     const padding = tile.size * Math.SQRT2 / 2;
     const distance = Math.hypot(tile.centerX - focus.x, tile.centerZ - focus.z);
     if (distance <= loadDistance + padding) {
-      void ensureTileLoaded(tile);
+      desiredTiles.add(tile.id);
+      if (!loadedTiles.has(tile.id) && !pendingTiles.has(tile.id)) {
+        candidates.push({ tile, distance });
+      }
     } else if (distance > unloadDistance + padding) {
       unloadTile(tile.id);
     }
   }
+
+  candidates.sort((first, second) =>
+    first.distance - second.distance
+    || first.tile.z - second.tile.z
+    || first.tile.x - second.tile.x);
+  for (const candidate of candidates) queuedTiles.set(candidate.tile.id, candidate.tile);
+  pumpTileQueue();
 }
 
-async function ensureTileLoaded(tile) {
-  if (loadedTiles.has(tile.id) || pendingTiles.has(tile.id)) return;
+function pumpTileQueue() {
+  while (activeTileLoads < MAX_CONCURRENT_TILE_LOADS && queuedTiles.size > 0) {
+    const next = queuedTiles.entries().next().value;
+    if (!next) return;
+    const [id, tile] = next;
+    queuedTiles.delete(id);
+    if (!desiredTiles.has(id) || loadedTiles.has(id) || pendingTiles.has(id)) continue;
+    void runTileLoad(tile);
+  }
+}
+
+async function runTileLoad(tile) {
+  activeTileLoads += 1;
   pendingTiles.add(tile.id);
   try {
     const [gltf, chunk] = await Promise.all([
       loader.loadAsync("./" + tile.path),
       fetchJson("./worldseed-ir/chunks/" + tile.x + "_" + tile.z + ".json", true),
     ]);
+    if (!desiredTiles.has(tile.id)) {
+      disposeTileScene(gltf.scene);
+      return;
+    }
     gltf.scene.userData.worldseedTileId = tile.id;
     gltf.scene.userData.worldseedChunk = chunk;
     streamedRoot.add(gltf.scene);
@@ -449,19 +484,26 @@ async function ensureTileLoaded(tile) {
     console.warn("WorldSeed tile " + tile.id + " failed to load", error);
   } finally {
     pendingTiles.delete(tile.id);
+    activeTileLoads = Math.max(0, activeTileLoads - 1);
+    pumpTileQueue();
   }
 }
 
 function unloadTile(id) {
+  queuedTiles.delete(id);
   const tile = loadedTiles.get(id);
   if (!tile) return;
   streamedRoot.remove(tile);
-  tile.traverse((object) => {
+  disposeTileScene(tile);
+  loadedTiles.delete(id);
+}
+
+function disposeTileScene(root) {
+  root.traverse((object) => {
     object.geometry?.dispose?.();
     if (Array.isArray(object.material)) object.material.forEach((material) => material.dispose?.());
     else object.material?.dispose?.();
   });
-  loadedTiles.delete(id);
 }
 
 addEventListener("resize", () => {
