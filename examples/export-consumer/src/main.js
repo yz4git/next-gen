@@ -26,11 +26,16 @@ const imported = new THREE.Group();
 imported.name = "Imported WorldSeed";
 scene.add(imported);
 
+const MAX_CONCURRENT_TILE_LOADS = 2;
+
 const loader = new GLTFLoader();
 const streamedTiles = new THREE.Group();
 streamedTiles.name = "Streamed WorldSeed tiles";
 const loadedTiles = new Map();
 const pendingTiles = new Set();
+const queuedTiles = new Map();
+const desiredTiles = new Set();
+let activeTileLoads = 0;
 let activeArchive = null;
 let activeGeometryIndex = null;
 let lastStreamUpdate = 0;
@@ -142,26 +147,54 @@ function updateStreamedGeometry(force = false) {
   const cameraDistance = camera.position.distanceTo(focus);
   const loadDistance = Math.max(360, Math.min(950, cameraDistance * 1.1));
   const unloadDistance = loadDistance + 240;
+  const candidates = [];
+
+  desiredTiles.clear();
+  queuedTiles.clear();
 
   for (const tile of activeGeometryIndex.tiles) {
     const padding = tile.size * Math.SQRT2 / 2;
     const distance = Math.hypot(tile.centerX - focus.x, tile.centerZ - focus.z);
     if (distance <= loadDistance + padding) {
-      void ensureGeometryTile(tile, importGeneration);
+      desiredTiles.add(tile.id);
+      if (!loadedTiles.has(tile.id) && !pendingTiles.has(tile.id)) {
+        candidates.push({ tile, distance });
+      }
     } else if (distance > unloadDistance + padding) {
       unloadGeometryTile(tile.id);
     }
   }
+
+  candidates.sort((first, second) =>
+    first.distance - second.distance
+    || first.tile.z - second.tile.z
+    || first.tile.x - second.tile.x);
+  for (const candidate of candidates) queuedTiles.set(candidate.tile.id, candidate.tile);
+  pumpGeometryQueue();
 }
 
-async function ensureGeometryTile(tile, generation) {
-  if (!activeArchive || loadedTiles.has(tile.id) || pendingTiles.has(tile.id)) return;
+function pumpGeometryQueue() {
+  while (activeTileLoads < MAX_CONCURRENT_TILE_LOADS && queuedTiles.size > 0) {
+    const next = queuedTiles.entries().next().value;
+    if (!next) return;
+    const [id, tile] = next;
+    queuedTiles.delete(id);
+    if (!desiredTiles.has(id) || loadedTiles.has(id) || pendingTiles.has(id)) continue;
+    void runGeometryTileLoad(tile, importGeneration);
+  }
+}
+
+async function runGeometryTileLoad(tile, generation) {
+  if (!activeArchive) return;
   const bytes = activeArchive[tile.path];
   if (!bytes) return;
+
+  activeTileLoads += 1;
   pendingTiles.add(tile.id);
   try {
+    await new Promise((resolve) => requestAnimationFrame(resolve));
     const gltf = await loader.parseAsync(exactArrayBuffer(bytes), "");
-    if (generation !== importGeneration || !activeArchive) {
+    if (generation !== importGeneration || !activeArchive || !desiredTiles.has(tile.id)) {
       disposeObject(gltf.scene);
       return;
     }
@@ -170,10 +203,13 @@ async function ensureGeometryTile(tile, generation) {
     loadedTiles.set(tile.id, gltf.scene);
   } finally {
     pendingTiles.delete(tile.id);
+    activeTileLoads = Math.max(0, activeTileLoads - 1);
+    pumpGeometryQueue();
   }
 }
 
 function unloadGeometryTile(id) {
+  queuedTiles.delete(id);
   const tile = loadedTiles.get(id);
   if (!tile) return;
   streamedTiles.remove(tile);
@@ -226,6 +262,8 @@ function clearImported() {
   importGeneration += 1;
   activeArchive = null;
   activeGeometryIndex = null;
+  desiredTiles.clear();
+  queuedTiles.clear();
   pendingTiles.clear();
   for (const tile of loadedTiles.values()) disposeObject(tile);
   loadedTiles.clear();
