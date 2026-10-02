@@ -129,6 +129,6 @@ The budget controls:
 - render DPR cap
 - generated Starter Kit IndexedDB record count
 
-Current cache caps are 20 records in `economy`, 40 in `balanced`, and 72 in `quality`. Starter Kit cache entries are LRU-like using a last-access timestamp, retain the existing seven-day TTL, and are trimmed whenever the tier drops or after batches of new writes.
+Current cache caps are 20 records / 32 MB in `economy`, 40 records / 64 MB in `balanced`, and 72 records / 128 MB in `quality`. Starter Kit cache entries track last access and byte size, retain the existing seven-day TTL, and evict the oldest entries until both the record and byte budgets are satisfied whenever the tier drops or after batches of new writes.
 
 This makes Safari/iPhone behavior conservative at startup while still allowing a capable device to recover visual range after sustained smooth rendering.
