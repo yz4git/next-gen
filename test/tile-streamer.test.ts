@@ -128,6 +128,37 @@ describe("TileStreamer GPU release", () => {
     expect(mesh.visible).toBe(false);
   });
 
+  it("defers new detail visibility under frame pressure without hiding active detail", () => {
+    const root = new THREE.Group();
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+    base.userData = {
+      worldseedTile: { id: "0:0", x: 0, z: 0, centerX: 0, centerZ: 0, size: 300 },
+    };
+    const detail = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+    detail.userData = {
+      worldseedTile: { id: "0:0", x: 0, z: 0, centerX: 0, centerZ: 0, size: 300 },
+      worldseedDetail: true,
+    };
+    root.add(base, detail);
+
+    const streamer = new TileStreamer(root, 500);
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(0, 0, 0);
+
+    streamer.setOptionalWorkAllowed(false);
+    streamer.update(camera, "drive");
+    expect(base.visible).toBe(true);
+    expect(detail.visible).toBe(false);
+
+    streamer.setOptionalWorkAllowed(true);
+    streamer.update(camera, "drive");
+    expect(detail.visible).toBe(true);
+
+    streamer.setOptionalWorkAllowed(false);
+    streamer.update(camera, "drive");
+    expect(detail.visible).toBe(true);
+  });
+
   it("keeps just-hidden tiles warm inside the release margin", () => {
     const { root, mesh, geometry } = makeRoot();
     let geometryDisposals = 0;
