@@ -246,6 +246,40 @@ export function createGeometryTileGroups(root: THREE.Object3D): {
   };
 }
 
+export function selectGeometryPrefetchTiles(
+  index: WorldSeedGeometryIndex,
+  x: number,
+  z: number,
+  directionX: number,
+  directionZ: number,
+  lookAheadMeters = 600,
+  maximumTiles = 2,
+): WorldSeedGeometryTileDescriptor[] {
+  const directionLength = Math.hypot(directionX, directionZ);
+  if (directionLength < 0.001 || maximumTiles <= 0) return [];
+  const nx = directionX / directionLength;
+  const nz = directionZ / directionLength;
+  return index.tiles
+    .map((tile) => {
+      const offsetX = tile.centerX - x;
+      const offsetZ = tile.centerZ - z;
+      const forward = offsetX * nx + offsetZ * nz;
+      const lateral = Math.abs(offsetX * nz - offsetZ * nx);
+      return { tile, forward, lateral };
+    })
+    .filter(({ tile, forward, lateral }) => {
+      const padding = tile.size * Math.SQRT2 / 2;
+      return forward > 0 && forward <= lookAheadMeters + padding && lateral <= tile.size * 1.15;
+    })
+    .sort((first, second) =>
+      first.forward - second.forward
+      || first.lateral - second.lateral
+      || first.tile.z - second.tile.z
+      || first.tile.x - second.tile.x)
+    .slice(0, maximumTiles)
+    .map(({ tile }) => tile);
+}
+
 export function selectGeometryTiles(
   index: WorldSeedGeometryIndex,
   x: number,
@@ -361,7 +395,7 @@ function starterPackage(): string {
     private: true,
     type: "module",
     scripts: { dev: "vite", build: "vite build" },
-    dependencies: { three: "^0.179.1" },
+    dependencies: { "idb-keyval": "^6.2.2", three: "^0.179.1" },
     devDependencies: { vite: "^7.1.3" },
   }, null, 2);
 }
