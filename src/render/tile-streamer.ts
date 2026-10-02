@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { ExploreMode } from "../types";
 import { streamingRange, tileIsVisible, type WorldTile } from "../generation/tiling";
+import type { AdaptiveStreamingBudget } from "./adaptive-streaming";
 
 const GPU_RELEASE_MARGIN_METERS = 220;
 
@@ -28,6 +29,15 @@ export class TileStreamer {
   private readonly tiles = new Map<string, WorldTile>();
   private readonly gpuReleased = new WeakSet<THREE.Object3D>();
   private motionHint: StreamingMotionHint | null = null;
+  private budget: AdaptiveStreamingBudget = {
+    tier: "quality",
+    baseScale: 1,
+    detailScale: 1,
+    prefetchScale: 1,
+    maxConcurrentLoads: 2,
+    maxConcurrentPrefetches: 1,
+    dprCap: 1.8,
+  };
   private lastSignature = "";
   private listener?: (stats: StreamingStats) => void;
 
@@ -53,13 +63,19 @@ export class TileStreamer {
     this.motionHint = hint;
   }
 
+  setAdaptiveBudget(budget: AdaptiveStreamingBudget): void {
+    this.budget = budget;
+  }
+
 
   update(camera: THREE.Camera, mode: ExploreMode): void {
     const range = streamingRange(mode, this.radius);
+    const baseDistance = range.base * this.budget.baseScale;
+    const detailDistance = range.detail * this.budget.detailScale;
     const prefetchedTiles = mode === "drive" ? this.selectDrivePrefetchTiles() : new Set<string>();
     const active = new Set<string>();
     for (const entry of this.objects) {
-      const distance = entry.detail ? range.detail : range.base;
+      const distance = entry.detail ? detailDistance : baseDistance;
       const normalVisible = tileIsVisible(
         entry.tile,
         camera.position.x,
@@ -99,7 +115,8 @@ export class TileStreamer {
     if (directionLength < 0.001) return new Set<string>();
     const nx = hint.directionX / directionLength;
     const nz = hint.directionZ / directionLength;
-    const lookAhead = Math.min(720, 320 + hint.speedMetersPerSecond * 10);
+    const lookAhead = Math.min(720, 320 + hint.speedMetersPerSecond * 10) * this.budget.prefetchScale;
+    if (lookAhead < 220) return new Set<string>();
 
     return new Set(
       [...this.tiles.values()]
