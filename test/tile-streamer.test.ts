@@ -87,6 +87,45 @@ describe("TileStreamer GPU release", () => {
     expect(detail.visible).toBe(false);
   });
 
+  it("shrinks base visibility under the economy adaptive budget", () => {
+    const root = new THREE.Group();
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+    mesh.userData = {
+      worldseedTile: { id: "2:0", x: 2, z: 0, centerX: 600, centerZ: 0, size: 300 },
+    };
+    root.add(mesh);
+
+    const streamer = new TileStreamer(root, 500);
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(0, 0, 0);
+
+    streamer.setAdaptiveBudget({
+      tier: "quality",
+      baseScale: 1.08,
+      detailScale: 1,
+      prefetchScale: 1,
+      maxConcurrentLoads: 2,
+      maxConcurrentPrefetches: 1,
+      maxCacheRecords: 72,
+      dprCap: 1.8,
+    });
+    streamer.update(camera, "drive");
+    expect(mesh.visible).toBe(true);
+
+    streamer.setAdaptiveBudget({
+      tier: "economy",
+      baseScale: 0.72,
+      detailScale: 0.55,
+      prefetchScale: 0.62,
+      maxConcurrentLoads: 1,
+      maxConcurrentPrefetches: 0,
+      maxCacheRecords: 20,
+      dprCap: 1.35,
+    });
+    streamer.update(camera, "drive");
+    expect(mesh.visible).toBe(false);
+  });
+
   it("keeps just-hidden tiles warm inside the release margin", () => {
     const { root, mesh, geometry } = makeRoot();
     let geometryDisposals = 0;
