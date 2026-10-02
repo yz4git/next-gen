@@ -10,6 +10,8 @@ It consumes only the public files created by **Three.js kit** export:
 - `road-graph.json`
 - `spawn-points.json`
 - `drive-route.json`
+- `worldseed-tiles.index.json` and `worldseed-tiles/*.glb` when present
+- `worldseed-ir.index.json` and `worldseed-ir/chunks/*.json` when present
 - `schemas/v1/*.schema.json`
 
 ## Fastest trial
@@ -34,7 +36,7 @@ npm run dev
 
 Export a Three.js kit from WorldSeed and drop the resulting ZIP onto the example.
 
-The consumer renders the exported GLB, overlays the routable road graph, shows vehicle/pedestrian spawn points, and draws the active drive route. It rejects JSON contract versions other than schema `1.0`.
+The consumer overlays the routable road graph, shows vehicle/pedestrian spawn points, and draws the active drive route. New exports use the geometry tile index to parse only nearby tile GLBs into the Three.js scene and dispose distant GPU resources; older exports fall back to `city.glb`. It rejects JSON contract versions other than schema `1.0`.
 
 ## Why this example exists
 
