@@ -25,6 +25,21 @@ export interface DriveStreamingHint {
   speedMetersPerSecond: number;
 }
 
+export function driveStreamingHintForState(
+  state: DrivePhysicsState,
+  active = true,
+): DriveStreamingHint | null {
+  if (!active || Math.abs(state.speed) < 1.5) return null;
+  const direction = state.speed < 0 ? -1 : 1;
+  return {
+    x: state.x,
+    z: state.z,
+    directionX: Math.sin(state.heading) * direction,
+    directionZ: Math.cos(state.heading) * direction,
+    speedMetersPerSecond: Math.abs(state.speed),
+  };
+}
+
 export interface DriveChallengeTelemetry {
   status: "ready" | "running" | "finished";
   elapsedSeconds: number;
@@ -165,15 +180,7 @@ export class DriveController {
   }
 
   getStreamingHint(): DriveStreamingHint | null {
-    if (!this.active || Math.abs(this.state.speed) < 1.5) return null;
-    const direction = this.state.speed < 0 ? -1 : 1;
-    return {
-      x: this.state.x,
-      z: this.state.z,
-      directionX: Math.sin(this.state.heading) * direction,
-      directionZ: Math.cos(this.state.heading) * direction,
-      speedMetersPerSecond: Math.abs(this.state.speed),
-    };
+    return driveStreamingHintForState(this.state, this.active);
   }
 
 
