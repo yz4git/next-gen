@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   initialAdaptiveStreamingState,
+  initialFrameTimeSchedulerState,
+  optionalStreamingWorkAllowed,
   updateAdaptiveStreamingState,
+  updateFrameTimeSchedulerState,
 } from "../src/render/adaptive-streaming";
 
 describe("adaptive streaming budget", () => {
@@ -45,5 +48,29 @@ describe("adaptive streaming budget", () => {
       dprCap: 1.35,
     });
     expect(state.budget.detailScale).toBeLessThan(state.budget.baseScale);
+  });
+});
+
+
+describe("frame-time streaming scheduler", () => {
+  it("defers optional work after a medium frame spike and recovers gradually", () => {
+    let state = initialFrameTimeSchedulerState();
+    state = updateFrameTimeSchedulerState(state, 30);
+    expect(state.deferOptionalFrames).toBe(10);
+    expect(optionalStreamingWorkAllowed(state)).toBe(false);
+
+    for (let i = 0; i < 4; i += 1) state = updateFrameTimeSchedulerState(state, 16);
+    expect(state.deferOptionalFrames).toBe(2);
+    expect(optionalStreamingWorkAllowed(state)).toBe(false);
+
+    state = updateFrameTimeSchedulerState(state, 16);
+    expect(state.deferOptionalFrames).toBe(0);
+    expect(optionalStreamingWorkAllowed(state)).toBe(true);
+  });
+
+  it("uses a longer cooldown for a severe frame spike", () => {
+    const state = updateFrameTimeSchedulerState(initialFrameTimeSchedulerState(), 50);
+    expect(state.deferOptionalFrames).toBe(24);
+    expect(state.lastFrameTimeMs).toBe(50);
   });
 });
