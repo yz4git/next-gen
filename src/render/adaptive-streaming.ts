@@ -139,3 +139,43 @@ function higherTier(tier: AdaptiveStreamingTier): AdaptiveStreamingTier {
   if (tier === "economy") return "balanced";
   return "quality";
 }
+
+
+export interface FrameTimeSchedulerState {
+  deferOptionalFrames: number;
+  lastFrameTimeMs: number;
+}
+
+export function initialFrameTimeSchedulerState(): FrameTimeSchedulerState {
+  return {
+    deferOptionalFrames: 0,
+    lastFrameTimeMs: 0,
+  };
+}
+
+export function updateFrameTimeSchedulerState(
+  state: FrameTimeSchedulerState,
+  frameTimeMs: number,
+): FrameTimeSchedulerState {
+  if (!Number.isFinite(frameTimeMs) || frameTimeMs <= 0) return state;
+
+  let deferOptionalFrames = state.deferOptionalFrames;
+  if (frameTimeMs >= 45) {
+    deferOptionalFrames = Math.max(deferOptionalFrames, 24);
+  } else if (frameTimeMs >= 28) {
+    deferOptionalFrames = Math.max(deferOptionalFrames, 10);
+  } else if (frameTimeMs <= 20) {
+    deferOptionalFrames = Math.max(0, deferOptionalFrames - 2);
+  } else {
+    deferOptionalFrames = Math.max(0, deferOptionalFrames - 1);
+  }
+
+  return {
+    deferOptionalFrames,
+    lastFrameTimeMs: frameTimeMs,
+  };
+}
+
+export function optionalStreamingWorkAllowed(state: FrameTimeSchedulerState): boolean {
+  return state.deferOptionalFrames <= 0;
+}
