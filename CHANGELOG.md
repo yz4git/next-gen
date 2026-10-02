@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Added a REDox-inspired, dependency-free WorldSeed IR v1 that normalizes metadata, semantic objects, road graphs, spawn points, and drive routes behind one versioned intermediate representation.
+- Starter-kit exports now route structured data through the IR, emit deterministic JSON key ordering, and include `worldseed-ir.json` while preserving all existing schema v1 filenames and semantics.
+- Added an explicit IR migration boundary plus regression tests for round-tripping, deterministic serialization, and unsupported versions.
+
 ## 0.9.1 — Schema validation hotfix
 
 - Fixed the road-graph v1 JSON Schema node definition so node IDs and edge references validate correctly under Draft 2020-12 `additionalProperties` rules.
