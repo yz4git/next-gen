@@ -93,3 +93,16 @@ The generated starter viewer keeps visible work and predictive work separate.
 - IndexedDB failure is non-fatal; the viewer falls back to normal network loading
 
 This keeps network latency ahead of camera/player movement while leaving GLTF parsing and GPU upload on the normal visible-tile path.
+
+
+## Live Drive prewarm
+
+The WorldSeed application itself already owns generated geometry in CPU memory, so it does not need the starter kit's network/IndexedDB prefetch path. Instead, Drive mode publishes a lightweight motion hint from the fixed-step vehicle state:
+
+- local-meter vehicle position
+- signed travel direction derived from heading and forward/reverse speed
+- absolute speed in meters per second
+
+The runtime tile streamer uses that hint to select at most two base tiles in a narrow corridor ahead of the vehicle. Those base objects become visible slightly earlier than the normal camera-distance rule, which lets Three.js perform GPU upload before the vehicle reaches the tile. Detail objects are never pulled forward by this rule.
+
+The look-ahead distance scales with speed and is capped, so stopped/slow vehicles do not keep unnecessary tiles active.
