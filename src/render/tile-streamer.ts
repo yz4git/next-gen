@@ -15,10 +15,19 @@ export interface StreamingStats {
   totalTiles: number;
 }
 
+export interface StreamingMotionHint {
+  x: number;
+  z: number;
+  directionX: number;
+  directionZ: number;
+  speedMetersPerSecond: number;
+}
+
 export class TileStreamer {
   private readonly objects: StreamedObject[] = [];
   private readonly tiles = new Map<string, WorldTile>();
   private readonly gpuReleased = new WeakSet<THREE.Object3D>();
+  private motionHint: StreamingMotionHint | null = null;
   private lastSignature = "";
   private listener?: (stats: StreamingStats) => void;
 
@@ -40,17 +49,24 @@ export class TileStreamer {
     listener({ activeTiles: this.tiles.size, totalTiles: this.tiles.size });
   }
 
+  setMotionHint(hint: StreamingMotionHint | null): void {
+    this.motionHint = hint;
+  }
+
+
   update(camera: THREE.Camera, mode: ExploreMode): void {
     const range = streamingRange(mode, this.radius);
+    const prefetchedTiles = mode === "drive" ? this.selectDrivePrefetchTiles() : new Set<string>();
     const active = new Set<string>();
     for (const entry of this.objects) {
       const distance = entry.detail ? range.detail : range.base;
-      const visible = tileIsVisible(
+      const normalVisible = tileIsVisible(
         entry.tile,
         camera.position.x,
         camera.position.z,
         distance,
       );
+      const visible = normalVisible || (!entry.detail && prefetchedTiles.has(entry.tile.id));
       entry.object.visible = visible;
       if (visible) {
         active.add(entry.tile.id);
@@ -73,6 +89,44 @@ export class TileStreamer {
     if (signature === this.lastSignature) return;
     this.lastSignature = signature;
     this.listener?.({ activeTiles: active.size, totalTiles: this.tiles.size });
+  }
+
+  private selectDrivePrefetchTiles(): Set<string> {
+    const hint = this.motionHint;
+    if (!hint || hint.speedMetersPerSecond < 1.5) return new Set<string>();
+
+    const directionLength = Math.hypot(hint.directionX, hint.directionZ);
+    if (directionLength < 0.001) return new Set<string>();
+    const nx = hint.directionX / directionLength;
+    const nz = hint.directionZ / directionLength;
+    const lookAhead = Math.min(720, 320 + hint.speedMetersPerSecond * 10);
+
+    return new Set(
+      [...this.tiles.values()]
+        .map((tile) => {
+          const offsetX = tile.centerX - hint.x;
+          const offsetZ = tile.centerZ - hint.z;
+          return {
+            id: tile.id,
+            tile,
+            forward: offsetX * nx + offsetZ * nz,
+            lateral: Math.abs(offsetX * nz - offsetZ * nx),
+          };
+        })
+        .filter(({ tile, forward, lateral }) => {
+          const padding = tile.size * Math.SQRT2 / 2;
+          return forward > 80
+            && forward <= lookAhead + padding
+            && lateral <= tile.size * 0.75;
+        })
+        .sort((first, second) =>
+          first.forward - second.forward
+          || first.lateral - second.lateral
+          || first.tile.z - second.tile.z
+          || first.tile.x - second.tile.x)
+        .slice(0, 2)
+        .map(({ id }) => id),
+    );
   }
 }
 
