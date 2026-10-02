@@ -294,6 +294,23 @@ export function selectWorldSeedIrChunks(
   });
 }
 
+export async function loadWorldSeedIrChunks(
+  index: WorldSeedIrIndex,
+  x: number,
+  z: number,
+  distanceMeters: number,
+  read: (path: string) => Promise<string | unknown>,
+): Promise<WorldSeedIrChunk[]> {
+  const descriptors = selectWorldSeedIrChunks(index, x, z, distanceMeters);
+  return await Promise.all(descriptors.map(async (descriptor) => {
+    const chunk = parseWorldSeedIrChunk(await read(descriptor.path));
+    if (chunk.tile.id !== descriptor.id) {
+      throw new Error(`WorldSeed IR chunk id mismatch: expected ${descriptor.id}, received ${chunk.tile.id}`);
+    }
+    return chunk;
+  }));
+}
+
 export function encodeWorldSeedIrFiles(
   document: WorldSeedIrDocument,
   tileSizeMeters = WORLD_TILE_SIZE,
