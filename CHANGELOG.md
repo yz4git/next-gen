@@ -10,7 +10,7 @@
 - Added nearest-first tile scheduling with a two-load concurrency cap, stale-job dropping, and frame-yielded ZIP parsing to reduce mobile CPU/GPU spikes.
 - Added directional low-priority prefetch for one or two forward base tiles plus matching IR chunks, backed by a seven-day export-namespaced IndexedDB cache in generated starter kits.
 - Drive mode now publishes vehicle motion hints so the live runtime can prewarm at most two base geometry tiles ahead of forward or reverse travel without pulling detail geometry forward.
-- Added adaptive streaming budgets driven by device hints and measured FPS, scaling base/detail range, DPR, load/prefetch concurrency, forward look-ahead, and Starter Kit IndexedDB record/byte cache limits with hysteresis and LRU-style eviction.
+- Added adaptive streaming budgets driven by device hints and measured FPS, scaling base/detail range, DPR, load/prefetch concurrency, forward look-ahead, and Starter Kit IndexedDB record/byte cache limits with hysteresis and LRU-style eviction.\n- Added a frame-time aware scheduler that keeps base geometry responsive while temporarily deferring new detail and background prefetch work after 28 ms / 45 ms frame spikes.
 - Split exported tile geometry into wider-range base GLBs and optional close-range detail GLBs while keeping terrain global and `city.glb` as a compatibility fallback.
 - Distant runtime tiles now release GPU geometry/material resources outside a hysteresis margin while retaining CPU-side data for automatic re-upload when the tile becomes visible again.
 
