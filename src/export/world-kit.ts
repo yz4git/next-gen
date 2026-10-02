@@ -17,6 +17,8 @@ export interface WorldSeedGeometryTileDescriptor {
   id: string;
   path: string;
   detailPath?: string;
+  byteLength?: number;
+  detailByteLength?: number;
   x: number;
   z: number;
   centerX: number;
@@ -307,17 +309,18 @@ export function selectGeometryTiles(
 
 async function createGeometryTileArchiveFiles(root: THREE.Object3D): Promise<Record<string, Uint8Array>> {
   const { index, tiles } = createGeometryTileGroups(root);
-  const files: Record<string, Uint8Array> = {
-    "worldseed-tiles.index.json": strToU8(serializeCanonicalJson(index)),
-  };
+  const files: Record<string, Uint8Array> = {};
   for (const tile of tiles) {
     const binary = await createGlb(tile.group, false);
+    tile.descriptor.byteLength = binary.byteLength;
     files[tile.descriptor.path] = new Uint8Array(binary);
     if (tile.detailGroup && tile.descriptor.detailPath) {
       const detailBinary = await createGlb(tile.detailGroup, false);
+      tile.descriptor.detailByteLength = detailBinary.byteLength;
       files[tile.descriptor.detailPath] = new Uint8Array(detailBinary);
     }
   }
+  files["worldseed-tiles.index.json"] = strToU8(serializeCanonicalJson(index));
   return files;
 }
 
