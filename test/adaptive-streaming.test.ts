@@ -103,6 +103,7 @@ describe("parse-cost aware streaming scheduler", () => {
     expect(costAwareStreamingConcurrency(2, 0, 8)).toBe(2);
     expect(costAwareStreamingConcurrency(2, 0, 24)).toBe(1);
     expect(costAwareStreamingConcurrency(2, 20, 7)).toBe(1);
+    expect(costAwareStreamingConcurrency(2, 13, 12)).toBe(1);
     expect(costAwareStreamingConcurrency(1, 0, 4)).toBe(1);
   });
 });
