@@ -40,6 +40,7 @@ const loadedBaseTiles = new Map();
 const loadedDetailTiles = new Map();
 const pendingJobs = new Set();
 const queuedJobs = new Map();
+const uploadJobs = new Map();
 const desiredJobs = new Set();
 let activeTileLoads = 0;
 let activeArchive = null;
@@ -51,6 +52,7 @@ let fpsStartedAt = performance.now();
 let lastFrameAt = performance.now();
 let deferOptionalFrames = 0;
 let activeEstimatedParseMs = 0;
+let renderFrameIndex = 0;
 let parseCostState = {
   baseMsPerMb: 14,
   detailMsPerMb: 16,
@@ -182,7 +184,7 @@ function updateStreamedGeometry(force = false) {
 
     if (distance <= baseDistance + padding) {
       desiredJobs.add(baseKey);
-      if (!loadedBaseTiles.has(tile.id) && !pendingJobs.has(baseKey)) {
+      if (!loadedBaseTiles.has(tile.id) && !jobIsPending(baseKey)) {
         candidates.push({ key: baseKey, tile, kind: "base", distance, priority: distance });
       }
     } else if (distance > baseUnloadDistance + padding) {
@@ -192,7 +194,7 @@ function updateStreamedGeometry(force = false) {
 
     if (tile.detailPath && distance <= detailDistance + padding) {
       desiredJobs.add(detailKey);
-      if (!loadedDetailTiles.has(tile.id) && !pendingJobs.has(detailKey)) {
+      if (!loadedDetailTiles.has(tile.id) && !jobIsPending(detailKey)) {
         candidates.push({ key: detailKey, tile, kind: "detail", distance, priority: distance + 90 });
       }
     } else if (distance > detailUnloadDistance + padding) {
@@ -208,13 +210,17 @@ function updateStreamedGeometry(force = false) {
   pumpGeometryQueue();
 }
 
+function jobIsPending(key) {
+  return pendingJobs.has(key) || uploadJobs.has(key);
+}
+
 function pumpGeometryQueue() {
   while (queuedJobs.size > 0) {
     const next = queuedJobs.entries().next().value;
     if (!next) return;
     const [key, job] = next;
 
-    if (!desiredJobs.has(key) || pendingJobs.has(key)) {
+    if (!desiredJobs.has(key) || jobIsPending(key)) {
       queuedJobs.delete(key);
       continue;
     }
@@ -264,9 +270,15 @@ async function runGeometryTileLoad(job, generation, estimatedParseMs) {
     }
     gltf.scene.userData.worldseedTileId = job.tile.id;
     gltf.scene.userData.worldseedLod = job.kind;
-    streamedTiles.add(gltf.scene);
-    if (job.kind === "detail") loadedDetailTiles.set(job.tile.id, gltf.scene);
-    else loadedBaseTiles.set(job.tile.id, gltf.scene);
+    const uploadHints = collectGpuUploadHints(gltf.scene);
+    const delayFrames = gpuUploadDelayFrames(uploadHints);
+    uploadJobs.set(key, {
+      job,
+      scene: gltf.scene,
+      generation,
+      delayFrames,
+      availableAtFrame: renderFrameIndex + delayFrames,
+    });
   } finally {
     pendingJobs.delete(key);
     activeTileLoads = Math.max(0, activeTileLoads - 1);
@@ -278,6 +290,11 @@ async function runGeometryTileLoad(job, generation, estimatedParseMs) {
 function unloadGeometryTile(id, kind) {
   const key = kind + ":" + id;
   queuedJobs.delete(key);
+  const upload = uploadJobs.get(key);
+  if (upload) {
+    disposeObject(upload.scene);
+    uploadJobs.delete(key);
+  }
   const loaded = kind === "detail" ? loadedDetailTiles : loadedBaseTiles;
   const tile = loaded.get(id);
   if (!tile) return;
@@ -321,6 +338,91 @@ function createRouteOverlay(route) {
   const points = route.points.map((p) => new THREE.Vector3(p.x, p.y + 0.65, p.z));
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
   return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xff635e }));
+}
+
+function pumpGpuUploadQueue() {
+  if (uploadJobs.size === 0) return;
+
+  for (const [key, upload] of uploadJobs) {
+    const loaded = upload.job.kind === "detail" ? loadedDetailTiles : loadedBaseTiles;
+    if (
+      upload.generation !== importGeneration
+      || !activeArchive
+      || !desiredJobs.has(key)
+      || loaded.has(upload.job.tile.id)
+    ) {
+      disposeObject(upload.scene);
+      uploadJobs.delete(key);
+    }
+  }
+
+  const candidates = [...uploadJobs.entries()]
+    .filter(([, upload]) =>
+      renderFrameIndex >= upload.availableAtFrame
+      && (upload.job.kind !== "detail" || optionalWorkAllowed()))
+    .sort((first, second) =>
+      first[1].job.priority - second[1].job.priority
+      || first[1].job.tile.z - second[1].job.tile.z
+      || first[1].job.tile.x - second[1].job.tile.x);
+
+  let attachments = 0;
+  for (const [key, upload] of candidates) {
+    const heavy = upload.delayFrames > 0;
+    if (heavy && attachments > 0) continue;
+    if (!heavy && attachments >= 2) break;
+
+    uploadJobs.delete(key);
+    streamedTiles.add(upload.scene);
+    if (upload.job.kind === "detail") loadedDetailTiles.set(upload.job.tile.id, upload.scene);
+    else loadedBaseTiles.set(upload.job.tile.id, upload.scene);
+    attachments += 1;
+
+    if (heavy) break;
+  }
+}
+
+function collectGpuUploadHints(root) {
+  const geometries = new Set();
+  const materials = new Set();
+  let vertexCount = 0;
+  let geometryByteLength = 0;
+
+  root.traverse((object) => {
+    const geometry = object.geometry;
+    if (geometry?.isBufferGeometry && !geometries.has(geometry.uuid)) {
+      geometries.add(geometry.uuid);
+      const position = geometry.getAttribute("position");
+      if (position) vertexCount += position.count;
+      for (const attribute of Object.values(geometry.attributes)) {
+        if (attribute?.array?.byteLength) geometryByteLength += attribute.array.byteLength;
+      }
+      const index = geometry.getIndex();
+      if (index?.array?.byteLength) geometryByteLength += index.array.byteLength;
+    }
+
+    const material = object.material;
+    if (Array.isArray(material)) {
+      for (const item of material) if (item?.uuid) materials.add(item.uuid);
+    } else if (material?.uuid) {
+      materials.add(material.uuid);
+    }
+  });
+
+  return { vertexCount, geometryByteLength, materialCount: materials.size };
+}
+
+function gpuUploadDelayFrames(hints) {
+  if (
+    hints.vertexCount >= 350_000
+    || hints.geometryByteLength >= 12 * 1024 * 1024
+    || hints.materialCount >= 32
+  ) return 2;
+  if (
+    hints.vertexCount >= 180_000
+    || hints.geometryByteLength >= 6 * 1024 * 1024
+    || hints.materialCount >= 16
+  ) return 1;
+  return 0;
 }
 
 function jobByteLength(job) {
@@ -417,6 +519,8 @@ function clearImported() {
   desiredJobs.clear();
   queuedJobs.clear();
   pendingJobs.clear();
+  for (const upload of uploadJobs.values()) disposeObject(upload.scene);
+  uploadJobs.clear();
   for (const tile of loadedBaseTiles.values()) disposeObject(tile);
   for (const tile of loadedDetailTiles.values()) disposeObject(tile);
   loadedBaseTiles.clear();
@@ -467,6 +571,7 @@ function resize() {
   }
 }
 renderer.setAnimationLoop(() => {
+  renderFrameIndex += 1;
   const frameNow = performance.now();
   sampleFrameTime(frameNow - lastFrameAt);
   lastFrameAt = frameNow;
@@ -474,6 +579,7 @@ renderer.setAnimationLoop(() => {
   resize();
   controls.update();
   updateStreamedGeometry();
+  pumpGpuUploadQueue();
   renderer.render(scene, camera);
 
   fpsFrames += 1;
