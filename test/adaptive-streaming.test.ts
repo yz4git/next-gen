@@ -7,6 +7,7 @@ import {
   initialStreamingParseCostState,
   optionalStreamingWorkAllowed,
   recordStreamingParseCost,
+  streamingFetchBufferSlots,
   updateAdaptiveStreamingState,
   updateFrameTimeSchedulerState,
 } from "../src/render/adaptive-streaming";
@@ -105,5 +106,20 @@ describe("parse-cost aware streaming scheduler", () => {
     expect(costAwareStreamingConcurrency(2, 20, 7)).toBe(1);
     expect(costAwareStreamingConcurrency(2, 13, 12)).toBe(1);
     expect(costAwareStreamingConcurrency(1, 0, 4)).toBe(1);
+  });
+});
+
+
+describe("visible fetch-ahead buffer", () => {
+  it("keeps at most two fetched-or-fetching jobs ahead of parsing", () => {
+    expect(streamingFetchBufferSlots(2, 0, 0)).toBe(2);
+    expect(streamingFetchBufferSlots(2, 1, 0)).toBe(1);
+    expect(streamingFetchBufferSlots(2, 0, 1)).toBe(1);
+    expect(streamingFetchBufferSlots(2, 1, 1)).toBe(0);
+    expect(streamingFetchBufferSlots(2, 0, 2)).toBe(0);
+  });
+
+  it("is independent of parse concurrency", () => {
+    expect(streamingFetchBufferSlots(2, 0, 0)).toBe(2);
   });
 });
