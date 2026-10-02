@@ -50,6 +50,13 @@ let fpsFrames = 0;
 let fpsStartedAt = performance.now();
 let lastFrameAt = performance.now();
 let deferOptionalFrames = 0;
+let activeEstimatedParseMs = 0;
+let parseCostState = {
+  baseMsPerMb: 14,
+  detailMsPerMb: 16,
+  baseSamples: 0,
+  detailSamples: 0,
+};
 
 fileInput.addEventListener("change", () => {
   const file = fileInput.files?.[0];
@@ -202,20 +209,38 @@ function updateStreamedGeometry(force = false) {
 }
 
 function pumpGeometryQueue() {
-  while (activeTileLoads < streamingState.budget.maxConcurrentLoads && queuedJobs.size > 0) {
+  while (queuedJobs.size > 0) {
     const next = queuedJobs.entries().next().value;
     if (!next) return;
     const [key, job] = next;
-    queuedJobs.delete(key);
-    if (!desiredJobs.has(key) || pendingJobs.has(key)) continue;
-    if (job.kind === "detail" && !optionalWorkAllowed()) continue;
+
+    if (!desiredJobs.has(key) || pendingJobs.has(key)) {
+      queuedJobs.delete(key);
+      continue;
+    }
+    if (job.kind === "detail" && !optionalWorkAllowed()) {
+      queuedJobs.delete(key);
+      continue;
+    }
+
     const loaded = job.kind === "detail" ? loadedDetailTiles : loadedBaseTiles;
-    if (loaded.has(job.tile.id)) continue;
-    void runGeometryTileLoad(job, importGeneration);
+    if (loaded.has(job.tile.id)) {
+      queuedJobs.delete(key);
+      continue;
+    }
+
+    const estimatedParseMs = estimateJobParseCostMs(job);
+    const costLimit = activeEstimatedParseMs >= 18 || estimatedParseMs >= 18
+      ? 1
+      : streamingState.budget.maxConcurrentLoads;
+    if (activeTileLoads >= costLimit) break;
+
+    queuedJobs.delete(key);
+    void runGeometryTileLoad(job, importGeneration, estimatedParseMs);
   }
 }
 
-async function runGeometryTileLoad(job, generation) {
+async function runGeometryTileLoad(job, generation, estimatedParseMs) {
   if (!activeArchive) return;
   const key = job.kind + ":" + job.tile.id;
   const path = job.kind === "detail" ? job.tile.detailPath : job.tile.path;
@@ -224,10 +249,13 @@ async function runGeometryTileLoad(job, generation) {
   if (!bytes) return;
 
   activeTileLoads += 1;
+  activeEstimatedParseMs += estimatedParseMs;
   pendingJobs.add(key);
   try {
     await new Promise((resolve) => requestAnimationFrame(resolve));
+    const parseStartedAt = performance.now();
     const gltf = await loader.parseAsync(exactArrayBuffer(bytes), "");
+    recordParseCost(job.kind, bytes.byteLength, performance.now() - parseStartedAt);
     if (generation !== importGeneration || !activeArchive || !desiredJobs.has(key)) {
       disposeObject(gltf.scene);
       return;
@@ -240,6 +268,7 @@ async function runGeometryTileLoad(job, generation) {
   } finally {
     pendingJobs.delete(key);
     activeTileLoads = Math.max(0, activeTileLoads - 1);
+    activeEstimatedParseMs = Math.max(0, activeEstimatedParseMs - estimatedParseMs);
     pumpGeometryQueue();
   }
 }
@@ -290,6 +319,36 @@ function createRouteOverlay(route) {
   const points = route.points.map((p) => new THREE.Vector3(p.x, p.y + 0.65, p.z));
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
   return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xff635e }));
+}
+
+function jobByteLength(job) {
+  const value = job.kind === "detail" ? job.tile.detailByteLength : job.tile.byteLength;
+  return Number.isFinite(value) && value > 0 ? value : 1_500_000;
+}
+
+function estimateJobParseCostMs(job) {
+  const bytes = jobByteLength(job);
+  const megabytes = Math.max(0.15, bytes / (1024 * 1024));
+  const rate = job.kind === "detail" ? parseCostState.detailMsPerMb : parseCostState.baseMsPerMb;
+  return Math.max(1, megabytes * rate);
+}
+
+function recordParseCost(kind, byteLength, elapsedMs) {
+  if (!Number.isFinite(elapsedMs) || elapsedMs <= 0) return;
+  const megabytes = Math.max(0.15, byteLength / (1024 * 1024));
+  const sampleRate = Math.min(180, Math.max(2, elapsedMs / megabytes));
+  const alpha = 0.35;
+  if (kind === "detail") {
+    parseCostState.detailMsPerMb = parseCostState.detailSamples === 0
+      ? sampleRate
+      : parseCostState.detailMsPerMb * (1 - alpha) + sampleRate * alpha;
+    parseCostState.detailSamples += 1;
+  } else {
+    parseCostState.baseMsPerMb = parseCostState.baseSamples === 0
+      ? sampleRate
+      : parseCostState.baseMsPerMb * (1 - alpha) + sampleRate * alpha;
+    parseCostState.baseSamples += 1;
+  }
 }
 
 function sampleFrameTime(frameTimeMs) {
