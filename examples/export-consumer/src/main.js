@@ -8,6 +8,8 @@ const drop = document.querySelector("#drop");
 const fileInput = document.querySelector("#file");
 const status = document.querySelector("#status");
 
+const MAX_UPLOAD_READY_JOBS = 2;
+
 const STREAMING_BUDGETS = {
   economy: { tier: "economy", baseScale: 0.72, detailScale: 0.55, maxConcurrentLoads: 1, dprCap: 1.35 },
   balanced: { tier: "balanced", baseScale: 0.9, detailScale: 0.78, maxConcurrentLoads: 2, dprCap: 1.65 },
@@ -235,6 +237,7 @@ function pumpGeometryQueue() {
       continue;
     }
 
+    if (!uploadBufferAllowsParse(job.kind)) break;
     const estimatedParseMs = estimateJobParseCostMs(job);
     const costLimit = activeEstimatedParseMs >= 18
       || estimatedParseMs >= 18
@@ -338,6 +341,13 @@ function createRouteOverlay(route) {
   const points = route.points.map((p) => new THREE.Vector3(p.x, p.y + 0.65, p.z));
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
   return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xff635e }));
+}
+
+function uploadBufferAllowsParse(kind) {
+  if (uploadJobs.size < MAX_UPLOAD_READY_JOBS) return true;
+  if (kind !== "base" || optionalWorkAllowed()) return false;
+  const blockedDetails = [...uploadJobs.values()].filter((upload) => upload.job.kind === "detail").length;
+  return blockedDetails === uploadJobs.size && uploadJobs.size < MAX_UPLOAD_READY_JOBS + 1;
 }
 
 function pumpGpuUploadQueue() {
