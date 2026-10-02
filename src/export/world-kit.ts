@@ -411,9 +411,9 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const STREAMING_BUDGETS = {
-  economy: { tier: "economy", baseScale: 0.72, detailScale: 0.55, prefetchScale: 0.62, maxConcurrentLoads: 1, maxConcurrentPrefetches: 0, maxCacheRecords: 20, dprCap: 1.35 },
-  balanced: { tier: "balanced", baseScale: 0.9, detailScale: 0.78, prefetchScale: 0.82, maxConcurrentLoads: 2, maxConcurrentPrefetches: 1, maxCacheRecords: 40, dprCap: 1.65 },
-  quality: { tier: "quality", baseScale: 1.08, detailScale: 1, prefetchScale: 1, maxConcurrentLoads: 2, maxConcurrentPrefetches: 1, maxCacheRecords: 72, dprCap: 1.8 },
+  economy: { tier: "economy", baseScale: 0.72, detailScale: 0.55, prefetchScale: 0.62, maxConcurrentLoads: 1, maxConcurrentPrefetches: 0, maxCacheRecords: 20, maxCacheBytes: 32 * 1024 * 1024, dprCap: 1.35 },
+  balanced: { tier: "balanced", baseScale: 0.9, detailScale: 0.78, prefetchScale: 0.82, maxConcurrentLoads: 2, maxConcurrentPrefetches: 1, maxCacheRecords: 40, maxCacheBytes: 64 * 1024 * 1024, dprCap: 1.65 },
+  quality: { tier: "quality", baseScale: 1.08, detailScale: 1, prefetchScale: 1, maxConcurrentLoads: 2, maxConcurrentPrefetches: 1, maxCacheRecords: 72, maxCacheBytes: 128 * 1024 * 1024, dprCap: 1.8 },
 };
 const PREFETCH_LOOKAHEAD_METERS = 700;
 const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -566,6 +566,13 @@ function cacheKey(path) {
   return CACHE_PREFIX + cacheNamespace + ":" + normalizePath(path);
 }
 
+function cacheValueByteLength(value) {
+  if (typeof value === "string") return new TextEncoder().encode(value).byteLength;
+  if (value instanceof ArrayBuffer) return value.byteLength;
+  if (ArrayBuffer.isView(value)) return value.byteLength;
+  return 0;
+}
+
 async function cacheGet(path) {
   try {
     const key = cacheKey(path);
@@ -590,6 +597,7 @@ async function cacheSet(path, value) {
     await set(cacheKey(path), {
       expiresAt: now + CACHE_MAX_AGE_MS,
       lastAccessedAt: now,
+      byteLength: cacheValueByteLength(value),
       value,
     });
     cacheWritesSincePrune += 1;
@@ -631,8 +639,16 @@ async function pruneCurrentCacheNamespace() {
     })));
     records.sort((first, second) =>
       Number(first.record?.lastAccessedAt || 0) - Number(second.record?.lastAccessedAt || 0));
-    const removeCount = Math.max(0, records.length - maximum);
-    await Promise.all(records.slice(0, removeCount).map(({ key }) => del(key)));
+
+    let totalBytes = records.reduce((sum, entry) => sum + Number(entry.record?.byteLength || 0), 0);
+    const maximumBytes = streamingState.budget.maxCacheBytes;
+    const removals = [];
+    for (const entry of records) {
+      if (records.length - removals.length <= maximum && totalBytes <= maximumBytes) break;
+      removals.push(entry.key);
+      totalBytes -= Number(entry.record?.byteLength || 0);
+    }
+    await Promise.all(removals.map((key) => del(key)));
   } catch {
     // Cache trimming is best-effort.
   }
