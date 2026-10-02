@@ -14,7 +14,7 @@ import {
 } from "../terrain/quality";
 import type { ExploreMode, LonLat, WorldStyle } from "../types";
 import { DriveTerrainDetailPatch } from "./drive-terrain-detail";
-import { TileStreamer, type StreamingStats } from "./tile-streamer";
+import { TileStreamer, type StreamingMotionHint, type StreamingStats } from "./tile-streamer";
 
 interface TerrainLodState {
   mesh: THREE.Mesh;
@@ -101,6 +101,11 @@ export class WorldRenderer {
   onStreaming(listener: (stats: StreamingStats) => void): void {
     this.streamingListener = listener;
   }
+
+  setStreamingMotionHint(hint: StreamingMotionHint | null): void {
+    this.tileStreamer?.setMotionHint(hint);
+  }
+
 
   setExploreMode(mode: ExploreMode): void {
     this.exploreMode = mode;
