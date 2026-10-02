@@ -16,6 +16,7 @@ export const WORLDSEED_GEOMETRY_INDEX_VERSION = "1" as const;
 export interface WorldSeedGeometryTileDescriptor {
   id: string;
   path: string;
+  detailPath?: string;
   x: number;
   z: number;
   centerX: number;
@@ -36,6 +37,7 @@ export interface WorldSeedGeometryIndex {
 export interface WorldSeedGeometryTileGroup {
   descriptor: WorldSeedGeometryTileDescriptor;
   group: THREE.Group;
+  detailGroup?: THREE.Group;
 }
 
 
@@ -164,8 +166,8 @@ export function createGeometryTileGroups(root: THREE.Object3D): {
   const rootInverse = root.matrixWorld.clone().invert();
   const grouped = new Map<string, {
     tile: { id: string; x: number; z: number; centerX: number; centerZ: number; size: number };
-    objects: THREE.Object3D[];
-    detailObjectCount: number;
+    baseObjects: THREE.Object3D[];
+    detailObjects: THREE.Object3D[];
     layers: Set<string>;
   }>();
 
@@ -175,8 +177,8 @@ export function createGeometryTileGroups(root: THREE.Object3D): {
     if (!tile) return;
     const bucket = grouped.get(tile.id) ?? {
       tile,
-      objects: [],
-      detailObjectCount: 0,
+      baseObjects: [],
+      detailObjects: [],
       layers: new Set<string>(),
     };
     const clone = object.clone(false);
@@ -184,8 +186,8 @@ export function createGeometryTileGroups(root: THREE.Object3D): {
     clone.matrix.copy(rootInverse).multiply(object.matrixWorld);
     clone.matrixWorld.copy(clone.matrix);
     clone.visible = true;
-    bucket.objects.push(clone);
-    if (object.userData["worldseedDetail"] === true) bucket.detailObjectCount += 1;
+    if (object.userData["worldseedDetail"] === true) bucket.detailObjects.push(clone);
+    else bucket.baseObjects.push(clone);
     const layer = object.userData["worldseedLayer"];
     if (typeof layer === "string") bucket.layers.add(layer);
     grouped.set(tile.id, bucket);
@@ -195,26 +197,41 @@ export function createGeometryTileGroups(root: THREE.Object3D): {
     .sort((first, second) => first.tile.z - second.tile.z || first.tile.x - second.tile.x)
     .map((bucket): WorldSeedGeometryTileGroup => {
       const group = new THREE.Group();
-      group.name = `WorldSeed Tile ${bucket.tile.id}`;
+      group.name = `WorldSeed Tile Base ${bucket.tile.id}`;
       group.userData = {
         worldseedTile: bucket.tile,
+        worldseedLod: "base",
         exactOriginIncluded: false,
       };
-      for (const object of bucket.objects) group.add(object);
+      for (const object of bucket.baseObjects) group.add(object);
+
+      const detailGroup = bucket.detailObjects.length > 0 ? new THREE.Group() : undefined;
+      if (detailGroup) {
+        detailGroup.name = `WorldSeed Tile Detail ${bucket.tile.id}`;
+        detailGroup.userData = {
+          worldseedTile: bucket.tile,
+          worldseedLod: "detail",
+          exactOriginIncluded: false,
+        };
+        for (const object of bucket.detailObjects) detailGroup.add(object);
+      }
+
       return {
         descriptor: {
           id: bucket.tile.id,
           path: geometryTilePath(bucket.tile.x, bucket.tile.z),
+          ...(detailGroup ? { detailPath: geometryDetailTilePath(bucket.tile.x, bucket.tile.z) } : {}),
           x: bucket.tile.x,
           z: bucket.tile.z,
           centerX: bucket.tile.centerX,
           centerZ: bucket.tile.centerZ,
           size: bucket.tile.size,
-          objectCount: bucket.objects.length,
-          detailObjectCount: bucket.detailObjectCount,
+          objectCount: bucket.baseObjects.length + bucket.detailObjects.length,
+          detailObjectCount: bucket.detailObjects.length,
           layers: [...bucket.layers].sort(),
         },
         group,
+        ...(detailGroup ? { detailGroup } : {}),
       };
     });
 
@@ -262,6 +279,10 @@ async function createGeometryTileArchiveFiles(root: THREE.Object3D): Promise<Rec
   for (const tile of tiles) {
     const binary = await createGlb(tile.group, false);
     files[tile.descriptor.path] = new Uint8Array(binary);
+    if (tile.detailGroup && tile.descriptor.detailPath) {
+      const detailBinary = await createGlb(tile.detailGroup, false);
+      files[tile.descriptor.detailPath] = new Uint8Array(detailBinary);
+    }
   }
   return files;
 }
@@ -297,6 +318,10 @@ function geometryTileFromUserData(value: unknown): {
 
 function geometryTilePath(x: number, z: number): string {
   return `worldseed-tiles/${x}_${z}.glb`;
+}
+
+function geometryDetailTilePath(x: number, z: number): string {
+  return `worldseed-tiles/detail/${x}_${z}.glb`;
 }
 
 export function createExportUserData(
