@@ -930,7 +930,6 @@ function pumpVisibleFetchQueue() {
 
 function pumpVisibleParseQueue() {
   while (readyJobs.size > 0) {
-    if (uploadJobs.size >= MAX_UPLOAD_READY_JOBS) return;
     for (const [key, prepared] of readyJobs) {
       const loaded = prepared.job.kind === "detail" ? loadedDetailTiles : loadedBaseTiles;
       if (!desiredJobs.has(key) || loaded.has(prepared.job.tile.id)) readyJobs.delete(key);
@@ -945,6 +944,7 @@ function pumpVisibleParseQueue() {
     if (!next) return;
 
     const [key, prepared] = next;
+    if (!uploadBufferAllowsParse(prepared.job.kind)) return;
     const estimatedParseMs = estimatePreparedParseCostMs(prepared);
     const costLimit = activeEstimatedParseMs >= 18
       || estimatedParseMs >= 18
@@ -1080,6 +1080,13 @@ function disposeTileScene(root) {
     if (Array.isArray(object.material)) object.material.forEach((material) => material.dispose?.());
     else object.material?.dispose?.();
   });
+}
+
+function uploadBufferAllowsParse(kind) {
+  if (uploadJobs.size < MAX_UPLOAD_READY_JOBS) return true;
+  if (kind !== "base" || optionalWorkAllowed()) return false;
+  const blockedDetails = [...uploadJobs.values()].filter((upload) => upload.job.kind === "detail").length;
+  return blockedDetails === uploadJobs.size && uploadJobs.size < MAX_UPLOAD_READY_JOBS + 1;
 }
 
 function pumpGpuUploadQueue() {
