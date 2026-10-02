@@ -410,11 +410,16 @@ import { del, get, keys, set } from "idb-keyval";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
-const MAX_CONCURRENT_TILE_LOADS = 2;
-const MAX_CONCURRENT_PREFETCHES = 1;
+const STREAMING_BUDGETS = {
+  economy: { tier: "economy", baseScale: 0.72, detailScale: 0.55, prefetchScale: 0.62, maxConcurrentLoads: 1, maxConcurrentPrefetches: 0, dprCap: 1.35 },
+  balanced: { tier: "balanced", baseScale: 0.9, detailScale: 0.78, prefetchScale: 0.82, maxConcurrentLoads: 2, maxConcurrentPrefetches: 1, dprCap: 1.65 },
+  quality: { tier: "quality", baseScale: 1.08, detailScale: 1, prefetchScale: 1, maxConcurrentLoads: 2, maxConcurrentPrefetches: 1, dprCap: 1.8 },
+};
 const PREFETCH_LOOKAHEAD_METERS = 700;
 const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const CACHE_PREFIX = "worldseed-kit:v1:";
+
+let streamingState = createInitialStreamingState();
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xc9e8ed);
@@ -423,7 +428,7 @@ camera.position.set(300, 220, 300);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, streamingState.budget.dprCap));
 document.querySelector("#app").append(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -456,6 +461,8 @@ let previousFocusX = null;
 let previousFocusZ = null;
 let movementX = 0;
 let movementZ = 0;
+let fpsFrames = 0;
+let fpsStartedAt = performance.now();
 
 void boot();
 
@@ -607,8 +614,10 @@ function updateStreamedTiles(force = false) {
   updateMovementHint(focus.x, focus.z);
 
   const cameraDistance = camera.position.distanceTo(focus);
-  const baseDistance = Math.max(360, Math.min(950, cameraDistance * 1.1));
-  const detailDistance = Math.max(220, Math.min(520, baseDistance * 0.62));
+  const rawBaseDistance = Math.max(360, Math.min(950, cameraDistance * 1.1));
+  const rawDetailDistance = Math.max(220, Math.min(520, rawBaseDistance * 0.62));
+  const baseDistance = rawBaseDistance * streamingState.budget.baseScale;
+  const detailDistance = rawDetailDistance * streamingState.budget.detailScale;
   const baseUnloadDistance = baseDistance + 240;
   const detailUnloadDistance = detailDistance + 140;
   const candidates = [];
@@ -693,7 +702,7 @@ function refreshPrefetchQueue(x, z, baseDistance) {
     .filter(({ tile, forward, lateral, directDistance }) => {
       const padding = tile.size * Math.SQRT2 / 2;
       return forward > Math.max(80, baseDistance * 0.55)
-        && forward <= PREFETCH_LOOKAHEAD_METERS + padding
+        && forward <= PREFETCH_LOOKAHEAD_METERS * streamingState.budget.prefetchScale + padding
         && lateral <= tile.size * 0.75
         && directDistance > baseDistance + padding
         && !loadedBaseTiles.has(tile.id)
@@ -715,7 +724,7 @@ function refreshPrefetchQueue(x, z, baseDistance) {
 }
 
 function pumpTileQueue() {
-  while (activeTileLoads < MAX_CONCURRENT_TILE_LOADS && queuedJobs.size > 0) {
+  while (activeTileLoads < streamingState.budget.maxConcurrentLoads && queuedJobs.size > 0) {
     const next = queuedJobs.entries().next().value;
     if (!next) return;
     const [key, job] = next;
@@ -730,8 +739,9 @@ function pumpTileQueue() {
 
 function pumpPrefetchQueue() {
   if (
-    activePrefetches >= MAX_CONCURRENT_PREFETCHES
-    || activeTileLoads >= MAX_CONCURRENT_TILE_LOADS
+    streamingState.budget.maxConcurrentPrefetches <= 0
+    || activePrefetches >= streamingState.budget.maxConcurrentPrefetches
+    || activeTileLoads >= streamingState.budget.maxConcurrentLoads
     || queuedJobs.size > 0
     || queuedPrefetches.size === 0
   ) return;
@@ -814,6 +824,45 @@ function disposeTileScene(root) {
   });
 }
 
+function createInitialStreamingState() {
+  const userAgent = navigator.userAgent || "";
+  const mobile = /iPhone|iPad|iPod|Android/i.test(userAgent)
+    || ((navigator.maxTouchPoints || 0) > 1 && /Macintosh/i.test(userAgent));
+  const cores = navigator.hardwareConcurrency || 4;
+  const memory = navigator.deviceMemory;
+  const constrainedMemory = Number.isFinite(memory) && memory <= 4;
+  const constrainedCpu = cores <= 4;
+  const tier = mobile || constrainedMemory || constrainedCpu ? "balanced" : "quality";
+  return { budget: STREAMING_BUDGETS[tier], lowFpsSamples: 0, highFpsSamples: 0 };
+}
+
+function sampleStreamingFps(fps) {
+  if (!Number.isFinite(fps) || fps <= 0) return;
+  const severe = fps < 36;
+  const low = fps < 48;
+  const high = fps >= 57;
+  streamingState.lowFpsSamples = low ? streamingState.lowFpsSamples + 1 : Math.max(0, streamingState.lowFpsSamples - 1);
+  streamingState.highFpsSamples = high ? streamingState.highFpsSamples + 1 : 0;
+
+  let nextTier = streamingState.budget.tier;
+  if (severe || streamingState.lowFpsSamples >= 2) {
+    nextTier = nextTier === "quality" ? "balanced" : "economy";
+    streamingState.lowFpsSamples = 0;
+    streamingState.highFpsSamples = 0;
+  } else if (streamingState.highFpsSamples >= 6) {
+    nextTier = nextTier === "economy" ? "balanced" : "quality";
+    streamingState.lowFpsSamples = 0;
+    streamingState.highFpsSamples = 0;
+  }
+
+  if (nextTier !== streamingState.budget.tier) {
+    streamingState.budget = STREAMING_BUDGETS[nextTier];
+    renderer.setPixelRatio(Math.min(devicePixelRatio, streamingState.budget.dprCap));
+    renderer.setSize(innerWidth, innerHeight, false);
+    updateStreamedTiles(true);
+  }
+}
+
 addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
@@ -824,6 +873,14 @@ renderer.setAnimationLoop(() => {
   controls.update();
   updateStreamedTiles();
   renderer.render(scene, camera);
+
+  fpsFrames += 1;
+  const now = performance.now();
+  if (now - fpsStartedAt >= 800) {
+    sampleStreamingFps((fpsFrames * 1000) / (now - fpsStartedAt));
+    fpsFrames = 0;
+    fpsStartedAt = now;
+  }
 });
 `;
 }
