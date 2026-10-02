@@ -54,7 +54,7 @@ See [docs/REUSE.md](docs/REUSE.md) for concrete integration paths and export-fil
 - Bounded generation at 100–1,000 m with 2,500-building safety cap and merged geometry batches
 - Five views: Low poly, Anime, Cyber, Blueprint, and Data quality
 - Orbit, first-person walk with footprint collision, free-flight, and Drive modes
-- GLB download and a zipped Three.js game kit with separated terrain, colliders, road graph, route, spawn points, and versioned JSON Schema contracts
+- GLB download and a zipped Three.js game kit with separated terrain, colliders, road graph, route, spawn points, versioned JSON Schema contracts, and a unified `worldseed-ir.json` intermediate representation
 - Always-visible viewport attribution, provenance warnings, and a per-seed height-quality meter
 - IndexedDB request caching, coordinate-safe service-worker shell caching, and an offline synthetic first-run demo
 - Just-in-time location disclosure, explicit share choices, privacy-safe export defaults, and local-data clearing
@@ -115,7 +115,8 @@ flowchart TD
   T --> D
   D --> E["Resolve elevation + roofs"]
   E --> F["Semantic city + road graph"]
-  F --> G["Explore or export"]
+  F --> I["WorldSeed IR v1"]
+  I --> G["Explore or export"]
 ```
 
 The Three.js scene uses a local tangent approximation: X points east, Y points up, and Z points south. This keeps GPU coordinates stable and makes the output convenient for games. The selected coordinate is stored as export metadata only when the user explicitly opts in.
