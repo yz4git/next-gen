@@ -8,12 +8,19 @@ const drop = document.querySelector("#drop");
 const fileInput = document.querySelector("#file");
 const status = document.querySelector("#status");
 
+const STREAMING_BUDGETS = {
+  economy: { tier: "economy", baseScale: 0.72, detailScale: 0.55, maxConcurrentLoads: 1, dprCap: 1.35 },
+  balanced: { tier: "balanced", baseScale: 0.9, detailScale: 0.78, maxConcurrentLoads: 2, dprCap: 1.65 },
+  quality: { tier: "quality", baseScale: 1.08, detailScale: 1, maxConcurrentLoads: 2, dprCap: 1.8 },
+};
+let streamingState = createInitialStreamingState();
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xbfdde5);
 const camera = new THREE.PerspectiveCamera(52, 1, 0.1, 8000);
 camera.position.set(280, 210, 280);
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, streamingState.budget.dprCap));
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.target.set(0, 18, 0);
@@ -25,8 +32,6 @@ scene.add(sun);
 const imported = new THREE.Group();
 imported.name = "Imported WorldSeed";
 scene.add(imported);
-
-const MAX_CONCURRENT_TILE_LOADS = 2;
 
 const loader = new GLTFLoader();
 const streamedTiles = new THREE.Group();
@@ -41,6 +46,8 @@ let activeArchive = null;
 let activeGeometryIndex = null;
 let lastStreamUpdate = 0;
 let importGeneration = 0;
+let fpsFrames = 0;
+let fpsStartedAt = performance.now();
 
 fileInput.addEventListener("change", () => {
   const file = fileInput.files?.[0];
@@ -147,8 +154,10 @@ function updateStreamedGeometry(force = false) {
 
   const focus = controls.target;
   const cameraDistance = camera.position.distanceTo(focus);
-  const baseDistance = Math.max(360, Math.min(950, cameraDistance * 1.1));
-  const detailDistance = Math.max(220, Math.min(520, baseDistance * 0.62));
+  const rawBaseDistance = Math.max(360, Math.min(950, cameraDistance * 1.1));
+  const rawDetailDistance = Math.max(220, Math.min(520, rawBaseDistance * 0.62));
+  const baseDistance = rawBaseDistance * streamingState.budget.baseScale;
+  const detailDistance = rawDetailDistance * streamingState.budget.detailScale;
   const baseUnloadDistance = baseDistance + 240;
   const detailUnloadDistance = detailDistance + 140;
   const candidates = [];
@@ -191,7 +200,7 @@ function updateStreamedGeometry(force = false) {
 }
 
 function pumpGeometryQueue() {
-  while (activeTileLoads < MAX_CONCURRENT_TILE_LOADS && queuedJobs.size > 0) {
+  while (activeTileLoads < streamingState.budget.maxConcurrentLoads && queuedJobs.size > 0) {
     const next = queuedJobs.entries().next().value;
     if (!next) return;
     const [key, job] = next;
@@ -280,6 +289,44 @@ function createRouteOverlay(route) {
   return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xff635e }));
 }
 
+function createInitialStreamingState() {
+  const userAgent = navigator.userAgent || "";
+  const mobile = /iPhone|iPad|iPod|Android/i.test(userAgent)
+    || ((navigator.maxTouchPoints || 0) > 1 && /Macintosh/i.test(userAgent));
+  const cores = navigator.hardwareConcurrency || 4;
+  const memory = navigator.deviceMemory;
+  const constrainedMemory = Number.isFinite(memory) && memory <= 4;
+  const constrainedCpu = cores <= 4;
+  const tier = mobile || constrainedMemory || constrainedCpu ? "balanced" : "quality";
+  return { budget: STREAMING_BUDGETS[tier], lowFpsSamples: 0, highFpsSamples: 0 };
+}
+
+function sampleStreamingFps(fps) {
+  if (!Number.isFinite(fps) || fps <= 0) return;
+  const severe = fps < 36;
+  const low = fps < 48;
+  const high = fps >= 57;
+  streamingState.lowFpsSamples = low ? streamingState.lowFpsSamples + 1 : Math.max(0, streamingState.lowFpsSamples - 1);
+  streamingState.highFpsSamples = high ? streamingState.highFpsSamples + 1 : 0;
+
+  let nextTier = streamingState.budget.tier;
+  if (severe || streamingState.lowFpsSamples >= 2) {
+    nextTier = nextTier === "quality" ? "balanced" : "economy";
+    streamingState.lowFpsSamples = 0;
+    streamingState.highFpsSamples = 0;
+  } else if (streamingState.highFpsSamples >= 6) {
+    nextTier = nextTier === "economy" ? "balanced" : "quality";
+    streamingState.lowFpsSamples = 0;
+    streamingState.highFpsSamples = 0;
+  }
+
+  if (nextTier !== streamingState.budget.tier) {
+    streamingState.budget = STREAMING_BUDGETS[nextTier];
+    renderer.setPixelRatio(Math.min(devicePixelRatio, streamingState.budget.dprCap));
+    updateStreamedGeometry(true);
+  }
+}
+
 function exactArrayBuffer(bytes) {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
 }
@@ -345,4 +392,12 @@ renderer.setAnimationLoop(() => {
   controls.update();
   updateStreamedGeometry();
   renderer.render(scene, camera);
+
+  fpsFrames += 1;
+  const now = performance.now();
+  if (now - fpsStartedAt >= 800) {
+    sampleStreamingFps((fpsFrames * 1000) / (now - fpsStartedAt));
+    fpsFrames = 0;
+    fpsStartedAt = now;
+  }
 });
