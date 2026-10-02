@@ -48,13 +48,13 @@ See [docs/REUSE.md](docs/REUSE.md) for concrete integration paths and export-fil
 - Browser-side terrain sampling from Mapzen Terrarium elevation tiles, with an offline procedural demo and flat fallback
 - Separate flat, gabled, hipped, and skillion roof meshes using provider shape, height, and color tags when available
 - Stable semantic layers and local-bound game-object records for terrain, areas, roads, buildings, and roofs
-- 300 m runtime world tiles with distance-based base/detail visibility in Walk and Fly modes and complete-tile export
+- 300 m runtime world tiles with distance-based base/detail visibility plus exported per-tile GLBs for downstream lazy loading
 - Local-only Project PLATEAU CityGML import with EPSG:6697 coordinates and LOD1/LOD2 Ground, Wall, Roof, and Closure surfaces
 - Height resolution in order: supplied height → floor count → deterministic semantic inference
 - Bounded generation at 100–1,000 m with 2,500-building safety cap and merged geometry batches
 - Five views: Low poly, Anime, Cyber, Blueprint, and Data quality
 - Orbit, first-person walk with footprint collision, free-flight, and Drive modes
-- GLB download and a zipped Three.js game kit with separated terrain, colliders, road graph, route, spawn points, versioned JSON Schema contracts, and chunkable WorldSeed IR data
+- GLB download and a zipped Three.js game kit with separated terrain, colliders, road graph, route, spawn points, versioned JSON Schema contracts, chunkable WorldSeed IR data, and lazy-loaded 300 m geometry GLBs
 - Always-visible viewport attribution, provenance warnings, and a per-seed height-quality meter
 - IndexedDB request caching, coordinate-safe service-worker shell caching, and an offline synthetic first-run demo
 - Just-in-time location disclosure, explicit share choices, privacy-safe export defaults, and local-data clearing
@@ -164,9 +164,10 @@ The starter-kit ZIP contains:
 - `drive-route.json` with the current deterministic time-attack route
 - `worldseed-ir.json` with the unified developer-facing intermediate representation
 - `worldseed-ir.index.json` plus `worldseed-ir/chunks/*.json` for 300 m tile-local structured-data loading
+- `worldseed-tiles.index.json` plus `worldseed-tiles/*.glb` for 300 m tile-local geometry loading
 - `ATTRIBUTION.md` generated for that seed
 - `schemas/v1/*.schema.json` with machine-readable contracts for every exported JSON document
-- a minimal Vite + Three.js viewer
+- a minimal Vite + Three.js viewer that streams nearby geometry tiles and matching IR chunks, with `city.glb` as a fallback
 
 Schema compatibility is documented in [docs/SCHEMA_VERSIONING.md](docs/SCHEMA_VERSIONING.md). The independent [export consumer example](examples/export-consumer/) imports only the ZIP contract—no WorldSeed runtime code—and renders the GLB, road graph, spawn points, and route in a separate Three.js app.
 
