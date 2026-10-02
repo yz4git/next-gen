@@ -4,7 +4,6 @@ import type {
   DriveRoute,
   RoadGraph,
   RoadGraphEdge,
-  RoadGraphNode,
   SemanticObject,
   WorldManifest,
 } from "../types";
