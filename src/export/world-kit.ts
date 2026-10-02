@@ -822,6 +822,9 @@ function jobIsPending(key) {
 function pumpTileQueue() {
   pumpVisibleFetchQueue();
   pumpVisibleParseQueue();
+  // Parsing removes a ready item immediately, so refill that buffer without
+  // waiting for the next 180 ms visibility update.
+  pumpVisibleFetchQueue();
   pumpPrefetchQueue();
 }
 
