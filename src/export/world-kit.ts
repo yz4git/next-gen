@@ -485,6 +485,7 @@ const STREAMING_BUDGETS = {
 const PREFETCH_LOOKAHEAD_METERS = 700;
 const MAX_VISIBLE_FETCHES = 2;
 const MAX_READY_VISIBLE_JOBS = 2;
+const MAX_UPLOAD_READY_JOBS = 2;
 const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const CACHE_PREFIX = "worldseed-kit:v1:";
 
@@ -929,6 +930,7 @@ function pumpVisibleFetchQueue() {
 
 function pumpVisibleParseQueue() {
   while (readyJobs.size > 0) {
+    if (uploadJobs.size >= MAX_UPLOAD_READY_JOBS) return;
     for (const [key, prepared] of readyJobs) {
       const loaded = prepared.job.kind === "detail" ? loadedDetailTiles : loadedBaseTiles;
       if (!desiredJobs.has(key) || loaded.has(prepared.job.tile.id)) readyJobs.delete(key);
