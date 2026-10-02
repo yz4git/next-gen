@@ -64,6 +64,7 @@ export interface WorldSeedIrIndex {
     metadataPath: "worldseed.json";
     fullDocumentPath: "worldseed-ir.json";
     driveRoutePath: "drive-route.json";
+    geometryIndexPath: "worldseed-tiles.index.json";
     semanticObjects: SemanticObject[];
   };
   chunks: WorldSeedIrChunkDescriptor[];
@@ -265,6 +266,7 @@ export function createWorldSeedIrChunkSet(
       metadataPath: "worldseed.json",
       fullDocumentPath: "worldseed-ir.json",
       driveRoutePath: "drive-route.json",
+      geometryIndexPath: "worldseed-tiles.index.json",
       semanticObjects: globalSemanticObjects,
     },
     chunks: chunkDocuments.map((chunk) => descriptorForChunk(chunk)),
