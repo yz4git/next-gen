@@ -16,7 +16,10 @@ import type { ExploreMode, LonLat, WorldStyle } from "../types";
 import {
   detectStreamingCapabilities,
   initialAdaptiveStreamingState,
+  initialFrameTimeSchedulerState,
+  optionalStreamingWorkAllowed,
   updateAdaptiveStreamingState,
+  updateFrameTimeSchedulerState,
 } from "./adaptive-streaming";
 import { DriveTerrainDetailPatch } from "./drive-terrain-detail";
 import { TileStreamer, type StreamingMotionHint, type StreamingStats } from "./tile-streamer";
@@ -39,6 +42,8 @@ export class WorldRenderer {
   private readonly sun = new THREE.DirectionalLight(0xffffff, 2.4);
   private readonly ambient = new THREE.HemisphereLight(0xffffff, 0x52606d, 1.7);
   private adaptiveStreaming = initialAdaptiveStreamingState(detectStreamingCapabilities());
+  private frameTimeScheduler = initialFrameTimeSchedulerState();
+  private lastAnimationAt = performance.now();
   private currentCity: THREE.Group | null = null;
   private tileStreamer: TileStreamer | null = null;
   private exploreMode: ExploreMode = "orbit";
@@ -367,6 +372,12 @@ export class WorldRenderer {
 
   private animate = (): void => {
     this.animationFrame = requestAnimationFrame(this.animate);
+    const frameNow = performance.now();
+    const frameTimeMs = Math.max(0, frameNow - this.lastAnimationAt);
+    this.lastAnimationAt = frameNow;
+    this.frameTimeScheduler = updateFrameTimeSchedulerState(this.frameTimeScheduler, frameTimeMs);
+    this.tileStreamer?.setOptionalWorkAllowed(optionalStreamingWorkAllowed(this.frameTimeScheduler));
+
     const delta = Math.min(this.clock.getDelta(), 0.05);
     this.update?.(delta);
     this.tileStreamer?.update(this.camera, this.exploreMode);
