@@ -168,3 +168,17 @@ Generated geometry descriptors record base/detail GLB byte sizes. The starter vi
 - download/cache time is not included in the learned parse rate; the timing specifically surrounds GLTF parsing
 
 This complements the frame-time scheduler: cost prediction prevents likely spikes before a parse begins, while frame-time gating reacts to spikes that still occur.
+
+
+## Split fetch and parse pipeline
+
+The generated starter viewer separates visible-tile I/O from GLTF parsing.
+
+- up to two visible GLB jobs can be fetching or waiting as fetched bytes ahead of the parse stage
+- fetched base/detail bytes and the matching base IR chunk are held only until their parse job becomes eligible
+- the parse stage still uses measured cost and adaptive concurrency, so a heavy GLB can serialize parsing without blocking the next visible network/IndexedDB read
+- frame-time pressure can postpone ready detail jobs without blocking ready base jobs behind them
+- visible loading and predictive prefetch share in-flight binary/text requests by normalized path, preventing duplicate network reads when a prefetched tile becomes visible mid-request
+- stale ready jobs are dropped when the tile is no longer desired
+
+The standalone ZIP consumer does not need a network fetch queue because its GLB bytes are already resident in the unzipped archive. It therefore keeps the cost-aware parse stage without adding an artificial fetch stage.
