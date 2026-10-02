@@ -8,6 +8,8 @@ import {
   optionalStreamingWorkAllowed,
   recordStreamingParseCost,
   streamingFetchBufferSlots,
+  streamingGpuUploadAttachmentsPerFrame,
+  streamingGpuUploadDelayFrames,
   updateAdaptiveStreamingState,
   updateFrameTimeSchedulerState,
 } from "../src/render/adaptive-streaming";
@@ -121,5 +123,35 @@ describe("visible fetch-ahead buffer", () => {
 
   it("is independent of parse concurrency", () => {
     expect(streamingFetchBufferSlots(2, 0, 0)).toBe(2);
+  });
+});
+
+
+describe("GPU upload pressure model", () => {
+  it("keeps light tiles immediate", () => {
+    expect(streamingGpuUploadDelayFrames({
+      vertexCount: 80_000,
+      geometryByteLength: 2 * 1024 * 1024,
+      materialCount: 6,
+    })).toBe(0);
+    expect(streamingGpuUploadAttachmentsPerFrame(0)).toBe(2);
+  });
+
+  it("delays medium upload pressure by one frame", () => {
+    expect(streamingGpuUploadDelayFrames({
+      vertexCount: 190_000,
+      geometryByteLength: 3 * 1024 * 1024,
+      materialCount: 8,
+    })).toBe(1);
+    expect(streamingGpuUploadAttachmentsPerFrame(1)).toBe(1);
+  });
+
+  it("delays very heavy upload pressure by two frames", () => {
+    expect(streamingGpuUploadDelayFrames({
+      vertexCount: 100_000,
+      geometryByteLength: 13 * 1024 * 1024,
+      materialCount: 10,
+    })).toBe(2);
+    expect(streamingGpuUploadAttachmentsPerFrame(2)).toBe(1);
   });
 });
