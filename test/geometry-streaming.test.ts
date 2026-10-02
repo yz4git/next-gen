@@ -37,11 +37,15 @@ describe("geometry tile export", () => {
     expect(index.tiles.map((tile) => tile.id)).toEqual(["0:0", "1:0"]);
     expect(index.tiles[0]).toMatchObject({
       path: "worldseed-tiles/0_0.glb",
+      detailPath: "worldseed-tiles/detail/0_0.glb",
       objectCount: 2,
       detailObjectCount: 1,
       layers: ["roads"],
     });
+    expect(tiles[0]?.group.children).toHaveLength(1);
+    expect(tiles[0]?.detailGroup?.children).toHaveLength(1);
     expect(tiles[1]?.group.children).toHaveLength(1);
+    expect(tiles[1]?.detailGroup).toBeUndefined();
   });
 
   it("preserves parent transforms relative to the exported world root", () => {
