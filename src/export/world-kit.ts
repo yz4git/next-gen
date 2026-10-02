@@ -419,6 +419,8 @@ const STREAMING_BUDGETS = {
   quality: { tier: "quality", baseScale: 1.08, detailScale: 1, prefetchScale: 1, maxConcurrentLoads: 2, maxConcurrentPrefetches: 1, maxCacheRecords: 72, maxCacheBytes: 128 * 1024 * 1024, dprCap: 1.8 },
 };
 const PREFETCH_LOOKAHEAD_METERS = 700;
+const MAX_VISIBLE_FETCHES = 2;
+const MAX_READY_VISIBLE_JOBS = 2;
 const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const CACHE_PREFIX = "worldseed-kit:v1:";
 
@@ -450,12 +452,15 @@ scene.add(streamedRoot);
 
 const loadedBaseTiles = new Map();
 const loadedDetailTiles = new Map();
-const pendingJobs = new Set();
+const fetchingJobs = new Set();
+const parsingJobs = new Set();
 const queuedJobs = new Map();
+const readyJobs = new Map();
 const desiredJobs = new Set();
 const queuedPrefetches = new Map();
 const prefetchedPaths = new Set();
-let activeTileLoads = 0;
+let activeFetches = 0;
+let activeParses = 0;
 let activePrefetches = 0;
 let geometryIndex = null;
 let cacheNamespace = "uninitialized";
@@ -694,7 +699,7 @@ function updateStreamedTiles(force = false) {
 
     if (distance <= baseDistance + padding) {
       desiredJobs.add(baseKey);
-      if (!loadedBaseTiles.has(tile.id) && !pendingJobs.has(baseKey)) {
+      if (!loadedBaseTiles.has(tile.id) && !jobIsPending(baseKey)) {
         candidates.push({ key: baseKey, tile, kind: "base", distance, priority: distance });
       }
     } else if (distance > baseUnloadDistance + padding) {
@@ -704,7 +709,7 @@ function updateStreamedTiles(force = false) {
 
     if (tile.detailPath && distance <= detailDistance + padding) {
       desiredJobs.add(detailKey);
-      if (!loadedDetailTiles.has(tile.id) && !pendingJobs.has(detailKey)) {
+      if (!loadedDetailTiles.has(tile.id) && !jobIsPending(detailKey)) {
         candidates.push({ key: detailKey, tile, kind: "detail", distance, priority: distance + 90 });
       }
     } else if (distance > detailUnloadDistance + padding) {
@@ -767,7 +772,7 @@ function refreshPrefetchQueue(x, z, baseDistance) {
         && lateral <= tile.size * 0.75
         && directDistance > baseDistance + padding
         && !loadedBaseTiles.has(tile.id)
-        && !pendingJobs.has("base:" + tile.id);
+        && !jobIsPending("base:" + tile.id);
     })
     .sort((first, second) =>
       first.forward - second.forward
@@ -784,13 +789,27 @@ function refreshPrefetchQueue(x, z, baseDistance) {
   }
 }
 
+function jobIsPending(key) {
+  return fetchingJobs.has(key) || parsingJobs.has(key) || readyJobs.has(key);
+}
+
 function pumpTileQueue() {
-  while (queuedJobs.size > 0) {
+  pumpVisibleFetchQueue();
+  pumpVisibleParseQueue();
+  pumpPrefetchQueue();
+}
+
+function pumpVisibleFetchQueue() {
+  while (
+    activeFetches < MAX_VISIBLE_FETCHES
+    && activeFetches + readyJobs.size < MAX_READY_VISIBLE_JOBS
+    && queuedJobs.size > 0
+  ) {
     const next = queuedJobs.entries().next().value;
     if (!next) return;
     const [key, job] = next;
 
-    if (!desiredJobs.has(key) || pendingJobs.has(key)) {
+    if (!desiredJobs.has(key) || jobIsPending(key)) {
       queuedJobs.delete(key);
       continue;
     }
@@ -805,18 +824,104 @@ function pumpTileQueue() {
       continue;
     }
 
-    const estimatedParseMs = estimateJobParseCostMs(job);
+    queuedJobs.delete(key);
+    void runTileFetch(job);
+  }
+}
+
+function pumpVisibleParseQueue() {
+  while (readyJobs.size > 0) {
+    const next = [...readyJobs.entries()]
+      .sort((first, second) =>
+        first[1].job.priority - second[1].job.priority
+        || first[1].job.tile.z - second[1].job.tile.z
+        || first[1].job.tile.x - second[1].job.tile.x)[0];
+    if (!next) return;
+
+    const [key, prepared] = next;
+    const job = prepared.job;
+    if (!desiredJobs.has(key)) {
+      readyJobs.delete(key);
+      continue;
+    }
+    if (job.kind === "detail" && !optionalWorkAllowed()) break;
+
+    const loaded = job.kind === "detail" ? loadedDetailTiles : loadedBaseTiles;
+    if (loaded.has(job.tile.id)) {
+      readyJobs.delete(key);
+      continue;
+    }
+
+    const estimatedParseMs = estimatePreparedParseCostMs(prepared);
     const costLimit = activeEstimatedParseMs >= 18
       || estimatedParseMs >= 18
       || activeEstimatedParseMs + estimatedParseMs >= 24
       ? 1
       : streamingState.budget.maxConcurrentLoads;
-    if (activeTileLoads >= costLimit) break;
+    if (activeParses >= costLimit) break;
 
-    queuedJobs.delete(key);
-    void runTileLoad(job, estimatedParseMs);
+    readyJobs.delete(key);
+    void runTileParse(prepared, estimatedParseMs);
   }
-  pumpPrefetchQueue();
+}
+
+async function runTileFetch(job) {
+  const key = job.kind + ":" + job.tile.id;
+  const path = job.kind === "detail" ? job.tile.detailPath : job.tile.path;
+  if (!path) return;
+
+  activeFetches += 1;
+  fetchingJobs.add(key);
+  try {
+    const binaryPromise = fetchBinaryCached(path);
+    const chunkPromise = job.kind === "base"
+      ? fetchJson("worldseed-ir/chunks/" + job.tile.x + "_" + job.tile.z + ".json", true, true)
+      : Promise.resolve(null);
+    const [binary, chunk] = await Promise.all([binaryPromise, chunkPromise]);
+
+    if (!desiredJobs.has(key)) return;
+    readyJobs.set(key, { job, binary, chunk });
+  } catch (error) {
+    console.warn("WorldSeed " + job.kind + " tile " + job.tile.id + " failed to fetch", error);
+  } finally {
+    fetchingJobs.delete(key);
+    activeFetches = Math.max(0, activeFetches - 1);
+    pumpTileQueue();
+  }
+}
+
+async function runTileParse(prepared, estimatedParseMs) {
+  const job = prepared.job;
+  const key = job.kind + ":" + job.tile.id;
+
+  activeParses += 1;
+  activeEstimatedParseMs += estimatedParseMs;
+  parsingJobs.add(key);
+  try {
+    const parseStartedAt = performance.now();
+    const gltf = await loader.parseAsync(prepared.binary, "");
+    recordParseCost(job.kind, prepared.binary.byteLength, performance.now() - parseStartedAt);
+
+    if (!desiredJobs.has(key)) {
+      disposeTileScene(gltf.scene);
+      return;
+    }
+
+    gltf.scene.userData.worldseedTileId = job.tile.id;
+    gltf.scene.userData.worldseedLod = job.kind;
+    if (prepared.chunk) gltf.scene.userData.worldseedChunk = prepared.chunk;
+    streamedRoot.add(gltf.scene);
+
+    if (job.kind === "detail") loadedDetailTiles.set(job.tile.id, gltf.scene);
+    else loadedBaseTiles.set(job.tile.id, gltf.scene);
+  } catch (error) {
+    console.warn("WorldSeed " + job.kind + " tile " + job.tile.id + " failed to parse", error);
+  } finally {
+    parsingJobs.delete(key);
+    activeParses = Math.max(0, activeParses - 1);
+    activeEstimatedParseMs = Math.max(0, activeEstimatedParseMs - estimatedParseMs);
+    pumpTileQueue();
+  }
 }
 
 function pumpPrefetchQueue() {
@@ -824,7 +929,7 @@ function pumpPrefetchQueue() {
     !optionalWorkAllowed()
     || streamingState.budget.maxConcurrentPrefetches <= 0
     || activePrefetches >= streamingState.budget.maxConcurrentPrefetches
-    || activeTileLoads >= streamingState.budget.maxConcurrentLoads
+    || activeFetches > 0
     || queuedJobs.size > 0
     || queuedPrefetches.size === 0
   ) return;
@@ -853,51 +958,11 @@ async function runPrefetch(tile) {
   }
 }
 
-async function runTileLoad(job, estimatedParseMs) {
-  const key = job.kind + ":" + job.tile.id;
-  const path = job.kind === "detail" ? job.tile.detailPath : job.tile.path;
-  if (!path) return;
-
-  activeTileLoads += 1;
-  activeEstimatedParseMs += estimatedParseMs;
-  pendingJobs.add(key);
-  try {
-    const binaryPromise = fetchBinaryCached(path);
-    const chunkPromise = job.kind === "base"
-      ? fetchJson("worldseed-ir/chunks/" + job.tile.x + "_" + job.tile.z + ".json", true, true)
-      : Promise.resolve(null);
-
-    const binary = await binaryPromise;
-    const parseStartedAt = performance.now();
-    const gltf = await loader.parseAsync(binary, "");
-    recordParseCost(job.kind, binary.byteLength, performance.now() - parseStartedAt);
-    const chunk = await chunkPromise;
-
-    if (!desiredJobs.has(key)) {
-      disposeTileScene(gltf.scene);
-      return;
-    }
-
-    gltf.scene.userData.worldseedTileId = job.tile.id;
-    gltf.scene.userData.worldseedLod = job.kind;
-    if (chunk) gltf.scene.userData.worldseedChunk = chunk;
-    streamedRoot.add(gltf.scene);
-
-    if (job.kind === "detail") loadedDetailTiles.set(job.tile.id, gltf.scene);
-    else loadedBaseTiles.set(job.tile.id, gltf.scene);
-  } catch (error) {
-    console.warn("WorldSeed " + job.kind + " tile " + job.tile.id + " failed to load", error);
-  } finally {
-    pendingJobs.delete(key);
-    activeTileLoads = Math.max(0, activeTileLoads - 1);
-    activeEstimatedParseMs = Math.max(0, activeEstimatedParseMs - estimatedParseMs);
-    pumpTileQueue();
-  }
-}
 
 function unloadTileLod(id, kind) {
   const key = kind + ":" + id;
   queuedJobs.delete(key);
+  readyJobs.delete(key);
   const loaded = kind === "detail" ? loadedDetailTiles : loadedBaseTiles;
   const tile = loaded.get(id);
   if (!tile) return;
@@ -919,8 +984,9 @@ function jobByteLength(job) {
   return Number.isFinite(value) && value > 0 ? value : 1_500_000;
 }
 
-function estimateJobParseCostMs(job) {
-  const bytes = jobByteLength(job);
+function estimatePreparedParseCostMs(prepared) {
+  const bytes = prepared.binary?.byteLength || jobByteLength(prepared.job);
+  const job = prepared.job;
   const megabytes = Math.max(0.15, bytes / (1024 * 1024));
   const rate = job.kind === "detail" ? parseCostState.detailMsPerMb : parseCostState.baseMsPerMb;
   return Math.max(1, megabytes * rate);
