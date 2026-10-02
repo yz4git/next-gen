@@ -7,8 +7,37 @@ import worldseedObjectsSchema from "../../schemas/v1/worldseed-objects.schema.js
 import roadGraphSchema from "../../schemas/v1/road-graph.schema.json";
 import spawnPointsSchema from "../../schemas/v1/spawn-points.schema.json";
 import driveRouteSchema from "../../schemas/v1/drive-route.schema.json";
-import { createWorldSeedIr, encodeWorldSeedIrFiles } from "../ir/world-ir";
+import { createWorldSeedIr, encodeWorldSeedIrFiles, serializeCanonicalJson } from "../ir/world-ir";
 import type { DriveRoute, RoadGraph, WorldData, WorldManifest, WorldStats, WorldStyle } from "../types";
+
+export const WORLDSEED_GEOMETRY_INDEX_FORMAT = "worldseed-geometry-index" as const;
+export const WORLDSEED_GEOMETRY_INDEX_VERSION = "1" as const;
+
+export interface WorldSeedGeometryTileDescriptor {
+  id: string;
+  path: string;
+  x: number;
+  z: number;
+  centerX: number;
+  centerZ: number;
+  size: number;
+  objectCount: number;
+  detailObjectCount: number;
+  layers: string[];
+}
+
+export interface WorldSeedGeometryIndex {
+  format: typeof WORLDSEED_GEOMETRY_INDEX_FORMAT;
+  version: typeof WORLDSEED_GEOMETRY_INDEX_VERSION;
+  coordinateSystem: "local meters; X east, Y up, Z south";
+  tiles: WorldSeedGeometryTileDescriptor[];
+}
+
+export interface WorldSeedGeometryTileGroup {
+  descriptor: WorldSeedGeometryTileDescriptor;
+  group: THREE.Group;
+}
+
 
 export async function exportGlb(
   group: THREE.Group,
@@ -33,6 +62,7 @@ export async function exportStarterKit(
   const binary = await createGlb(group, includeExactOrigin);
   const terrainBinary = await createGlb(createTerrainExport(group), false);
   const colliderBinary = await createGlb(createColliderExport(manifest), false);
+  const geometryTileFiles = await createGeometryTileArchiveFiles(group);
   const metadata = createWorldMetadata(data, stats, style, includeExactOrigin);
   const spawnPoints = createSpawnPoints(roadGraph, route, pedestrianSpawn);
   const irFiles = encodeWorldSeedIrFiles(createWorldSeedIr({
@@ -49,6 +79,7 @@ export async function exportStarterKit(
       "city.glb": new Uint8Array(binary),
       "terrain.glb": new Uint8Array(terrainBinary),
       "colliders.glb": new Uint8Array(colliderBinary),
+      ...geometryTileFiles,
       ...irArchiveFiles,
       "schemas/v1/worldseed.schema.json": strToU8(JSON.stringify(worldseedSchema, null, 2)),
       "schemas/v1/worldseed-objects.schema.json": strToU8(JSON.stringify(worldseedObjectsSchema, null, 2)),
@@ -125,6 +156,139 @@ async function createGlb(group: THREE.Group, includeExactOrigin: boolean): Promi
   }
 }
 
+export function createGeometryTileGroups(root: THREE.Object3D): {
+  index: WorldSeedGeometryIndex;
+  tiles: WorldSeedGeometryTileGroup[];
+} {
+  root.updateMatrixWorld(true);
+  const rootInverse = root.matrixWorld.clone().invert();
+  const grouped = new Map<string, {
+    tile: { id: string; x: number; z: number; centerX: number; centerZ: number; size: number };
+    objects: THREE.Object3D[];
+    detailObjectCount: number;
+    layers: Set<string>;
+  }>();
+
+  root.traverse((object) => {
+    if (object === root) return;
+    const tile = geometryTileFromUserData(object.userData["worldseedTile"]);
+    if (!tile) return;
+    const bucket = grouped.get(tile.id) ?? {
+      tile,
+      objects: [],
+      detailObjectCount: 0,
+      layers: new Set<string>(),
+    };
+    const clone = object.clone(false);
+    clone.matrixAutoUpdate = false;
+    clone.matrix.copy(rootInverse).multiply(object.matrixWorld);
+    clone.matrixWorld.copy(clone.matrix);
+    clone.visible = true;
+    bucket.objects.push(clone);
+    if (object.userData["worldseedDetail"] === true) bucket.detailObjectCount += 1;
+    const layer = object.userData["worldseedLayer"];
+    if (typeof layer === "string") bucket.layers.add(layer);
+    grouped.set(tile.id, bucket);
+  });
+
+  const tiles = [...grouped.values()]
+    .sort((first, second) => first.tile.z - second.tile.z || first.tile.x - second.tile.x)
+    .map((bucket): WorldSeedGeometryTileGroup => {
+      const group = new THREE.Group();
+      group.name = `WorldSeed Tile ${bucket.tile.id}`;
+      group.userData = {
+        worldseedTile: bucket.tile,
+        exactOriginIncluded: false,
+      };
+      for (const object of bucket.objects) group.add(object);
+      return {
+        descriptor: {
+          id: bucket.tile.id,
+          path: geometryTilePath(bucket.tile.x, bucket.tile.z),
+          x: bucket.tile.x,
+          z: bucket.tile.z,
+          centerX: bucket.tile.centerX,
+          centerZ: bucket.tile.centerZ,
+          size: bucket.tile.size,
+          objectCount: bucket.objects.length,
+          detailObjectCount: bucket.detailObjectCount,
+          layers: [...bucket.layers].sort(),
+        },
+        group,
+      };
+    });
+
+  return {
+    index: {
+      format: WORLDSEED_GEOMETRY_INDEX_FORMAT,
+      version: WORLDSEED_GEOMETRY_INDEX_VERSION,
+      coordinateSystem: "local meters; X east, Y up, Z south",
+      tiles: tiles.map((tile) => tile.descriptor),
+    },
+    tiles,
+  };
+}
+
+export function selectGeometryTiles(
+  index: WorldSeedGeometryIndex,
+  x: number,
+  z: number,
+  distanceMeters: number,
+): WorldSeedGeometryTileDescriptor[] {
+  if (!(distanceMeters >= 0) || !Number.isFinite(distanceMeters)) {
+    throw new Error("WorldSeed geometry streaming distance must be a non-negative finite number");
+  }
+  return index.tiles.filter((tile) => {
+    const padding = tile.size * Math.SQRT2 / 2;
+    return Math.hypot(tile.centerX - x, tile.centerZ - z) <= distanceMeters + padding;
+  });
+}
+
+async function createGeometryTileArchiveFiles(root: THREE.Object3D): Promise<Record<string, Uint8Array>> {
+  const { index, tiles } = createGeometryTileGroups(root);
+  const files: Record<string, Uint8Array> = {
+    "worldseed-tiles.index.json": strToU8(serializeCanonicalJson(index)),
+  };
+  for (const tile of tiles) {
+    const binary = await createGlb(tile.group, false);
+    files[tile.descriptor.path] = new Uint8Array(binary);
+  }
+  return files;
+}
+
+function geometryTileFromUserData(value: unknown): {
+  id: string;
+  x: number;
+  z: number;
+  centerX: number;
+  centerZ: number;
+  size: number;
+} | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const tile = value as Record<string, unknown>;
+  const id = tile["id"];
+  const x = tile["x"];
+  const z = tile["z"];
+  const centerX = tile["centerX"];
+  const centerZ = tile["centerZ"];
+  const size = tile["size"];
+  if (
+    typeof id !== "string"
+    || typeof x !== "number"
+    || typeof z !== "number"
+    || typeof centerX !== "number"
+    || typeof centerZ !== "number"
+    || typeof size !== "number"
+    || ![x, z, centerX, centerZ, size].every(Number.isFinite)
+    || size <= 0
+  ) return null;
+  return { id, x, z, centerX, centerZ, size };
+}
+
+function geometryTilePath(x: number, z: number): string {
+  return `worldseed-tiles/${x}_${z}.glb`;
+}
+
 export function createExportUserData(
   userData: Record<string, unknown>,
   includeExactOrigin: boolean,
@@ -153,7 +317,7 @@ function starterReadme(includeExactOrigin: boolean): string {
   const originNote = includeExactOrigin
     ? "The model origin is the selected latitude/longitude."
     : "The exact latitude/longitude was intentionally omitted from this privacy-safe export.";
-  return `# WorldSeed Drive Any City Starter\n\nA local-meter Three.js city and gameplay-data bundle exported by WorldSeed.\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n\n${originNote} X points east, Y points up, and Z points south.\n\n- city.glb — complete rendered city\n- terrain.glb — terrain-only mesh\n- colliders.glb — merged building collision boxes\n- road-graph.json — routable local-meter graph with road class, direction, surface, width, and speed\n- spawn-points.json — vehicle and pedestrian starts\n- drive-route.json — the active time-attack route, when available\n- worldseed-objects.json — stable semantic objects and bounds\n- worldseed-ir.json — unified, versioned WorldSeed intermediate representation\n- worldseed-ir.index.json — lightweight chunk index for selective loading\n- worldseed-ir/chunks/*.json — tile-local semantic, road-graph, and spawn data\n- ATTRIBUTION.md — data-source obligations to preserve\n`;
+  return `# WorldSeed Drive Any City Starter\n\nA local-meter Three.js city and gameplay-data bundle exported by WorldSeed.\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n\n${originNote} X points east, Y points up, and Z points south.\n\n- city.glb — complete rendered city\n- terrain.glb — terrain-only mesh\n- colliders.glb — merged building collision boxes\n- road-graph.json — routable local-meter graph with road class, direction, surface, width, and speed\n- spawn-points.json — vehicle and pedestrian starts\n- drive-route.json — the active time-attack route, when available\n- worldseed-objects.json — stable semantic objects and bounds\n- worldseed-ir.json — unified, versioned WorldSeed intermediate representation\n- worldseed-ir.index.json — lightweight chunk index for selective loading\n- worldseed-ir/chunks/*.json — tile-local semantic, road-graph, and spawn data\n- worldseed-tiles.index.json — lightweight geometry tile index\n- worldseed-tiles/*.glb — 300 m tile-local rendered geometry for streaming\n- ATTRIBUTION.md — data-source obligations to preserve\n`;
 }
 
 function starterPackage(): string {
