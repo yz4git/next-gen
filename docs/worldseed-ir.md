@@ -66,11 +66,12 @@ That means the same loader can be backed by browser `fetch()`, an extracted star
 Structured-data chunks and render geometry use the same 300 m tile coordinate system.
 
 - `worldseed-tiles.index.json` lists renderable geometry tiles.
-- `worldseed-tiles/<x>_<z>.glb` contains the render objects assigned to one tile.
+- `worldseed-tiles/<x>_<z>.glb` contains base render geometry for one tile.
+- `worldseed-tiles/detail/<x>_<z>.glb` is optional and carries objects marked `worldseedDetail`, such as roofs, road markings, street furniture, and other close-range decoration.
 - `worldseed-ir/chunks/<x>_<z>.json` carries the matching semantic, navigation, and spawn data when present.
 - `terrain.glb` remains global because terrain continuity crosses tile boundaries.
 - `city.glb` remains in the starter kit as a compatibility fallback.
 
-The generated starter viewer loads `terrain.glb` once, then loads nearby geometry tiles and matching IR chunks around the current OrbitControls target. Distant tile scenes are removed and their geometry/material GPU resources are disposed. This makes the generated kit a working example of selective world streaming rather than only a chunked file format.
+The generated starter viewer loads `terrain.glb` once, then prioritizes tile jobs by distance from the current OrbitControls target. At most two GLB jobs run concurrently. Base tiles use a wider streaming radius; optional detail tiles use a shorter radius and a small priority penalty so nearby playable structure appears before decorative geometry. Distant tile scenes are removed and their geometry/material GPU resources are disposed. A queued or completed tile that is no longer desired is discarded instead of being attached to the scene.
 
 The IR index exposes `geometryIndexPath` so tools that begin from structured data can discover the geometry tile index without hard-coding a second entry point.
