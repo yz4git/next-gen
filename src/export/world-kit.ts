@@ -459,6 +459,8 @@ const readyJobs = new Map();
 const desiredJobs = new Set();
 const queuedPrefetches = new Map();
 const prefetchedPaths = new Set();
+const inflightBinaryFetches = new Map();
+const inflightTextFetches = new Map();
 let activeFetches = 0;
 let activeParses = 0;
 let activePrefetches = 0;
@@ -540,35 +542,59 @@ async function fetchText(path) {
 
 async function fetchTextCached(path) {
   const normalized = normalizePath(path);
-  const cached = await cacheGet(normalized);
-  if (typeof cached === "string") {
+  const existing = inflightTextFetches.get(normalized);
+  if (existing) return await existing;
+
+  const request = (async () => {
+    const cached = await cacheGet(normalized);
+    if (typeof cached === "string") {
+      prefetchedPaths.add(normalized);
+      return cached;
+    }
+    const text = await fetchText(normalized);
     prefetchedPaths.add(normalized);
-    return cached;
+    void cacheSet(normalized, text);
+    return text;
+  })();
+
+  inflightTextFetches.set(normalized, request);
+  try {
+    return await request;
+  } finally {
+    inflightTextFetches.delete(normalized);
   }
-  const text = await fetchText(normalized);
-  prefetchedPaths.add(normalized);
-  void cacheSet(normalized, text);
-  return text;
 }
 
 async function fetchBinaryCached(path) {
   const normalized = normalizePath(path);
-  const cached = await cacheGet(normalized);
-  if (cached instanceof ArrayBuffer) {
-    prefetchedPaths.add(normalized);
-    return cached;
-  }
-  if (cached instanceof Uint8Array) {
-    prefetchedPaths.add(normalized);
-    return cached.buffer.slice(cached.byteOffset, cached.byteOffset + cached.byteLength);
-  }
+  const existing = inflightBinaryFetches.get(normalized);
+  if (existing) return await existing;
 
-  const response = await fetch("./" + normalized);
-  if (!response.ok) throw new Error(normalized + ": HTTP " + response.status);
-  const binary = await response.arrayBuffer();
-  prefetchedPaths.add(normalized);
-  void cacheSet(normalized, binary);
-  return binary;
+  const request = (async () => {
+    const cached = await cacheGet(normalized);
+    if (cached instanceof ArrayBuffer) {
+      prefetchedPaths.add(normalized);
+      return cached;
+    }
+    if (cached instanceof Uint8Array) {
+      prefetchedPaths.add(normalized);
+      return cached.buffer.slice(cached.byteOffset, cached.byteOffset + cached.byteLength);
+    }
+
+    const response = await fetch("./" + normalized);
+    if (!response.ok) throw new Error(normalized + ": HTTP " + response.status);
+    const binary = await response.arrayBuffer();
+    prefetchedPaths.add(normalized);
+    void cacheSet(normalized, binary);
+    return binary;
+  })();
+
+  inflightBinaryFetches.set(normalized, request);
+  try {
+    return await request;
+  } finally {
+    inflightBinaryFetches.delete(normalized);
+  }
 }
 
 async function loadGlbCached(path) {
@@ -831,7 +857,13 @@ function pumpVisibleFetchQueue() {
 
 function pumpVisibleParseQueue() {
   while (readyJobs.size > 0) {
+    for (const [key, prepared] of readyJobs) {
+      const loaded = prepared.job.kind === "detail" ? loadedDetailTiles : loadedBaseTiles;
+      if (!desiredJobs.has(key) || loaded.has(prepared.job.tile.id)) readyJobs.delete(key);
+    }
+
     const next = [...readyJobs.entries()]
+      .filter(([, prepared]) => prepared.job.kind !== "detail" || optionalWorkAllowed())
       .sort((first, second) =>
         first[1].job.priority - second[1].job.priority
         || first[1].job.tile.z - second[1].job.tile.z
@@ -839,26 +871,13 @@ function pumpVisibleParseQueue() {
     if (!next) return;
 
     const [key, prepared] = next;
-    const job = prepared.job;
-    if (!desiredJobs.has(key)) {
-      readyJobs.delete(key);
-      continue;
-    }
-    if (job.kind === "detail" && !optionalWorkAllowed()) break;
-
-    const loaded = job.kind === "detail" ? loadedDetailTiles : loadedBaseTiles;
-    if (loaded.has(job.tile.id)) {
-      readyJobs.delete(key);
-      continue;
-    }
-
     const estimatedParseMs = estimatePreparedParseCostMs(prepared);
     const costLimit = activeEstimatedParseMs >= 18
       || estimatedParseMs >= 18
       || activeEstimatedParseMs + estimatedParseMs >= 24
       ? 1
       : streamingState.budget.maxConcurrentLoads;
-    if (activeParses >= costLimit) break;
+    if (activeParses >= costLimit) return;
 
     readyJobs.delete(key);
     void runTileParse(prepared, estimatedParseMs);
