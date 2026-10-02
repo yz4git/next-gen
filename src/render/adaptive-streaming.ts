@@ -264,3 +264,30 @@ export function streamingFetchBufferSlots(
   const ready = Number.isFinite(readyJobs) ? Math.max(0, Math.floor(readyJobs)) : 0;
   return Math.max(0, maximum - active - ready);
 }
+
+
+export interface StreamingGpuUploadHints {
+  vertexCount?: number;
+  geometryByteLength?: number;
+  materialCount?: number;
+}
+
+export function streamingGpuUploadDelayFrames(
+  hints: StreamingGpuUploadHints,
+): number {
+  const vertices = Number.isFinite(hints.vertexCount) ? Math.max(0, hints.vertexCount ?? 0) : 0;
+  const bytes = Number.isFinite(hints.geometryByteLength)
+    ? Math.max(0, hints.geometryByteLength ?? 0)
+    : 0;
+  const materials = Number.isFinite(hints.materialCount) ? Math.max(0, hints.materialCount ?? 0) : 0;
+
+  if (vertices >= 350_000 || bytes >= 12 * 1024 * 1024 || materials >= 32) return 2;
+  if (vertices >= 180_000 || bytes >= 6 * 1024 * 1024 || materials >= 16) return 1;
+  return 0;
+}
+
+export function streamingGpuUploadAttachmentsPerFrame(
+  delayFrames: number,
+): number {
+  return delayFrames > 0 ? 1 : 2;
+}
