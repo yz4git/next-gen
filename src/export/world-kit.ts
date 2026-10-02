@@ -238,10 +238,20 @@ export function selectGeometryTiles(
   if (!(distanceMeters >= 0) || !Number.isFinite(distanceMeters)) {
     throw new Error("WorldSeed geometry streaming distance must be a non-negative finite number");
   }
-  return index.tiles.filter((tile) => {
-    const padding = tile.size * Math.SQRT2 / 2;
-    return Math.hypot(tile.centerX - x, tile.centerZ - z) <= distanceMeters + padding;
-  });
+  return index.tiles
+    .map((tile) => ({
+      tile,
+      distance: Math.hypot(tile.centerX - x, tile.centerZ - z),
+    }))
+    .filter(({ tile, distance }) => {
+      const padding = tile.size * Math.SQRT2 / 2;
+      return distance <= distanceMeters + padding;
+    })
+    .sort((first, second) =>
+      first.distance - second.distance
+      || first.tile.z - second.tile.z
+      || first.tile.x - second.tile.x)
+    .map(({ tile }) => tile);
 }
 
 async function createGeometryTileArchiveFiles(root: THREE.Object3D): Promise<Record<string, Uint8Array>> {
