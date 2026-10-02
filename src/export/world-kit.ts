@@ -352,7 +352,7 @@ function starterReadme(includeExactOrigin: boolean): string {
   const originNote = includeExactOrigin
     ? "The model origin is the selected latitude/longitude."
     : "The exact latitude/longitude was intentionally omitted from this privacy-safe export.";
-  return `# WorldSeed Drive Any City Starter\n\nA local-meter Three.js city and gameplay-data bundle exported by WorldSeed. The included viewer streams 300 m geometry tiles and matching IR chunks around the current view.\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n\n${originNote} X points east, Y points up, and Z points south.\n\n- city.glb — complete rendered city\n- terrain.glb — terrain-only mesh\n- colliders.glb — merged building collision boxes\n- road-graph.json — routable local-meter graph with road class, direction, surface, width, and speed\n- spawn-points.json — vehicle and pedestrian starts\n- drive-route.json — the active time-attack route, when available\n- worldseed-objects.json — stable semantic objects and bounds\n- worldseed-ir.json — unified, versioned WorldSeed intermediate representation\n- worldseed-ir.index.json — lightweight chunk index for selective loading\n- worldseed-ir/chunks/*.json — tile-local semantic, road-graph, and spawn data\n- worldseed-tiles.index.json — lightweight geometry tile index\n- worldseed-tiles/*.glb — 300 m tile-local rendered geometry for streaming\n- ATTRIBUTION.md — data-source obligations to preserve\n`;
+  return `# WorldSeed Drive Any City Starter\n\nA local-meter Three.js city and gameplay-data bundle exported by WorldSeed. The included viewer streams 300 m base geometry tiles around the current view, adds detail GLBs only at closer range, and loads matching IR chunks with base tiles.\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n\n${originNote} X points east, Y points up, and Z points south.\n\n- city.glb — complete rendered city\n- terrain.glb — terrain-only mesh\n- colliders.glb — merged building collision boxes\n- road-graph.json — routable local-meter graph with road class, direction, surface, width, and speed\n- spawn-points.json — vehicle and pedestrian starts\n- drive-route.json — the active time-attack route, when available\n- worldseed-objects.json — stable semantic objects and bounds\n- worldseed-ir.json — unified, versioned WorldSeed intermediate representation\n- worldseed-ir.index.json — lightweight chunk index for selective loading\n- worldseed-ir/chunks/*.json — tile-local semantic, road-graph, and spawn data\n- worldseed-tiles.index.json — lightweight geometry tile index\n- worldseed-tiles/*.glb — 300 m tile-local base geometry for streaming\n- worldseed-tiles/detail/*.glb — optional close-range roofs, street furniture, markings, and other detail geometry\n- ATTRIBUTION.md — data-source obligations to preserve\n`;
 }
 
 function starterPackage(): string {
@@ -401,10 +401,11 @@ const streamedRoot = new THREE.Group();
 streamedRoot.name = "WorldSeed streamed tiles";
 scene.add(streamedRoot);
 
-const loadedTiles = new Map();
-const pendingTiles = new Set();
-const queuedTiles = new Map();
-const desiredTiles = new Set();
+const loadedBaseTiles = new Map();
+const loadedDetailTiles = new Map();
+const pendingJobs = new Set();
+const queuedJobs = new Map();
+const desiredJobs = new Set();
 let activeTileLoads = 0;
 let geometryIndex = null;
 let lastStreamUpdate = 0;
@@ -450,77 +451,106 @@ function updateStreamedTiles(force = false) {
 
   const focus = controls.target;
   const cameraDistance = camera.position.distanceTo(focus);
-  const loadDistance = Math.max(360, Math.min(950, cameraDistance * 1.1));
-  const unloadDistance = loadDistance + 240;
+  const baseDistance = Math.max(360, Math.min(950, cameraDistance * 1.1));
+  const detailDistance = Math.max(220, Math.min(520, baseDistance * 0.62));
+  const baseUnloadDistance = baseDistance + 240;
+  const detailUnloadDistance = detailDistance + 140;
   const candidates = [];
 
-  desiredTiles.clear();
-  queuedTiles.clear();
+  desiredJobs.clear();
+  queuedJobs.clear();
 
   for (const tile of geometryIndex.tiles) {
     const padding = tile.size * Math.SQRT2 / 2;
     const distance = Math.hypot(tile.centerX - focus.x, tile.centerZ - focus.z);
-    if (distance <= loadDistance + padding) {
-      desiredTiles.add(tile.id);
-      if (!loadedTiles.has(tile.id) && !pendingTiles.has(tile.id)) {
-        candidates.push({ tile, distance });
+    const baseKey = "base:" + tile.id;
+    const detailKey = "detail:" + tile.id;
+
+    if (distance <= baseDistance + padding) {
+      desiredJobs.add(baseKey);
+      if (!loadedBaseTiles.has(tile.id) && !pendingJobs.has(baseKey)) {
+        candidates.push({ key: baseKey, tile, kind: "base", distance, priority: distance });
       }
-    } else if (distance > unloadDistance + padding) {
-      unloadTile(tile.id);
+    } else if (distance > baseUnloadDistance + padding) {
+      unloadTileLod(tile.id, "base");
+      unloadTileLod(tile.id, "detail");
+    }
+
+    if (tile.detailPath && distance <= detailDistance + padding) {
+      desiredJobs.add(detailKey);
+      if (!loadedDetailTiles.has(tile.id) && !pendingJobs.has(detailKey)) {
+        candidates.push({ key: detailKey, tile, kind: "detail", distance, priority: distance + 90 });
+      }
+    } else if (distance > detailUnloadDistance + padding) {
+      unloadTileLod(tile.id, "detail");
     }
   }
 
   candidates.sort((first, second) =>
-    first.distance - second.distance
+    first.priority - second.priority
     || first.tile.z - second.tile.z
     || first.tile.x - second.tile.x);
-  for (const candidate of candidates) queuedTiles.set(candidate.tile.id, candidate.tile);
+  for (const candidate of candidates) queuedJobs.set(candidate.key, candidate);
   pumpTileQueue();
 }
 
 function pumpTileQueue() {
-  while (activeTileLoads < MAX_CONCURRENT_TILE_LOADS && queuedTiles.size > 0) {
-    const next = queuedTiles.entries().next().value;
+  while (activeTileLoads < MAX_CONCURRENT_TILE_LOADS && queuedJobs.size > 0) {
+    const next = queuedJobs.entries().next().value;
     if (!next) return;
-    const [id, tile] = next;
-    queuedTiles.delete(id);
-    if (!desiredTiles.has(id) || loadedTiles.has(id) || pendingTiles.has(id)) continue;
-    void runTileLoad(tile);
+    const [key, job] = next;
+    queuedJobs.delete(key);
+    if (!desiredJobs.has(key) || pendingJobs.has(key)) continue;
+    const loaded = job.kind === "detail" ? loadedDetailTiles : loadedBaseTiles;
+    if (loaded.has(job.tile.id)) continue;
+    void runTileLoad(job);
   }
 }
 
-async function runTileLoad(tile) {
+async function runTileLoad(job) {
+  const key = job.kind + ":" + job.tile.id;
+  const path = job.kind === "detail" ? job.tile.detailPath : job.tile.path;
+  if (!path) return;
+
   activeTileLoads += 1;
-  pendingTiles.add(tile.id);
+  pendingJobs.add(key);
   try {
-    const [gltf, chunk] = await Promise.all([
-      loader.loadAsync("./" + tile.path),
-      fetchJson("./worldseed-ir/chunks/" + tile.x + "_" + tile.z + ".json", true),
-    ]);
-    if (!desiredTiles.has(tile.id)) {
+    const gltfPromise = loader.loadAsync("./" + path);
+    const chunkPromise = job.kind === "base"
+      ? fetchJson("./worldseed-ir/chunks/" + job.tile.x + "_" + job.tile.z + ".json", true)
+      : Promise.resolve(null);
+    const [gltf, chunk] = await Promise.all([gltfPromise, chunkPromise]);
+
+    if (!desiredJobs.has(key)) {
       disposeTileScene(gltf.scene);
       return;
     }
-    gltf.scene.userData.worldseedTileId = tile.id;
-    gltf.scene.userData.worldseedChunk = chunk;
+
+    gltf.scene.userData.worldseedTileId = job.tile.id;
+    gltf.scene.userData.worldseedLod = job.kind;
+    if (chunk) gltf.scene.userData.worldseedChunk = chunk;
     streamedRoot.add(gltf.scene);
-    loadedTiles.set(tile.id, gltf.scene);
+
+    if (job.kind === "detail") loadedDetailTiles.set(job.tile.id, gltf.scene);
+    else loadedBaseTiles.set(job.tile.id, gltf.scene);
   } catch (error) {
-    console.warn("WorldSeed tile " + tile.id + " failed to load", error);
+    console.warn("WorldSeed " + job.kind + " tile " + job.tile.id + " failed to load", error);
   } finally {
-    pendingTiles.delete(tile.id);
+    pendingJobs.delete(key);
     activeTileLoads = Math.max(0, activeTileLoads - 1);
     pumpTileQueue();
   }
 }
 
-function unloadTile(id) {
-  queuedTiles.delete(id);
-  const tile = loadedTiles.get(id);
+function unloadTileLod(id, kind) {
+  const key = kind + ":" + id;
+  queuedJobs.delete(key);
+  const loaded = kind === "detail" ? loadedDetailTiles : loadedBaseTiles;
+  const tile = loaded.get(id);
   if (!tile) return;
   streamedRoot.remove(tile);
   disposeTileScene(tile);
-  loadedTiles.delete(id);
+  loaded.delete(id);
 }
 
 function disposeTileScene(root) {
