@@ -48,6 +48,8 @@ let lastStreamUpdate = 0;
 let importGeneration = 0;
 let fpsFrames = 0;
 let fpsStartedAt = performance.now();
+let lastFrameAt = performance.now();
+let deferOptionalFrames = 0;
 
 fileInput.addEventListener("change", () => {
   const file = fileInput.files?.[0];
@@ -206,6 +208,7 @@ function pumpGeometryQueue() {
     const [key, job] = next;
     queuedJobs.delete(key);
     if (!desiredJobs.has(key) || pendingJobs.has(key)) continue;
+    if (job.kind === "detail" && !optionalWorkAllowed()) continue;
     const loaded = job.kind === "detail" ? loadedDetailTiles : loadedBaseTiles;
     if (loaded.has(job.tile.id)) continue;
     void runGeometryTileLoad(job, importGeneration);
@@ -287,6 +290,18 @@ function createRouteOverlay(route) {
   const points = route.points.map((p) => new THREE.Vector3(p.x, p.y + 0.65, p.z));
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
   return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xff635e }));
+}
+
+function sampleFrameTime(frameTimeMs) {
+  if (!Number.isFinite(frameTimeMs) || frameTimeMs <= 0) return;
+  if (frameTimeMs >= 45) deferOptionalFrames = Math.max(deferOptionalFrames, 24);
+  else if (frameTimeMs >= 28) deferOptionalFrames = Math.max(deferOptionalFrames, 10);
+  else if (frameTimeMs <= 20) deferOptionalFrames = Math.max(0, deferOptionalFrames - 2);
+  else deferOptionalFrames = Math.max(0, deferOptionalFrames - 1);
+}
+
+function optionalWorkAllowed() {
+  return deferOptionalFrames <= 0;
 }
 
 function createInitialStreamingState() {
@@ -388,6 +403,10 @@ function resize() {
   }
 }
 renderer.setAnimationLoop(() => {
+  const frameNow = performance.now();
+  sampleFrameTime(frameNow - lastFrameAt);
+  lastFrameAt = frameNow;
+
   resize();
   controls.update();
   updateStreamedGeometry();
