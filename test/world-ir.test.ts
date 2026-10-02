@@ -126,7 +126,7 @@ describe("WorldSeed IR", () => {
 
   it("selects only chunks near a streaming position", () => {
     const { index } = createWorldSeedIrChunkSet(createDocument(), 300);
-    expect(selectWorldSeedIrChunks(index, 200, 0, 40).map((chunk) => chunk.id)).toEqual(["1:0"]);
+    expect(selectWorldSeedIrChunks(index, 200, 0, 40).map((chunk) => chunk.id)).toEqual(["0:0", "1:0"]);
     expect(selectWorldSeedIrChunks(index, 0, 0, 40).map((chunk) => chunk.id)).toEqual(["0:0"]);
   });
 
