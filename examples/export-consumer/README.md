@@ -36,7 +36,7 @@ npm run dev
 
 Export a Three.js kit from WorldSeed and drop the resulting ZIP onto the example.
 
-The consumer overlays the routable road graph, shows vehicle/pedestrian spawn points, and draws the active drive route. New exports use the geometry tile index to parse only nearby tile GLBs into the Three.js scene, prioritize the nearest jobs, adapt base/detail range, DPR and one/two-job parsing concurrency from measured FPS, add optional detail GLBs only at closer range, and dispose distant GPU resources; older exports fall back to `city.glb`. It rejects JSON contract versions other than schema `1.0`.
+The consumer overlays the routable road graph, shows vehicle/pedestrian spawn points, and draws the active drive route. New exports use the geometry tile index to parse only nearby tile GLBs into the Three.js scene, prioritize the nearest jobs, adapt base/detail range, DPR and one/two-job parsing concurrency from measured FPS, defer new detail parses briefly after frame-time spikes, add optional detail GLBs only at closer range, and dispose distant GPU resources; older exports fall back to `city.glb`. It rejects JSON contract versions other than schema `1.0`.
 
 ## Why this example exists
 
