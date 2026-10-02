@@ -132,3 +132,24 @@ The budget controls:
 Current cache caps are 20 records / 32 MB in `economy`, 40 records / 64 MB in `balanced`, and 72 records / 128 MB in `quality`. Starter Kit cache entries track last access and byte size, retain the existing seven-day TTL, and evict the oldest entries until both the record and byte budgets are satisfied whenever the tier drops or after batches of new writes.
 
 This makes Safari/iPhone behavior conservative at startup while still allowing a capable device to recover visual range after sustained smooth rendering.
+
+
+## Frame-time aware scheduling
+
+Average FPS controls the longer-lived adaptive tier, while individual frame times control short-lived optional-work cooldowns.
+
+- a frame at or above 28 ms starts a 10-frame optional-work cooldown
+- a frame at or above 45 ms starts a 24-frame cooldown
+- frames at 20 ms or below recover two cooldown steps at a time
+- other healthy frames recover one step at a time
+
+Base geometry is never blocked by this scheduler. It only postpones work that can safely arrive later:
+
+- new detail geometry becoming visible in the live WorldSeed renderer
+- detail GLB load/parse jobs in the generated starter viewer
+- detail GLB parse jobs in the standalone export consumer
+- generated starter-viewer background prefetch
+
+Already-visible live detail stays visible during a spike, avoiding a quality flicker. Already-started asynchronous GLB work is allowed to finish rather than being discarded after the expensive parse has already begun.
+
+The scheduler therefore reacts much faster than the multi-sample FPS tier while keeping structural/base world loading responsive.
