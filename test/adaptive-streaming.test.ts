@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  costAwareStreamingConcurrency,
+  estimateStreamingParseCostMs,
   initialAdaptiveStreamingState,
   initialFrameTimeSchedulerState,
+  initialStreamingParseCostState,
   optionalStreamingWorkAllowed,
+  recordStreamingParseCost,
   updateAdaptiveStreamingState,
   updateFrameTimeSchedulerState,
 } from "../src/render/adaptive-streaming";
@@ -72,5 +76,33 @@ describe("frame-time streaming scheduler", () => {
     const state = updateFrameTimeSchedulerState(initialFrameTimeSchedulerState(), 50);
     expect(state.deferOptionalFrames).toBe(24);
     expect(state.lastFrameTimeMs).toBe(50);
+  });
+});
+
+
+describe("parse-cost aware streaming scheduler", () => {
+  it("estimates parse cost from tile bytes before samples exist", () => {
+    const state = initialStreamingParseCostState();
+    expect(estimateStreamingParseCostMs(state, "base", 1024 * 1024)).toBeCloseTo(14);
+    expect(estimateStreamingParseCostMs(state, "detail", 2 * 1024 * 1024)).toBeCloseTo(32);
+  });
+
+  it("learns base and detail parse cost independently", () => {
+    let state = initialStreamingParseCostState();
+    state = recordStreamingParseCost(state, "base", 2 * 1024 * 1024, 50);
+    expect(state.baseMsPerMb).toBeCloseTo(25);
+    expect(state.baseSamples).toBe(1);
+    expect(state.detailMsPerMb).toBe(16);
+
+    state = recordStreamingParseCost(state, "detail", 1024 * 1024, 40);
+    expect(state.detailMsPerMb).toBeCloseTo(40);
+    expect(state.detailSamples).toBe(1);
+  });
+
+  it("serializes heavy parse work but allows two light jobs", () => {
+    expect(costAwareStreamingConcurrency(2, 0, 8)).toBe(2);
+    expect(costAwareStreamingConcurrency(2, 0, 24)).toBe(1);
+    expect(costAwareStreamingConcurrency(2, 20, 7)).toBe(1);
+    expect(costAwareStreamingConcurrency(1, 0, 4)).toBe(1);
   });
 });
