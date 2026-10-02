@@ -52,3 +52,10 @@ Each descriptor contains tile coordinates, local-meter bounds, object/road/spawn
 Chunk selection uses tile-bounds padding, matching WorldSeed's renderer visibility policy. This deliberately loads a neighboring tile near a boundary rather than allowing visible objects to pop in late.
 
 The chunk format is an **internal IR contract**, not a replacement for the public schema v1 files. The existing `worldseed.json`, `worldseed-objects.json`, `road-graph.json`, `spawn-points.json`, and `drive-route.json` remain unchanged.
+
+
+## Lazy-reader API
+
+`loadWorldSeedIrChunks(index, x, z, distanceMeters, read)` separates spatial selection from storage. The `read` callback receives only the paths selected for the requested local-meter position and range.
+
+That means the same loader can be backed by browser `fetch()`, an extracted starter-kit directory, an IndexedDB cache, or another archive reader without changing the chunk-selection rules. Loaded chunks are checked against the descriptor ID before being returned.
