@@ -34,6 +34,7 @@ const pendingTiles = new Set();
 let activeArchive = null;
 let activeGeometryIndex = null;
 let lastStreamUpdate = 0;
+let importGeneration = 0;
 
 fileInput.addEventListener("change", () => {
   const file = fileInput.files?.[0];
@@ -58,6 +59,7 @@ addEventListener("drop", (e) => {
 
 async function importZip(file) {
   status.textContent = "Reading export contract…";
+  const generation = ++importGeneration;
   try {
     const archive = unzipSync(new Uint8Array(await file.arrayBuffer()));
     const metadata = readJson(archive, "worldseed.json");
@@ -69,6 +71,7 @@ async function importZip(file) {
     checkContract(metadata, objects, graph, spawns, route);
 
     clearImported();
+    importGeneration = generation;
     activeArchive = archive;
     activeGeometryIndex = geometryIndex?.tiles?.length ? geometryIndex : null;
 
@@ -144,20 +147,24 @@ function updateStreamedGeometry(force = false) {
     const padding = tile.size * Math.SQRT2 / 2;
     const distance = Math.hypot(tile.centerX - focus.x, tile.centerZ - focus.z);
     if (distance <= loadDistance + padding) {
-      void ensureGeometryTile(tile);
+      void ensureGeometryTile(tile, importGeneration);
     } else if (distance > unloadDistance + padding) {
       unloadGeometryTile(tile.id);
     }
   }
 }
 
-async function ensureGeometryTile(tile) {
+async function ensureGeometryTile(tile, generation) {
   if (!activeArchive || loadedTiles.has(tile.id) || pendingTiles.has(tile.id)) return;
   const bytes = activeArchive[tile.path];
   if (!bytes) return;
   pendingTiles.add(tile.id);
   try {
     const gltf = await loader.parseAsync(exactArrayBuffer(bytes), "");
+    if (generation !== importGeneration || !activeArchive) {
+      disposeObject(gltf.scene);
+      return;
+    }
     gltf.scene.userData.worldseedTileId = tile.id;
     streamedTiles.add(gltf.scene);
     loadedTiles.set(tile.id, gltf.scene);
@@ -216,9 +223,11 @@ function exactArrayBuffer(bytes) {
 }
 
 function clearImported() {
+  importGeneration += 1;
   activeArchive = null;
   activeGeometryIndex = null;
   pendingTiles.clear();
+  for (const tile of loadedTiles.values()) disposeObject(tile);
   loadedTiles.clear();
   streamedTiles.clear();
   while (imported.children.length) {
