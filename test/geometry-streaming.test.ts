@@ -146,7 +146,7 @@ describe("geometry tile export", () => {
   });
 
   it("invalidates all geometry tiles when the geometry recipe changes", () => {
-    const makeIndex = (recipeVersion) => ({
+    const makeIndex = (recipeVersion: string): WorldSeedGeometryIndex => ({
       format: "worldseed-geometry-index",
       version: "1",
       recipeVersion,
