@@ -118,13 +118,14 @@ export interface WorldSeedBuildState extends WorldSeedIncrementalBase {
 export function createWorldSeedBuildState(
   document: ReturnType<typeof createWorldSeedIr>,
   geometryIndex: WorldSeedGeometryIndex,
+  dependencyGraph = createWorldSeedIrDependencyGraph(document),
 ): WorldSeedBuildState {
   const { index: irIndex } = createWorldSeedIrChunkSet(document);
   return {
     format: WORLDSEED_BUILD_STATE_FORMAT,
     version: WORLDSEED_GEOMETRY_INDEX_VERSION,
     irIndex,
-    dependencyGraph: createWorldSeedIrDependencyGraph(document),
+    dependencyGraph,
     geometryIndex,
   };
 }
@@ -213,8 +214,6 @@ export async function exportStarterKit(
   const binary = await createGlb(group, includeExactOrigin);
   const terrainBinary = await createGlb(createTerrainExport(group), false);
   const colliderBinary = await createGlb(createColliderExport(manifest), false);
-  const geometryTileArchive = await createGeometryTileArchiveFiles(group);
-  const geometryTileFiles = geometryTileArchive.files;
   const metadata = createWorldMetadata(data, stats, style, includeExactOrigin);
   const spawnPoints = createSpawnPoints(roadGraph, route, pedestrianSpawn);
   const irDocument = createWorldSeedIr({
@@ -224,10 +223,14 @@ export async function exportStarterKit(
     spawnPoints,
     driveRoute: route,
   });
+  const dependencyGraph = createWorldSeedIrDependencyGraph(irDocument);
+  const geometryTileArchive = await createGeometryTileArchiveFiles(group, dependencyGraph);
+  const geometryTileFiles = geometryTileArchive.files;
   const irFiles = encodeWorldSeedIrFiles(irDocument);
   const buildState = createWorldSeedBuildState(
     irDocument,
     geometryTileArchive.index,
+    dependencyGraph,
   );
   const irArchiveFiles: Record<string, Uint8Array> = {};
   for (const [path, text] of Object.entries(irFiles)) irArchiveFiles[path] = strToU8(text);
@@ -285,7 +288,7 @@ export function createWorldSeedPatchPreview(
     undefined,
     previous.dependencyGraph,
   );
-  const { index: geometryIndex } = createGeometryTileGroups(group);
+  const { index: geometryIndex } = createGeometryTileGroups(group, irPatch.dependencyGraph);
   const geometryPlan = createGeometryIncrementalPlan(
     previous.geometryIndex,
     geometryIndex,
@@ -425,6 +428,8 @@ export async function createWorldSeedIncrementalPatchArchive(
     group,
     previous.geometryIndex,
     irPatch.patch,
+    [],
+    irPatch.dependencyGraph,
   );
 
   const files: Record<string, Uint8Array> = {};
@@ -526,8 +531,9 @@ export function createCurrentWorldSeedBuildState(
     spawnPoints,
     driveRoute: route,
   });
-  const { index: geometryIndex } = createGeometryTileGroups(group);
-  return createWorldSeedBuildState(document, geometryIndex);
+  const dependencyGraph = createWorldSeedIrDependencyGraph(document);
+  const { index: geometryIndex } = createGeometryTileGroups(group, dependencyGraph);
+  return createWorldSeedBuildState(document, geometryIndex, dependencyGraph);
 }
 
 export function exportWorldSeedBuildState(
@@ -802,12 +808,13 @@ export async function createGeometryTilePatchArchiveFiles(
   previous: WorldSeedGeometryIndex,
   irPatch: WorldSeedIrPatchManifest,
   forceTileIds: Iterable<string> = [],
+  dependencyGraph?: WorldSeedIrDependencyGraph,
 ): Promise<{
   index: WorldSeedGeometryIndex;
   patch: WorldSeedGeometryPatchManifest;
   files: Record<string, Uint8Array>;
 }> {
-  const { index, tiles } = createGeometryTileGroups(root);
+  const { index, tiles } = createGeometryTileGroups(root, dependencyGraph);
   const plan = createGeometryIncrementalPlan(previous, index, irPatch, forceTileIds);
   const previousById = new Map(previous.tiles.map((tile) => [tile.id, tile]));
   const files: Record<string, Uint8Array> = {};
@@ -897,11 +904,14 @@ export function selectGeometryTiles(
     .map(({ tile }) => tile);
 }
 
-async function createGeometryTileArchiveFiles(root: THREE.Object3D): Promise<{
+async function createGeometryTileArchiveFiles(
+  root: THREE.Object3D,
+  dependencyGraph?: WorldSeedIrDependencyGraph,
+): Promise<{
   index: WorldSeedGeometryIndex;
   files: Record<string, Uint8Array>;
 }> {
-  const { index, tiles } = createGeometryTileGroups(root);
+  const { index, tiles } = createGeometryTileGroups(root, dependencyGraph);
   const files: Record<string, Uint8Array> = {};
   for (const tile of tiles) {
     const binary = await createGlb(tile.group, false);
