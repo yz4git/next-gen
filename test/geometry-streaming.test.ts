@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
+import { stableGeometrySubBatchSlot } from "../src/generation/city-builder";
+import { createWorldSeedIrDependencyGraph } from "../src/ir/world-ir";
 import {
   createCurrentWorldSeedBuildState,
   createGeometryIncrementalPlan,
@@ -95,6 +97,85 @@ function previewFixture() {
   };
   return { root, manifest, roadGraph, data, stats };
 }
+
+describe("stable geometry sub-batches", () => {
+  it("keeps feature slot assignment deterministic and insertion-independent", () => {
+    const first = stableGeometrySubBatchSlot("building:alpha");
+    const second = stableGeometrySubBatchSlot("building:alpha");
+    expect(first).toBe(second);
+    expect(first).toBeGreaterThanOrEqual(0);
+    expect(first).toBeLessThan(4);
+
+    const assignments = new Map([
+      ["building:alpha", stableGeometrySubBatchSlot("building:alpha")],
+      ["building:beta", stableGeometrySubBatchSlot("building:beta")],
+      ["building:gamma", stableGeometrySubBatchSlot("building:gamma")],
+    ]);
+    stableGeometrySubBatchSlot("building:newly-added");
+    expect(stableGeometrySubBatchSlot("building:alpha")).toBe(assignments.get("building:alpha"));
+    expect(stableGeometrySubBatchSlot("building:beta")).toBe(assignments.get("building:beta"));
+    expect(stableGeometrySubBatchSlot("building:gamma")).toBe(assignments.get("building:gamma"));
+  });
+
+  it("indexes batch feature IDs against stable semantic dependency IDs", () => {
+    const root = new THREE.Group();
+    const mesh = tiledMesh(
+      { id: "0:0", x: 0, z: 0, centerX: 0, centerZ: 0, size: 300 },
+      "buildings",
+    );
+    mesh.userData.featureIds = ["test"];
+    mesh.userData.worldseedBatchId = "buildings:0:0:0:sb1";
+    root.add(mesh);
+
+    const document = {
+      format: "worldseed-ir" as const,
+      version: "1" as const,
+      metadata: { schemaVersion: "1.0", exactOriginIncluded: false, origin: null, style: "low-poly" },
+      semantic: {
+        schemaVersion: "1.0" as const,
+        generator: "WorldSeed 0.9.1",
+        coordinateSystem: "local meters; X east, Y up, Z south",
+        radiusMeters: 300,
+        layers: { terrain: 0, areas: 0, roads: 0, buildings: 1, roofs: 0 },
+        objects: [{
+          id: "building:test",
+          sourceId: "test",
+          layer: "buildings" as const,
+          source: "demo",
+          center: [0, 1, 0] as [number, number, number],
+          bounds: {
+            minimum: [-1, 0, -1] as [number, number, number],
+            maximum: [1, 2, 1] as [number, number, number],
+          },
+          properties: {},
+        }],
+      },
+      navigation: {
+        roadGraph: {
+          schemaVersion: "1.0" as const,
+          generator: "WorldSeed 0.9.1",
+          coordinateSystem: "local meters; X east, Y up, Z south",
+          nodes: [],
+          edges: [],
+        },
+        spawnPoints: { vehicles: [], pedestrians: [] },
+        driveRoute: null,
+      },
+    };
+    const graph = createWorldSeedIrDependencyGraph(document, 300);
+    const { index } = createGeometryTileGroups(root, graph);
+
+    expect(index.tiles[0]?.batches).toEqual([
+      expect.objectContaining({
+        id: "buildings:0:0:0:sb1",
+        layer: "buildings",
+        detail: false,
+        featureIds: ["test"],
+        dependencyIds: ["semantic:demo:buildings:test"],
+      }),
+    ]);
+  });
+});
 
 describe("geometry tile export", () => {
   it("previews spawn-only changes without rebuilding geometry", () => {
