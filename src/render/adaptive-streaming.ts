@@ -360,6 +360,75 @@ export function streamingGpuUploadExcessMs(
 }
 
 
+export interface StreamingGpuCostModelState {
+  msPerEquivalentMb: number;
+  samples: number;
+}
+
+export function initialStreamingGpuCostModelState(): StreamingGpuCostModelState {
+  return {
+    msPerEquivalentMb: 1.6,
+    samples: 0,
+  };
+}
+
+export function streamingGpuEquivalentMb(hints: StreamingGpuUploadHints): number {
+  const geometryMb = Number.isFinite(hints.geometryByteLength)
+    ? Math.max(0, hints.geometryByteLength ?? 0) / (1024 * 1024)
+    : 0;
+  const vertexEquivalentMb = Number.isFinite(hints.vertexCount)
+    ? Math.max(0, hints.vertexCount ?? 0) / 250_000
+    : 0;
+  const materialEquivalentMb = Number.isFinite(hints.materialCount)
+    ? Math.max(0, hints.materialCount ?? 0) / 32
+    : 0;
+  return Math.max(0.25, geometryMb + vertexEquivalentMb + materialEquivalentMb);
+}
+
+export function estimateStreamingGpuUploadExcessMs(
+  state: StreamingGpuCostModelState,
+  hints: StreamingGpuUploadHints,
+): number {
+  return streamingGpuEquivalentMb(hints) * state.msPerEquivalentMb;
+}
+
+export function recordStreamingGpuUploadCost(
+  state: StreamingGpuCostModelState,
+  hints: StreamingGpuUploadHints,
+  uploadExcessMs: number,
+): StreamingGpuCostModelState {
+  if (!Number.isFinite(uploadExcessMs) || uploadExcessMs < 0) return state;
+  const equivalentMb = streamingGpuEquivalentMb(hints);
+  const sampleRate = Math.min(40, Math.max(0.25, uploadExcessMs / equivalentMb));
+  const alpha = 0.3;
+  return {
+    msPerEquivalentMb: state.samples === 0
+      ? sampleRate
+      : state.msPerEquivalentMb * (1 - alpha) + sampleRate * alpha,
+    samples: state.samples + 1,
+  };
+}
+
+export function streamingGpuPredictedDelayFrames(predictedExcessMs: number): number {
+  if (!Number.isFinite(predictedExcessMs) || predictedExcessMs <= 0) return 0;
+  if (predictedExcessMs >= 24) return 2;
+  if (predictedExcessMs >= 10) return 1;
+  return 0;
+}
+
+export function combineStreamingGpuUploadHints(
+  first: StreamingGpuUploadHints,
+  second: StreamingGpuUploadHints,
+): StreamingGpuUploadHints {
+  return {
+    vertexCount: Math.max(0, first.vertexCount ?? 0) + Math.max(0, second.vertexCount ?? 0),
+    geometryByteLength:
+      Math.max(0, first.geometryByteLength ?? 0) + Math.max(0, second.geometryByteLength ?? 0),
+    materialCount: Math.max(0, first.materialCount ?? 0) + Math.max(0, second.materialCount ?? 0),
+  };
+}
+
+
 export interface StreamingGpuUploadLearningState {
   thresholdScale: number;
   goodSamples: number;
