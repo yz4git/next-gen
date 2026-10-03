@@ -2,8 +2,11 @@ import * as THREE from "three";
 import type { ExploreMode } from "../types";
 import { streamingRange, tileIsVisible, type WorldTile } from "../generation/tiling";
 import {
+  initialStreamingFrameBaselineState,
   initialStreamingGpuUploadLearningState,
   streamingGpuUploadDelayFrames,
+  streamingGpuUploadExcessMs,
+  updateStreamingFrameBaselineState,
   updateStreamingGpuUploadLearningState,
   type AdaptiveStreamingBudget,
   type StreamingGpuUploadHints,
@@ -39,6 +42,7 @@ export class TileStreamer {
   private readonly activatedBaseTiles = new Set<string>();
   private frameIndex = 0;
   private uploadFeedbackPending = false;
+  private frameBaseline = initialStreamingFrameBaselineState();
   private gpuUploadLearning = initialStreamingGpuUploadLearningState();
   private motionHint: StreamingMotionHint | null = null;
   private optionalWorkAllowed = true;
@@ -130,10 +134,14 @@ export class TileStreamer {
   }
 
   observeFrameTime(frameTimeMs: number): void {
-    if (!this.uploadFeedbackPending) return;
+    if (!this.uploadFeedbackPending) {
+      this.frameBaseline = updateStreamingFrameBaselineState(this.frameBaseline, frameTimeMs);
+      return;
+    }
+    const uploadExcessMs = streamingGpuUploadExcessMs(this.frameBaseline, frameTimeMs);
     this.gpuUploadLearning = updateStreamingGpuUploadLearningState(
       this.gpuUploadLearning,
-      frameTimeMs,
+      uploadExcessMs,
     );
     this.uploadFeedbackPending = false;
   }
