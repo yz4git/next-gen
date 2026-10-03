@@ -250,8 +250,9 @@ export async function exportWorldSeedIncrementalPatch(
     previous,
     includeExactOrigin,
   );
+  const archiveBytes = Uint8Array.from(archive);
   download(
-    new Blob([archive], { type: "application/zip" }),
+    new Blob([archiveBytes.buffer], { type: "application/zip" }),
     includeExactOrigin ? "worldseed-patch.zip" : "worldseed-patch-private.zip",
   );
 }
