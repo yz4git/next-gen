@@ -159,6 +159,40 @@ describe("TileStreamer GPU release", () => {
     expect(detail.visible).toBe(true);
   });
 
+  it("stages heavy base tile GPU activation one tile per frame", () => {
+    const root = new THREE.Group();
+    const makeHeavyTile = (id: string, centerX: number) => {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute(
+        "position",
+        new THREE.Float32BufferAttribute(new Float32Array(180_001 * 3), 3),
+      );
+      const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
+      mesh.userData = {
+        worldseedTile: { id, x: centerX / 300, z: 0, centerX, centerZ: 0, size: 300 },
+      };
+      root.add(mesh);
+      return mesh;
+    };
+
+    const first = makeHeavyTile("0:0", 0);
+    const second = makeHeavyTile("1:0", 300);
+    const streamer = new TileStreamer(root, 500);
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(0, 0, 0);
+
+    streamer.update(camera, "drive");
+    expect(first.visible).toBe(false);
+    expect(second.visible).toBe(false);
+
+    streamer.update(camera, "drive");
+    expect(first.visible).toBe(true);
+    expect(second.visible).toBe(false);
+
+    streamer.update(camera, "drive");
+    expect(second.visible).toBe(true);
+  });
+
   it("keeps just-hidden tiles warm inside the release margin", () => {
     const { root, mesh, geometry } = makeRoot();
     let geometryDisposals = 0;
