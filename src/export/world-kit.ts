@@ -12,6 +12,7 @@ import {
   encodeWorldSeedIrFiles,
   encodeWorldSeedIrPatchFiles,
   serializeCanonicalJson,
+  type WorldSeedIrDependencyGraph,
   type WorldSeedIrIndex,
   type WorldSeedIrPatchManifest,
 } from "../ir/world-ir";
@@ -89,6 +90,7 @@ export interface WorldSeedGeometryIncrementalPlan {
 export interface WorldSeedIncrementalBase {
   irIndex: WorldSeedIrIndex;
   geometryIndex: WorldSeedGeometryIndex;
+  dependencyGraph?: WorldSeedIrDependencyGraph;
 }
 
 export interface WorldSeedIncrementalPatchManifest {
@@ -185,7 +187,12 @@ export async function createWorldSeedIncrementalPatchArchive(
     spawnPoints,
     driveRoute: route,
   });
-  const irPatch = encodeWorldSeedIrPatchFiles(document, previous.irIndex);
+  const irPatch = encodeWorldSeedIrPatchFiles(
+    document,
+    previous.irIndex,
+    undefined,
+    previous.dependencyGraph,
+  );
   const geometryPatch = await createGeometryTilePatchArchiveFiles(
     group,
     previous.geometryIndex,
@@ -199,8 +206,12 @@ export async function createWorldSeedIncrementalPatchArchive(
   const touchedIrChunks = irPatch.patch.added.length
     + irPatch.patch.changed.length
     + irPatch.patch.removed.length;
+  const impactedArtifacts = new Set(irPatch.dependencyDiff?.impactedArtifacts ?? []);
   const includedGlobalFiles: string[] = [];
-  if (touchedIrChunks > 0) {
+  const collidersChanged = irPatch.dependencyDiff
+    ? impactedArtifacts.has("artifact:colliders")
+    : touchedIrChunks > 0;
+  if (collidersChanged) {
     const colliderBinary = await createGlb(createColliderExport(manifest), false);
     files["colliders.glb"] = new Uint8Array(colliderBinary);
     includedGlobalFiles.push("colliders.glb");
