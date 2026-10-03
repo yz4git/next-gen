@@ -549,6 +549,7 @@ let deferOptionalFrames = 0;
 let activeEstimatedParseMs = 0;
 let renderFrameIndex = 0;
 let uploadFeedbackPending = false;
+let uploadFeedbackHints = { vertexCount: 0, geometryByteLength: 0, materialCount: 0 };
 let frameBaseline = {
   baselineMs: 16.7,
   samples: 0,
@@ -557,6 +558,10 @@ let gpuUploadLearning = {
   thresholdScale: 1,
   goodSamples: 0,
   badSamples: 0,
+  samples: 0,
+};
+let gpuCostModel = {
+  msPerEquivalentMb: 1.6,
   samples: 0,
 };
 let parseCostState = {
@@ -1024,6 +1029,7 @@ async function runTileParse(prepared, estimatedParseMs) {
     uploadJobs.set(key, {
       job,
       scene: gltf.scene,
+      uploadHints,
       delayFrames,
       availableAtFrame: renderFrameIndex + delayFrames,
     });
@@ -1126,6 +1132,7 @@ function pumpGpuUploadQueue() {
       || first[1].job.tile.x - second[1].job.tile.x);
 
   let attachments = 0;
+  let attachedHints = { vertexCount: 0, geometryByteLength: 0, materialCount: 0 };
   for (const [key, upload] of candidates) {
     const heavy = upload.delayFrames > 0;
     if (heavy && attachments > 0) continue;
@@ -1136,10 +1143,16 @@ function pumpGpuUploadQueue() {
     if (upload.job.kind === "detail") loadedDetailTiles.set(upload.job.tile.id, upload.scene);
     else loadedBaseTiles.set(upload.job.tile.id, upload.scene);
     attachments += 1;
+    attachedHints = combineGpuUploadHints(attachedHints, upload.uploadHints);
 
     if (heavy) break;
   }
-  if (attachments > 0) uploadFeedbackPending = true;
+  if (attachments > 0) {
+    uploadFeedbackHints = uploadFeedbackPending
+      ? combineGpuUploadHints(uploadFeedbackHints, attachedHints)
+      : attachedHints;
+    uploadFeedbackPending = true;
+  }
 }
 
 function collectGpuUploadHints(root) {
@@ -1174,17 +1187,38 @@ function collectGpuUploadHints(root) {
 
 function gpuUploadDelayFrames(hints) {
   const scale = Math.min(1.5, Math.max(0.5, gpuUploadLearning.thresholdScale));
+  let thresholdDelay = 0;
   if (
     hints.vertexCount >= 350_000 * scale
     || hints.geometryByteLength >= 12 * 1024 * 1024 * scale
     || hints.materialCount >= 32 * scale
-  ) return 2;
-  if (
+  ) thresholdDelay = 2;
+  else if (
     hints.vertexCount >= 180_000 * scale
     || hints.geometryByteLength >= 6 * 1024 * 1024 * scale
     || hints.materialCount >= 16 * scale
-  ) return 1;
-  return 0;
+  ) thresholdDelay = 1;
+
+  if (gpuCostModel.samples < 2) return thresholdDelay;
+  const predictedExcessMs = gpuEquivalentMb(hints) * gpuCostModel.msPerEquivalentMb;
+  const predictedDelay = predictedExcessMs >= 24 ? 2 : predictedExcessMs >= 10 ? 1 : 0;
+  return Math.max(thresholdDelay, predictedDelay);
+}
+
+function gpuEquivalentMb(hints) {
+  const geometryMb = Math.max(0, hints.geometryByteLength || 0) / (1024 * 1024);
+  const vertexEquivalentMb = Math.max(0, hints.vertexCount || 0) / 250_000;
+  const materialEquivalentMb = Math.max(0, hints.materialCount || 0) / 32;
+  return Math.max(0.25, geometryMb + vertexEquivalentMb + materialEquivalentMb);
+}
+
+function combineGpuUploadHints(first, second) {
+  return {
+    vertexCount: Math.max(0, first.vertexCount || 0) + Math.max(0, second.vertexCount || 0),
+    geometryByteLength:
+      Math.max(0, first.geometryByteLength || 0) + Math.max(0, second.geometryByteLength || 0),
+    materialCount: Math.max(0, first.materialCount || 0) + Math.max(0, second.materialCount || 0),
+  };
 }
 
 function sampleGpuUploadFeedback(frameTimeMs) {
@@ -1204,6 +1238,14 @@ function sampleGpuUploadFeedback(frameTimeMs) {
 
   uploadFeedbackPending = false;
   const uploadExcessMs = Math.max(0, frameTimeMs - frameBaseline.baselineMs);
+  const equivalentMb = gpuEquivalentMb(uploadFeedbackHints);
+  const sampleRate = Math.min(40, Math.max(0.25, uploadExcessMs / equivalentMb));
+  const costAlpha = 0.3;
+  gpuCostModel.msPerEquivalentMb = gpuCostModel.samples === 0
+    ? sampleRate
+    : gpuCostModel.msPerEquivalentMb * (1 - costAlpha) + sampleRate * costAlpha;
+  gpuCostModel.samples += 1;
+  uploadFeedbackHints = { vertexCount: 0, geometryByteLength: 0, materialCount: 0 };
 
   let thresholdScale = gpuUploadLearning.thresholdScale;
   let goodSamples = uploadExcessMs <= 4 ? gpuUploadLearning.goodSamples + 1 : 0;
