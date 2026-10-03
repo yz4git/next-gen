@@ -15,9 +15,10 @@ import {
   requestIsCoolingDown,
 } from "./privacy";
 import { WorldRenderer } from "./render/world-renderer";
+import type { WorldSeedIncrementalBase } from "./export/world-kit";
 import type { DriveRoute, ExploreMode, LonLat, WorldData, WorldStats, WorldStyle } from "./types";
 
-type ExportKind = "glb" | "kit";
+type ExportKind = "glb" | "kit" | "patch";
 
 const canvas = required<HTMLCanvasElement>("#world-canvas");
 const renderer = new WorldRenderer(canvas);
@@ -59,6 +60,8 @@ let generation = 0;
 let abortController: AbortController | null = null;
 let lastLiveRequestAt = Number.NEGATIVE_INFINITY;
 let pendingExportKind: ExportKind | null = null;
+let pendingPatchBase: WorldSeedIncrementalBase | null = null;
+let pendingPatchBaseName = "";
 let clearingPrivateData = false;
 let locationRequestGeneration = 0;
 let requestedMode: ExploreMode = "orbit";
@@ -286,6 +289,12 @@ function bindUi(): void {
   });
   required("#export-glb").addEventListener("click", () => openExportDialog("glb"));
   required("#export-kit").addEventListener("click", () => openExportDialog("kit"));
+  required("#export-patch").addEventListener("click", () => required<HTMLInputElement>("#patch-base-file").click());
+  required<HTMLInputElement>("#patch-base-file").addEventListener("change", (event) => {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) void prepareIncrementalPatchBase(file);
+  });
   required("#include-export-origin").addEventListener("change", updateExportButtonLabel);
   required("#confirm-export").addEventListener("click", () => {
     if (!pendingExportKind) return;
@@ -433,26 +442,53 @@ function setWorldPanelOpen(open: boolean): void {
 
 async function runExport(kind: ExportKind, includeExactOrigin: boolean): Promise<void> {
   if (!data || !city) return;
-  setStatus("Packaging world…", "busy");
+  setStatus(kind === "patch" ? "Building incremental patch…" : "Packaging world…", "busy");
   try {
-    const { exportGlb, exportStarterKit } = await import("./export/world-kit");
-    if (kind === "glb") await exportGlb(city.group, includeExactOrigin);
-    else {
+    const {
+      exportGlb,
+      exportStarterKit,
+      exportWorldSeedIncrementalPatch,
+    } = await import("./export/world-kit");
+    if (kind === "glb") {
+      await exportGlb(city.group, includeExactOrigin);
+    } else {
       const walkSpawn = city.collision.findOpenSpawn();
-      await exportStarterKit(
-        city.group,
-        data,
-        city.stats,
-        style,
-        city.manifest,
-        city.roadGraph,
-        currentRoute,
-        { x: walkSpawn.x, y: city.groundHeightAt(walkSpawn.x, walkSpawn.z), z: walkSpawn.z },
-        includeExactOrigin,
-      );
+      const pedestrianSpawn = {
+        x: walkSpawn.x,
+        y: city.groundHeightAt(walkSpawn.x, walkSpawn.z),
+        z: walkSpawn.z,
+      };
+      if (kind === "kit") {
+        await exportStarterKit(
+          city.group,
+          data,
+          city.stats,
+          style,
+          city.manifest,
+          city.roadGraph,
+          currentRoute,
+          pedestrianSpawn,
+          includeExactOrigin,
+        );
+      } else {
+        if (!pendingPatchBase) throw new Error("Choose a previous Three.js kit ZIP before exporting a patch.");
+        await exportWorldSeedIncrementalPatch(
+          city.group,
+          data,
+          city.stats,
+          style,
+          city.manifest,
+          city.roadGraph,
+          currentRoute,
+          pedestrianSpawn,
+          pendingPatchBase,
+          includeExactOrigin,
+        );
+      }
     }
     const privacyLabel = includeExactOrigin ? "with exact origin" : "without exact origin";
-    toast(`${kind === "glb" ? "GLB" : "Three.js kit"} downloaded ${privacyLabel}`);
+    const label = kind === "glb" ? "GLB" : kind === "kit" ? "Three.js kit" : "Incremental patch";
+    toast(`${label} downloaded ${privacyLabel}`);
   } catch (error) {
     showError(error instanceof Error ? error.message : "The export could not be created.");
   } finally {
@@ -507,7 +543,7 @@ function setBusy(active: boolean, title = "Planting your seed", detail = "", pro
   const card = required<HTMLDivElement>("#loading-card");
   card.hidden = !active;
   document.body.classList.toggle("is-busy", active);
-  document.querySelectorAll<HTMLButtonElement>("#seed-button, #demo-button, #plateau-import-button, #locate-button, [data-coordinate], [data-style], #export-glb, #export-kit").forEach((button) => {
+  document.querySelectorAll<HTMLButtonElement>("#seed-button, #demo-button, #plateau-import-button, #locate-button, [data-coordinate], [data-style], #export-glb, #export-kit, #export-patch").forEach((button) => {
     button.disabled = active;
   });
   if (!active) return;
@@ -601,12 +637,68 @@ async function copyLink(url: string, message: string): Promise<void> {
   }
 }
 
+async function prepareIncrementalPatchBase(file: File): Promise<void> {
+  const input = required<HTMLInputElement>("#patch-base-file");
+  setStatus("Reading previous WorldSeed kit…", "busy");
+  try {
+    const { unzipSync, strFromU8 } = await import("fflate");
+    const archive = unzipSync(new Uint8Array(await file.arrayBuffer()));
+    const readJson = (path: string, optional = false): unknown => {
+      const bytes = archive[path];
+      if (!bytes) {
+        if (optional) return null;
+        throw new Error(`Previous kit is missing ${path}`);
+      }
+      return JSON.parse(strFromU8(bytes));
+    };
+
+    const irIndex = readJson("worldseed-ir.index.json") as WorldSeedIncrementalBase["irIndex"];
+    const geometryIndex = readJson("worldseed-tiles.index.json") as WorldSeedIncrementalBase["geometryIndex"];
+    const dependencyGraph = readJson("worldseed-ir.dependencies.json", true) as WorldSeedIncrementalBase["dependencyGraph"] | null;
+
+    if (irIndex?.format !== "worldseed-ir-index" || irIndex.version !== "1") {
+      throw new Error("Previous kit has an unsupported WorldSeed IR index.");
+    }
+    if (geometryIndex?.format !== "worldseed-geometry-index" || geometryIndex.version !== "1") {
+      throw new Error("Previous kit has an unsupported geometry tile index.");
+    }
+    if (
+      dependencyGraph
+      && (dependencyGraph.format !== "worldseed-ir-dependencies" || dependencyGraph.version !== "1")
+    ) {
+      throw new Error("Previous kit has an unsupported dependency graph.");
+    }
+
+    pendingPatchBase = {
+      irIndex,
+      geometryIndex,
+      ...(dependencyGraph ? { dependencyGraph } : {}),
+    };
+    pendingPatchBaseName = file.name;
+    openExportDialog("patch");
+  } catch (error) {
+    pendingPatchBase = null;
+    pendingPatchBaseName = "";
+    showError(error instanceof Error ? error.message : "The previous WorldSeed kit could not be read.");
+    setStatus(data ? readyStatus(data) : "Ready", "error");
+  } finally {
+    input.value = "";
+  }
+}
+
 function openExportDialog(kind: ExportKind): void {
   if (!data || !city) return;
+  if (kind === "patch" && !pendingPatchBase) return;
   pendingExportKind = kind;
-  const label = kind === "glb" ? "GLB scene" : "Three.js starter kit";
+  const label = kind === "glb"
+    ? "GLB scene"
+    : kind === "kit"
+      ? "Three.js starter kit"
+      : "incremental patch";
   required("#export-dialog-title").textContent = `Export ${label}`;
-  required("#export-dialog-copy").textContent = `The privacy-safe default removes ${formatCoordinate(data.center)} from file metadata.`;
+  required("#export-dialog-copy").textContent = kind === "patch"
+    ? `Compare the current world against ${pendingPatchBaseName}. The previous ZIP stays local to this browser.`
+    : `The privacy-safe default removes ${formatCoordinate(data.center)} from file metadata.`;
   required<HTMLInputElement>("#include-export-origin").checked = false;
   updateExportButtonLabel();
   openDialog("export-dialog");
@@ -614,7 +706,10 @@ function openExportDialog(kind: ExportKind): void {
 
 function updateExportButtonLabel(): void {
   const includeExactOrigin = required<HTMLInputElement>("#include-export-origin").checked;
-  required("#confirm-export").textContent = includeExactOrigin ? "Export with exact origin" : "Export without origin";
+  const action = pendingExportKind === "patch" ? "Export patch" : "Export";
+  required("#confirm-export").textContent = includeExactOrigin
+    ? `${action} with exact origin`
+    : `${action} without origin`;
 }
 
 function openDialog(id: string): void {
