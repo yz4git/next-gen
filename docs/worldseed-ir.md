@@ -317,6 +317,26 @@ Unchanged tile descriptors reuse previous base/detail GLB byte-length metadata a
 
 The geometry index has a separate recipe version so a renderer/export-algorithm change can invalidate all geometry even when source IR content is unchanged.
 
+### Portable build state
+
+Full kit exports and incremental patch archives include `worldseed-build-state.json`. The app can also download this file directly through **Build state**.
+
+The build state contains only:
+
+- the current IR index
+- the stable object dependency graph
+- the current geometry index and recipe version
+
+It intentionally does not contain the full world IR document, GLB bytes, or exact WGS84 origin. This makes it much smaller than a starter-kit ZIP and suitable as the preferred baseline on memory-constrained mobile browsers.
+
+The next **Incremental patch** operation can read the JSON directly without unzipping the previous full kit. Older kit ZIPs remain supported: the app reads their indexes and dependency graph when present, and falls back conservatively when the dependency graph is absent.
+
+Every new full kit and every patch archive carries the next build state, so incremental builds can form a revision chain:
+
+`full export → build state A → patch A→B → build state B → patch B→C`
+
+`parseWorldSeedBuildState()` validates the internal format/version and the embedded IR, dependency, and geometry index formats before the state is accepted.
+
 ### Unified patch ZIP
 
 `createWorldSeedIncrementalPatchArchive()` combines the IR patch and geometry patch into one archive. A patch contains:
