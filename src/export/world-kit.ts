@@ -7,10 +7,16 @@ import worldseedObjectsSchema from "../../schemas/v1/worldseed-objects.schema.js
 import roadGraphSchema from "../../schemas/v1/road-graph.schema.json";
 import spawnPointsSchema from "../../schemas/v1/spawn-points.schema.json";
 import driveRouteSchema from "../../schemas/v1/drive-route.schema.json";
-import { createWorldSeedIr, encodeWorldSeedIrFiles, serializeCanonicalJson } from "../ir/world-ir";
+import {
+  createWorldSeedIr,
+  encodeWorldSeedIrFiles,
+  serializeCanonicalJson,
+  type WorldSeedIrPatchManifest,
+} from "../ir/world-ir";
 import type { DriveRoute, RoadGraph, WorldData, WorldManifest, WorldStats, WorldStyle } from "../types";
 
 export const WORLDSEED_GEOMETRY_INDEX_FORMAT = "worldseed-geometry-index" as const;
+export const WORLDSEED_GEOMETRY_PATCH_FORMAT = "worldseed-geometry-patch" as const;
 export const WORLDSEED_GEOMETRY_INDEX_VERSION = "1" as const;
 
 export interface WorldSeedGeometryTileDescriptor {
@@ -46,6 +52,33 @@ export interface WorldSeedGeometryTileGroup {
   descriptor: WorldSeedGeometryTileDescriptor;
   group: THREE.Group;
   detailGroup?: THREE.Group;
+}
+
+export interface WorldSeedGeometryPatchTile {
+  id: string;
+  path: string;
+  detailPath?: string;
+}
+
+export interface WorldSeedGeometryPatchRemoval {
+  id: string;
+  paths: string[];
+}
+
+export interface WorldSeedGeometryPatchManifest {
+  format: typeof WORLDSEED_GEOMETRY_PATCH_FORMAT;
+  version: typeof WORLDSEED_GEOMETRY_INDEX_VERSION;
+  fromIrRevisionHash: string | null;
+  toIrRevisionHash: string | null;
+  regenerated: WorldSeedGeometryPatchTile[];
+  removed: WorldSeedGeometryPatchRemoval[];
+  reusedCount: number;
+}
+
+export interface WorldSeedGeometryIncrementalPlan {
+  manifest: WorldSeedGeometryPatchManifest;
+  regenerateTileIds: Set<string>;
+  reusedTileIds: Set<string>;
 }
 
 
@@ -254,6 +287,118 @@ export function createGeometryTileGroups(root: THREE.Object3D): {
     },
     tiles,
   };
+}
+
+export function createGeometryIncrementalPlan(
+  previous: WorldSeedGeometryIndex,
+  next: WorldSeedGeometryIndex,
+  irPatch: WorldSeedIrPatchManifest,
+  forceTileIds: Iterable<string> = [],
+): WorldSeedGeometryIncrementalPlan {
+  const previousById = new Map(previous.tiles.map((tile) => [tile.id, tile]));
+  const nextById = new Map(next.tiles.map((tile) => [tile.id, tile]));
+  const touched = new Set([
+    ...irPatch.added.map((chunk) => chunk.id),
+    ...irPatch.changed.map((chunk) => chunk.id),
+    ...forceTileIds,
+  ]);
+  const regenerateTileIds = new Set<string>();
+  const reusedTileIds = new Set<string>();
+
+  for (const tile of next.tiles) {
+    const before = previousById.get(tile.id);
+    const structureChanged = before
+      ? before.path !== tile.path
+        || before.detailPath !== tile.detailPath
+        || before.objectCount !== tile.objectCount
+        || before.detailObjectCount !== tile.detailObjectCount
+        || serializeCanonicalJson(before.layers, false) !== serializeCanonicalJson(tile.layers, false)
+      : true;
+
+    if (touched.has(tile.id) || structureChanged) regenerateTileIds.add(tile.id);
+    else reusedTileIds.add(tile.id);
+  }
+
+  const removed: WorldSeedGeometryPatchRemoval[] = [];
+  for (const tile of previous.tiles) {
+    const after = nextById.get(tile.id);
+    if (!after) {
+      removed.push({
+        id: tile.id,
+        paths: [tile.path, ...(tile.detailPath ? [tile.detailPath] : [])],
+      });
+      continue;
+    }
+    if (regenerateTileIds.has(tile.id) && tile.detailPath && !after.detailPath) {
+      removed.push({ id: tile.id, paths: [tile.detailPath] });
+    }
+  }
+
+  const regenerated = next.tiles
+    .filter((tile) => regenerateTileIds.has(tile.id))
+    .map((tile) => ({
+      id: tile.id,
+      path: tile.path,
+      ...(tile.detailPath ? { detailPath: tile.detailPath } : {}),
+    }))
+    .sort((first, second) => first.id.localeCompare(second.id));
+
+  removed.sort((first, second) => first.id.localeCompare(second.id));
+
+  return {
+    manifest: {
+      format: WORLDSEED_GEOMETRY_PATCH_FORMAT,
+      version: WORLDSEED_GEOMETRY_INDEX_VERSION,
+      fromIrRevisionHash: irPatch.fromRevisionHash,
+      toIrRevisionHash: irPatch.toRevisionHash,
+      regenerated,
+      removed,
+      reusedCount: reusedTileIds.size,
+    },
+    regenerateTileIds,
+    reusedTileIds,
+  };
+}
+
+export async function createGeometryTilePatchArchiveFiles(
+  root: THREE.Object3D,
+  previous: WorldSeedGeometryIndex,
+  irPatch: WorldSeedIrPatchManifest,
+  forceTileIds: Iterable<string> = [],
+): Promise<{
+  index: WorldSeedGeometryIndex;
+  patch: WorldSeedGeometryPatchManifest;
+  files: Record<string, Uint8Array>;
+}> {
+  const { index, tiles } = createGeometryTileGroups(root);
+  const plan = createGeometryIncrementalPlan(previous, index, irPatch, forceTileIds);
+  const previousById = new Map(previous.tiles.map((tile) => [tile.id, tile]));
+  const files: Record<string, Uint8Array> = {};
+
+  for (const tile of tiles) {
+    if (plan.reusedTileIds.has(tile.descriptor.id)) {
+      const before = previousById.get(tile.descriptor.id);
+      if (before) {
+        tile.descriptor.byteLength = before.byteLength;
+        tile.descriptor.detailByteLength = before.detailByteLength;
+      }
+      continue;
+    }
+    if (!plan.regenerateTileIds.has(tile.descriptor.id)) continue;
+
+    const binary = await createGlb(tile.group, false);
+    tile.descriptor.byteLength = binary.byteLength;
+    files[tile.descriptor.path] = new Uint8Array(binary);
+    if (tile.detailGroup && tile.descriptor.detailPath) {
+      const detailBinary = await createGlb(tile.detailGroup, false);
+      tile.descriptor.detailByteLength = detailBinary.byteLength;
+      files[tile.descriptor.detailPath] = new Uint8Array(detailBinary);
+    }
+  }
+
+  files["worldseed-tiles.index.json"] = strToU8(serializeCanonicalJson(index));
+  files["worldseed-tiles.patch.json"] = strToU8(serializeCanonicalJson(plan.manifest));
+  return { index, patch: plan.manifest, files };
 }
 
 export function selectGeometryPrefetchTiles(
