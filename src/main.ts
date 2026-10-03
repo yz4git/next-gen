@@ -290,6 +290,7 @@ function bindUi(): void {
   required("#export-glb").addEventListener("click", () => openExportDialog("glb"));
   required("#export-kit").addEventListener("click", () => openExportDialog("kit"));
   required("#export-patch").addEventListener("click", () => required<HTMLInputElement>("#patch-base-file").click());
+  required("#export-state").addEventListener("click", () => void runBuildStateExport());
   required<HTMLInputElement>("#patch-base-file").addEventListener("change", (event) => {
     const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
@@ -543,7 +544,7 @@ function setBusy(active: boolean, title = "Planting your seed", detail = "", pro
   const card = required<HTMLDivElement>("#loading-card");
   card.hidden = !active;
   document.body.classList.toggle("is-busy", active);
-  document.querySelectorAll<HTMLButtonElement>("#seed-button, #demo-button, #plateau-import-button, #locate-button, [data-coordinate], [data-style], #export-glb, #export-kit, #export-patch").forEach((button) => {
+  document.querySelectorAll<HTMLButtonElement>("#seed-button, #demo-button, #plateau-import-button, #locate-button, [data-coordinate], [data-style], #export-glb, #export-kit, #export-patch, #export-state").forEach((button) => {
     button.disabled = active;
   });
   if (!active) return;
@@ -639,50 +640,76 @@ async function copyLink(url: string, message: string): Promise<void> {
 
 async function prepareIncrementalPatchBase(file: File): Promise<void> {
   const input = required<HTMLInputElement>("#patch-base-file");
-  setStatus("Reading previous WorldSeed kit…", "busy");
+  setStatus("Reading previous WorldSeed state…", "busy");
   try {
-    const { unzipSync, strFromU8 } = await import("fflate");
-    const archive = unzipSync(new Uint8Array(await file.arrayBuffer()));
-    const readJson = (path: string, optional = false): unknown => {
-      const bytes = archive[path];
-      if (!bytes) {
-        if (optional) return null;
-        throw new Error(`Previous kit is missing ${path}`);
+    const { parseWorldSeedBuildState } = await import("./export/world-kit");
+    if (file.name.toLowerCase().endsWith(".json") || file.type === "application/json") {
+      pendingPatchBase = parseWorldSeedBuildState(await file.text());
+    } else {
+      const { unzipSync, strFromU8 } = await import("fflate");
+      const archive = unzipSync(new Uint8Array(await file.arrayBuffer()));
+      const bundledState = archive["worldseed-build-state.json"];
+      if (bundledState) {
+        pendingPatchBase = parseWorldSeedBuildState(strFromU8(bundledState));
+      } else {
+        const readJson = (path: string, optional = false): unknown => {
+          const bytes = archive[path];
+          if (!bytes) {
+            if (optional) return null;
+            throw new Error(`Previous kit is missing ${path}`);
+          }
+          return JSON.parse(strFromU8(bytes));
+        };
+        const irIndex = readJson("worldseed-ir.index.json") as WorldSeedIncrementalBase["irIndex"];
+        const geometryIndex = readJson("worldseed-tiles.index.json") as WorldSeedIncrementalBase["geometryIndex"];
+        const dependencyGraph = readJson("worldseed-ir.dependencies.json", true) as WorldSeedIncrementalBase["dependencyGraph"] | null;
+        if (irIndex?.format !== "worldseed-ir-index" || irIndex.version !== "1") {
+          throw new Error("Previous kit has an unsupported WorldSeed IR index.");
+        }
+        if (geometryIndex?.format !== "worldseed-geometry-index" || geometryIndex.version !== "1") {
+          throw new Error("Previous kit has an unsupported geometry tile index.");
+        }
+        pendingPatchBase = {
+          irIndex,
+          geometryIndex,
+          ...(dependencyGraph ? { dependencyGraph } : {}),
+        };
       }
-      return JSON.parse(strFromU8(bytes));
-    };
-
-    const irIndex = readJson("worldseed-ir.index.json") as WorldSeedIncrementalBase["irIndex"];
-    const geometryIndex = readJson("worldseed-tiles.index.json") as WorldSeedIncrementalBase["geometryIndex"];
-    const dependencyGraph = readJson("worldseed-ir.dependencies.json", true) as WorldSeedIncrementalBase["dependencyGraph"] | null;
-
-    if (irIndex?.format !== "worldseed-ir-index" || irIndex.version !== "1") {
-      throw new Error("Previous kit has an unsupported WorldSeed IR index.");
-    }
-    if (geometryIndex?.format !== "worldseed-geometry-index" || geometryIndex.version !== "1") {
-      throw new Error("Previous kit has an unsupported geometry tile index.");
-    }
-    if (
-      dependencyGraph
-      && (dependencyGraph.format !== "worldseed-ir-dependencies" || dependencyGraph.version !== "1")
-    ) {
-      throw new Error("Previous kit has an unsupported dependency graph.");
     }
 
-    pendingPatchBase = {
-      irIndex,
-      geometryIndex,
-      ...(dependencyGraph ? { dependencyGraph } : {}),
-    };
     pendingPatchBaseName = file.name;
     openExportDialog("patch");
   } catch (error) {
     pendingPatchBase = null;
     pendingPatchBaseName = "";
-    showError(error instanceof Error ? error.message : "The previous WorldSeed kit could not be read.");
+    showError(error instanceof Error ? error.message : "The previous WorldSeed build state could not be read.");
     setStatus(data ? readyStatus(data) : "Ready", "error");
   } finally {
     input.value = "";
+  }
+}
+
+async function runBuildStateExport(): Promise<void> {
+  if (!data || !city) return;
+  setStatus("Saving build state…", "busy");
+  try {
+    const { exportWorldSeedBuildState } = await import("./export/world-kit");
+    const walkSpawn = city.collision.findOpenSpawn();
+    exportWorldSeedBuildState(
+      city.group,
+      data,
+      city.stats,
+      style,
+      city.manifest,
+      city.roadGraph,
+      currentRoute,
+      { x: walkSpawn.x, y: city.groundHeightAt(walkSpawn.x, walkSpawn.z), z: walkSpawn.z },
+    );
+    toast("Build state downloaded · no exact origin included");
+  } catch (error) {
+    showError(error instanceof Error ? error.message : "The build state could not be created.");
+  } finally {
+    setStatus(readyStatus(data), "ready");
   }
 }
 
