@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import {
+  createCurrentWorldSeedBuildState,
   createGeometryIncrementalPlan,
   createGeometryTileGroups,
   createWorldSeedBuildState,
+  createWorldSeedPatchPreview,
   parseWorldSeedBuildState,
   selectGeometryPrefetchTiles,
   selectGeometryTiles,
   type WorldSeedGeometryIndex,
 } from "../src/export/world-kit";
+import type { RoadGraph, WorldData, WorldManifest, WorldStats } from "../src/types";
 
 function tiledMesh(
   tile: { id: string; x: number; z: number; centerX: number; centerZ: number; size: number },
@@ -27,7 +30,147 @@ function tiledMesh(
   return mesh;
 }
 
+function previewFixture() {
+  const root = new THREE.Group();
+  root.add(tiledMesh(
+    { id: "0:0", x: 0, z: 0, centerX: 0, centerZ: 0, size: 300 },
+    "buildings",
+  ));
+  const manifest: WorldManifest = {
+    schemaVersion: "1.0",
+    generator: "WorldSeed 0.9.1",
+    coordinateSystem: "local meters; X east, Y up, Z south",
+    radiusMeters: 300,
+    layers: { terrain: 0, areas: 0, roads: 0, buildings: 1, roofs: 0 },
+    objects: [{
+      id: "building:test",
+      sourceId: "test",
+      layer: "buildings",
+      source: "demo",
+      center: [0, 1, 0],
+      bounds: { minimum: [-2, 0, -2], maximum: [2, 2, 2] },
+      properties: { heightMeters: 2 },
+      tile: "0:0",
+    }],
+  };
+  const roadGraph: RoadGraph = {
+    schemaVersion: "1.0",
+    generator: "WorldSeed 0.9.1",
+    coordinateSystem: "local meters; X east, Y up, Z south",
+    nodes: [],
+    edges: [],
+  };
+  const data: WorldData = {
+    center: [0, 0],
+    radius: 300,
+    buildings: [],
+    roads: [],
+    areas: [],
+    attributions: [],
+    providerLabel: "Synthetic test",
+    generatedAt: "2026-10-03T00:00:00.000Z",
+    warnings: [],
+    isDemo: true,
+  };
+  const stats: WorldStats = {
+    buildings: 1,
+    roads: 0,
+    areas: 0,
+    providedHeights: 1,
+    levelHeights: 0,
+    inferredHeights: 0,
+    triangles: 12,
+    drawCalls: 1,
+    truncatedBuildings: 0,
+    terrainRelief: 0,
+    roofs: 0,
+    shapedRoofs: 0,
+    semanticObjects: 1,
+    tiles: 1,
+    plateauBuildings: 0,
+    plateauLod2Buildings: 0,
+    roadNodes: 0,
+    roadEdges: 0,
+    drivableRoadMeters: 0,
+  };
+  return { root, manifest, roadGraph, data, stats };
+}
+
 describe("geometry tile export", () => {
+  it("previews spawn-only changes without rebuilding geometry", () => {
+    const fixture = previewFixture();
+    const beforeSpawn = { x: 0, y: 0, z: 0 };
+    const afterSpawn = { x: 12, y: 0, z: 0 };
+    const baseline = createCurrentWorldSeedBuildState(
+      fixture.root,
+      fixture.data,
+      fixture.stats,
+      "low-poly",
+      fixture.manifest,
+      fixture.roadGraph,
+      null,
+      beforeSpawn,
+      false,
+    );
+
+    const preview = createWorldSeedPatchPreview(
+      fixture.root,
+      fixture.data,
+      fixture.stats,
+      "low-poly",
+      fixture.manifest,
+      fixture.roadGraph,
+      null,
+      afterSpawn,
+      baseline,
+      false,
+    );
+
+    expect(preview.objectChanges).toEqual({ added: 0, changed: 1, removed: 0 });
+    expect(preview.regeneratedTileIds).toEqual([]);
+    expect(preview.reusedTileCount).toBe(1);
+    expect(preview.updates.spawnPoints).toBe(true);
+    expect(preview.updates.colliders).toBe(false);
+    expect(preview.estimatedUncompressedBytes).toBeGreaterThan(0);
+  });
+
+  it("previews building edits as tile and collider invalidation", () => {
+    const fixture = previewFixture();
+    const spawn = { x: 0, y: 0, z: 0 };
+    const baseline = createCurrentWorldSeedBuildState(
+      fixture.root,
+      fixture.data,
+      fixture.stats,
+      "low-poly",
+      fixture.manifest,
+      fixture.roadGraph,
+      null,
+      spawn,
+      false,
+    );
+    const changedManifest = structuredClone(fixture.manifest);
+    changedManifest.objects[0]!.properties = { heightMeters: 5 };
+
+    const preview = createWorldSeedPatchPreview(
+      fixture.root,
+      fixture.data,
+      fixture.stats,
+      "low-poly",
+      changedManifest,
+      fixture.roadGraph,
+      null,
+      spawn,
+      baseline,
+      false,
+    );
+
+    expect(preview.regeneratedTileIds).toEqual(["0:0"]);
+    expect(preview.updates.colliders).toBe(true);
+    expect(preview.updates.semanticManifest).toBe(true);
+    expect(preview.updates.roadGraph).toBe(false);
+    expect(preview.noChanges).toBe(false);
+  });
+
   it("round-trips the lightweight incremental build state", () => {
     const root = new THREE.Group();
     root.add(tiledMesh(
