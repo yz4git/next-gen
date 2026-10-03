@@ -38,7 +38,7 @@ Export a Three.js kit from WorldSeed and drop the resulting ZIP onto the example
 
 ## Incremental patch trial
 
-After a full tiled export is loaded, you can drop a matching `worldseed-patch.zip` onto the same consumer. The patch must start from the loaded IR revision. The consumer accepts incremental patch v1 and v2, validates `fromRevisionHash`, removes obsolete tile or sub-batch paths, merges changed files, updates overlays/indexes, and reloads only affected visible tiles. With geometry recipe v2, changed feature IDs are grouped into four deterministic sub-batches; v2 patches can therefore carry only replacement sub-batch GLBs while retaining the original full tile as the baseline.
+After a full tiled export is loaded, you can drop a matching `worldseed-patch.zip` onto the same consumer. The patch must start from the loaded IR revision. The consumer accepts incremental patch v1 and v2, validates `fromRevisionHash`, removes obsolete tile or sub-batch paths, merges changed files, and updates overlays/indexes. With geometry recipe v2, changed feature IDs are grouped into four deterministic sub-batches; v2 patches carry only replacement sub-batch GLBs while retaining the original full tile as the baseline. If an affected tile is already visible, the consumer hot-swaps only the changed/removed batch IDs in place; unrelated batches and the tile scene remain attached.
 
 A patch from another base revision is rejected instead of being applied optimistically. Geometry recipe v1 baselines intentionally take one full-tile rebuild when moving to recipe v2; subsequent build states preserve sub-batch override paths so later patches stay granular.
 
