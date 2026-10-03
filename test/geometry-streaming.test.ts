@@ -3,6 +3,8 @@ import * as THREE from "three";
 import {
   createGeometryIncrementalPlan,
   createGeometryTileGroups,
+  createWorldSeedBuildState,
+  parseWorldSeedBuildState,
   selectGeometryPrefetchTiles,
   selectGeometryTiles,
   type WorldSeedGeometryIndex,
@@ -26,6 +28,66 @@ function tiledMesh(
 }
 
 describe("geometry tile export", () => {
+  it("round-trips the lightweight incremental build state", () => {
+    const root = new THREE.Group();
+    root.add(tiledMesh(
+      { id: "0:0", x: 0, z: 0, centerX: 0, centerZ: 0, size: 300 },
+      "buildings",
+    ));
+    const geometryIndex = createGeometryTileGroups(root).index;
+    const document = {
+      format: "worldseed-ir" as const,
+      version: "1" as const,
+      metadata: {
+        schemaVersion: "1.0",
+        exactOriginIncluded: false,
+        origin: null,
+        style: "low-poly",
+      },
+      semantic: {
+        schemaVersion: "1.0" as const,
+        generator: "WorldSeed 0.9.1",
+        coordinateSystem: "local meters; X east, Y up, Z south",
+        radiusMeters: 300,
+        layers: { terrain: 0, areas: 0, roads: 0, buildings: 1, roofs: 0 },
+        objects: [{
+          id: "building:test",
+          sourceId: "test",
+          layer: "buildings" as const,
+          source: "demo",
+          center: [0, 0, 0] as [number, number, number],
+          bounds: {
+            minimum: [-1, 0, -1] as [number, number, number],
+            maximum: [1, 2, 1] as [number, number, number],
+          },
+          properties: {},
+        }],
+      },
+      navigation: {
+        roadGraph: {
+          schemaVersion: "1.0" as const,
+          generator: "WorldSeed 0.9.1",
+          coordinateSystem: "local meters; X east, Y up, Z south",
+          nodes: [],
+          edges: [],
+        },
+        spawnPoints: { vehicles: [], pedestrians: [] },
+        driveRoute: null,
+      },
+    };
+
+    const state = createWorldSeedBuildState(document, geometryIndex);
+    const parsed = parseWorldSeedBuildState(JSON.stringify(state));
+
+    expect(parsed).toEqual(state);
+    expect(parsed.format).toBe("worldseed-build-state");
+    expect(parsed.irIndex.revisionHash).toMatch(/^ws1-/);
+    expect(parsed.dependencyGraph.graphHash).toMatch(/^ws1-/);
+    expect(parsed.geometryIndex.tiles.map((tile) => tile.id)).toEqual(["0:0"]);
+    expect(JSON.stringify(parsed)).not.toContain("longitude");
+    expect(JSON.stringify(parsed)).not.toContain("latitude");
+  });
+
   it("groups render objects by runtime tile and records layers/detail counts", () => {
     const root = new THREE.Group();
     const center = { id: "0:0", x: 0, z: 0, centerX: 0, centerZ: 0, size: 300 };
