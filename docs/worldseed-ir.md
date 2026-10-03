@@ -271,13 +271,42 @@ Each IR chunk descriptor carries a deterministic canonical `contentHash`. The in
 
 `encodeWorldSeedIrPatchFiles()` emits a minimal IR patch set containing the new index, the patch manifest, only added/changed chunk files, and updated public road/spawn/semantic JSON when tile-local data changed. Global metadata/route files are included when the global hash changes.
 
+### Stable object dependency graph
+
+Full exports include `worldseed-ir.dependencies.json`. It is an internal dependency graph layered on top of the chunk index.
+
+Semantic stable IDs use source identity rather than generated render IDs:
+
+`semantic:<source>:<layer>:<sourceId>`
+
+The graph also models road nodes, road edges, spawns, drive routes, and derived artifacts. Current dependency edges include:
+
+- roof semantic objects → matching building semantic object
+- road semantic objects → matching road-graph edges
+- road edges → endpoint road nodes
+- edge-bound spawns → their road edge
+- route-bound spawns → their drive route
+- tile geometry artifacts → tile-local semantic objects and road edges
+- collider artifact → building semantic objects
+- road-graph artifact → road nodes and edges
+- spawn-points artifact → spawn nodes
+- drive-route artifact → route node
+- semantic-manifest artifact → semantic objects
+- world-metadata artifact → metadata content
+
+Every node has a canonical content hash that includes both its content and dependency IDs. `diffWorldSeedIrDependencyGraphs(previous, next)` finds added/changed/removed stable nodes, builds a reverse dependency closure across both revisions, and returns the impacted derived artifacts.
+
+This makes invalidation more precise than chunk hashes alone. A spawn-only edit still changes its IR chunk, but does not invalidate the tile geometry GLB or colliders. A building edit invalidates its geometry tile, the semantic manifest, and colliders without forcing road/spawn/route artifacts to rebuild.
+
+When a previous dependency graph is unavailable, patch generation falls back to the conservative chunk-level behavior for compatibility with older exports.
+
 ### Incremental geometry
 
 IR chunk IDs and geometry tile IDs share the same 300 m coordinate space. `createGeometryIncrementalPlan()` converts the IR patch into a geometry rebuild plan.
 
 A tile is regenerated when:
 
-- its matching IR chunk was added or changed
+- its matching `artifact:geometry:<tileId>` is impacted by the stable object dependency graph (or, for legacy bases without a dependency graph, its IR chunk was added or changed)
 - it is a new geometry tile
 - its base/detail structure or layer summary changed
 - `geometryGlobalHash` changed
@@ -301,7 +330,7 @@ The geometry index has a separate recipe version so a renderer/export-algorithm 
 - the new `worldseed-tiles.index.json`
 - only regenerated base/detail GLBs
 - explicit geometry removal paths
-- refreshed colliders when tile-local IR changed
+- refreshed colliders only when the collider dependency artifact is impacted (legacy bases conservatively refresh on tile-local IR changes)
 - refreshed terrain when geometry-global inputs changed
 
 `city.glb` remains a compatibility fallback for full exports and is intentionally not rebuilt into every incremental patch. The top-level patch manifest flags when that fallback would need a full refresh.
