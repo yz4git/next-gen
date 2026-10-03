@@ -188,7 +188,10 @@ export interface WorldSeedPatchPreview {
   changedChunkCount: number;
   regeneratedTileIds: string[];
   removedTileIds: string[];
+  regeneratedBatchCount: number;
+  removedBatchCount: number;
   reusedTileCount: number;
+  reusedBatchCount: number;
   impactedArtifacts: string[];
   updates: {
     metadata: boolean;
@@ -334,6 +337,17 @@ export function createWorldSeedPatchPreview(
     if (!nextTile) continue;
     estimatedGeometryBytes += estimateGeometryTilePayloadBytes(nextTile, previousTiles.get(tileId));
   }
+  for (const nextTile of geometryIndex.tiles) {
+    const previousTile = previousTiles.get(nextTile.id);
+    const previousBatches = new Map(
+      (previousTile?.batches ?? []).map((batch) => [geometryBatchKey(nextTile.id, batch), batch]),
+    );
+    for (const batch of nextTile.batches ?? []) {
+      const key = geometryBatchKey(nextTile.id, batch);
+      if (!geometryPlan.regenerateBatchKeys.has(key)) continue;
+      estimatedGeometryBytes += estimateGeometryBatchPayloadBytes(batch, previousBatches.get(key));
+    }
+  }
 
   let estimatedGlobalGeometryBytes = 0;
   if (collidersChanged) {
@@ -368,6 +382,8 @@ export function createWorldSeedPatchPreview(
     : null;
   const regeneratedTileIds = [...geometryPlan.regenerateTileIds].sort();
   const removedTileIds = geometryPlan.manifest.removed.map((item) => item.id).sort();
+  const regeneratedBatchCount = geometryPlan.manifest.regeneratedBatches.length;
+  const removedBatchCount = geometryPlan.manifest.removedBatches.length;
   const metadataChanged = dependencyDiff
     ? impacted.has("artifact:world-metadata")
     : irPatch.patch.globalChanged;
@@ -393,7 +409,9 @@ export function createWorldSeedPatchPreview(
     && !collidersChanged
     && !irPatch.patch.geometryGlobalChanged
     && regeneratedTileIds.length === 0
-    && removedTileIds.length === 0;
+    && removedTileIds.length === 0
+    && regeneratedBatchCount === 0
+    && removedBatchCount === 0;
 
   return {
     fromRevisionHash: irPatch.patch.fromRevisionHash,
@@ -404,7 +422,10 @@ export function createWorldSeedPatchPreview(
     changedChunkCount: touchedIrChunks,
     regeneratedTileIds,
     removedTileIds,
+    regeneratedBatchCount,
+    removedBatchCount,
     reusedTileCount: geometryPlan.reusedTileIds.size,
+    reusedBatchCount: geometryPlan.reusedBatchKeys.size,
     impactedArtifacts: [...impactedArtifacts].sort(),
     updates: {
       metadata: metadataChanged,
@@ -1299,6 +1320,26 @@ function stringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((entry): entry is string => typeof entry === "string")
     : [];
+}
+
+function estimateGeometryBatchPayloadBytes(
+  next: WorldSeedGeometryBatchDescriptor,
+  previous?: WorldSeedGeometryBatchDescriptor,
+): number {
+  if (
+    previous?.byteLength
+    && previous.byteLength > 0
+    && previous.geometryByteLength > 0
+    && next.geometryByteLength > 0
+  ) {
+    const ratio = Math.min(2.5, Math.max(0.4, next.geometryByteLength / previous.geometryByteLength));
+    return Math.max(768, Math.round(previous.byteLength * ratio));
+  }
+  return estimateGlbPayloadFromStats({
+    vertexCount: next.vertexCount,
+    geometryByteLength: next.geometryByteLength,
+    materialCount: next.materialCount,
+  });
 }
 
 function estimateGeometryTilePayloadBytes(
