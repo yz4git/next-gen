@@ -12,6 +12,7 @@ export const WORLDSEED_IR_FORMAT = "worldseed-ir" as const;
 export const WORLDSEED_IR_INDEX_FORMAT = "worldseed-ir-index" as const;
 export const WORLDSEED_IR_CHUNK_FORMAT = "worldseed-ir-chunk" as const;
 export const WORLDSEED_IR_PATCH_FORMAT = "worldseed-ir-patch" as const;
+export const WORLDSEED_IR_DEPENDENCY_FORMAT = "worldseed-ir-dependencies" as const;
 export const WORLDSEED_IR_VERSION = "1" as const;
 
 export interface WorldSeedIrDocument {
@@ -70,6 +71,7 @@ export interface WorldSeedIrIndex {
     fullDocumentPath: "worldseed-ir.json";
     driveRoutePath: "drive-route.json";
     geometryIndexPath: "worldseed-tiles.index.json";
+    dependencyGraphPath?: "worldseed-ir.dependencies.json";
     semanticObjects: SemanticObject[];
   };
   chunks: WorldSeedIrChunkDescriptor[];
@@ -98,6 +100,38 @@ export interface WorldSeedIrIncrementalPlan {
   patch: WorldSeedIrPatchManifest;
   changedChunkIds: Set<string>;
   changedChunkPaths: Set<string>;
+}
+
+export type WorldSeedIrDependencyKind =
+  | "semantic"
+  | "road-node"
+  | "road-edge"
+  | "spawn"
+  | "drive-route"
+  | "artifact";
+
+export interface WorldSeedIrDependencyNode {
+  id: string;
+  kind: WorldSeedIrDependencyKind;
+  chunkId?: string;
+  contentHash: string;
+  dependsOn: string[];
+  metadata?: Record<string, string | number | boolean | null>;
+}
+
+export interface WorldSeedIrDependencyGraph {
+  format: typeof WORLDSEED_IR_DEPENDENCY_FORMAT;
+  version: typeof WORLDSEED_IR_VERSION;
+  graphHash: string;
+  nodes: WorldSeedIrDependencyNode[];
+}
+
+export interface WorldSeedIrDependencyDiff {
+  added: string[];
+  changed: string[];
+  removed: string[];
+  impacted: string[];
+  impactedArtifacts: string[];
 }
 
 export interface WorldSeedIrChunk {
@@ -322,6 +356,7 @@ export function createWorldSeedIrChunkSet(
       fullDocumentPath: "worldseed-ir.json",
       driveRoutePath: "drive-route.json",
       geometryIndexPath: "worldseed-tiles.index.json",
+      dependencyGraphPath: "worldseed-ir.dependencies.json",
       semanticObjects: globalSemanticObjects,
     },
     chunks: chunkDescriptors,
@@ -334,6 +369,265 @@ export function createWorldSeedIrChunkSet(
   }
 
   return { index, chunks: chunkDocuments };
+}
+
+export function stableSemanticObjectId(object: SemanticObject): string {
+  return [
+    "semantic",
+    stableIdPart(object.source),
+    stableIdPart(object.layer),
+    stableIdPart(object.sourceId || object.id),
+  ].join(":");
+}
+
+export function createWorldSeedIrDependencyGraph(
+  document: WorldSeedIrDocument,
+  tileSizeMeters = WORLD_TILE_SIZE,
+): WorldSeedIrDependencyGraph {
+  const nodes = new Map<string, WorldSeedIrDependencyNode>();
+  const semanticByLayerAndSource = new Map<string, string>();
+  const roadEdgeIdsByRoadId = new Map<string, string[]>();
+
+  for (const edge of document.navigation.roadGraph.edges) {
+    const id = "road-edge:" + edge.id;
+    const list = roadEdgeIdsByRoadId.get(edge.roadId) ?? [];
+    list.push(id);
+    roadEdgeIdsByRoadId.set(edge.roadId, list);
+  }
+
+  for (const object of document.semantic.objects) {
+    const id = stableSemanticObjectId(object);
+    const tile = object.layer === "terrain"
+      ? undefined
+      : tileForPoint(object.center[0], object.center[2], tileSizeMeters).id;
+    const dependsOn: string[] = [];
+    if (object.layer === "roofs") {
+      const building = semanticByLayerAndSource.get("buildings|" + object.source + "|" + object.sourceId);
+      if (building) dependsOn.push(building);
+    }
+    if (object.layer === "roads") {
+      dependsOn.push(...(roadEdgeIdsByRoadId.get(object.sourceId) ?? []));
+    }
+    nodes.set(id, dependencyNode(id, "semantic", object, dependsOn, tile, {
+      layer: object.layer,
+      source: object.source,
+      sourceId: object.sourceId,
+    }));
+    semanticByLayerAndSource.set(object.layer + "|" + object.source + "|" + object.sourceId, id);
+  }
+
+  // Resolve roofs after every semantic object has been indexed so source order
+  // does not affect dependency edges.
+  for (const object of document.semantic.objects) {
+    if (object.layer !== "roofs") continue;
+    const id = stableSemanticObjectId(object);
+    const node = nodes.get(id);
+    const building = semanticByLayerAndSource.get("buildings|" + object.source + "|" + object.sourceId);
+    if (node && building && !node.dependsOn.includes(building)) node.dependsOn.push(building);
+  }
+
+  for (const node of document.navigation.roadGraph.nodes) {
+    const id = "road-node:" + node.id;
+    nodes.set(id, dependencyNode(id, "road-node", node, [], undefined));
+  }
+
+  for (const edge of document.navigation.roadGraph.edges) {
+    const id = "road-edge:" + edge.id;
+    const tile = tileForPoint(edgeAnchor(edge).x, edgeAnchor(edge).z, tileSizeMeters).id;
+    nodes.set(id, dependencyNode(
+      id,
+      "road-edge",
+      edge,
+      ["road-node:" + edge.from, "road-node:" + edge.to],
+      tile,
+      { roadId: edge.roadId },
+    ));
+  }
+
+  for (const category of ["vehicles", "pedestrians"] as const) {
+    const values = document.navigation.spawnPoints[category];
+    if (!Array.isArray(values)) continue;
+    values.forEach((value, index) => {
+      const record = asRecord(value);
+      if (!record) return;
+      const rawId = typeof record["id"] === "string" ? record["id"] : category + ":" + index;
+      const id = "spawn:" + category + ":" + stableIdPart(rawId);
+      const position = asRecord(record["position"]);
+      const x = finiteNumber(position?.["x"]);
+      const z = finiteNumber(position?.["z"]);
+      const chunkId = x !== undefined && z !== undefined
+        ? tileForPoint(x, z, tileSizeMeters).id
+        : undefined;
+      const edgeId = typeof record["edgeId"] === "string" ? record["edgeId"] : undefined;
+      nodes.set(id, dependencyNode(
+        id,
+        "spawn",
+        record,
+        edgeId ? ["road-edge:" + edgeId] : [],
+        chunkId,
+        { category },
+      ));
+    });
+  }
+
+  const route = document.navigation.driveRoute;
+  if (route) {
+    const id = "drive-route:" + stableIdPart(route.id);
+    nodes.set(id, dependencyNode(
+      id,
+      "drive-route",
+      route,
+      route.edgeIds.map((edgeId) => "road-edge:" + edgeId),
+      undefined,
+    ));
+  }
+
+  const dependencyNodes = [...nodes.values()];
+  const chunkIds = new Set(dependencyNodes.map((node) => node.chunkId).filter((id): id is string => Boolean(id)));
+  for (const chunkId of chunkIds) {
+    const dependencies = dependencyNodes
+      .filter((node) => node.chunkId === chunkId && node.kind !== "artifact")
+      .map((node) => node.id)
+      .sort();
+    const id = "artifact:geometry:" + chunkId;
+    nodes.set(id, dependencyNode(
+      id,
+      "artifact",
+      { chunkId, dependencies },
+      dependencies,
+      chunkId,
+      { artifact: "geometry" },
+    ));
+  }
+
+  const buildingDependencies = document.semantic.objects
+    .filter((object) => object.layer === "buildings")
+    .map((object) => stableSemanticObjectId(object))
+    .sort();
+  nodes.set("artifact:colliders", dependencyNode(
+    "artifact:colliders",
+    "artifact",
+    { dependencies: buildingDependencies },
+    buildingDependencies,
+    undefined,
+    { artifact: "colliders" },
+  ));
+
+  const roadDependencies = [
+    ...document.navigation.roadGraph.nodes.map((node) => "road-node:" + node.id),
+    ...document.navigation.roadGraph.edges.map((edge) => "road-edge:" + edge.id),
+  ].sort();
+  nodes.set("artifact:road-graph", dependencyNode(
+    "artifact:road-graph",
+    "artifact",
+    { dependencies: roadDependencies },
+    roadDependencies,
+    undefined,
+    { artifact: "road-graph" },
+  ));
+
+  const spawnDependencies = [...nodes.values()]
+    .filter((node) => node.kind === "spawn")
+    .map((node) => node.id)
+    .sort();
+  nodes.set("artifact:spawn-points", dependencyNode(
+    "artifact:spawn-points",
+    "artifact",
+    { dependencies: spawnDependencies },
+    spawnDependencies,
+    undefined,
+    { artifact: "spawn-points" },
+  ));
+
+  const routeDependencies = route ? ["drive-route:" + stableIdPart(route.id)] : [];
+  nodes.set("artifact:drive-route", dependencyNode(
+    "artifact:drive-route",
+    "artifact",
+    { dependencies: routeDependencies },
+    routeDependencies,
+    undefined,
+    { artifact: "drive-route" },
+  ));
+
+  const sorted = [...nodes.values()]
+    .map((node) => ({ ...node, dependsOn: [...new Set(node.dependsOn)].sort() }))
+    .sort((first, second) => first.id.localeCompare(second.id));
+  return {
+    format: WORLDSEED_IR_DEPENDENCY_FORMAT,
+    version: WORLDSEED_IR_VERSION,
+    graphHash: hashCanonicalJson(sorted),
+    nodes: sorted,
+  };
+}
+
+export function parseWorldSeedIrDependencyGraph(input: string | unknown): WorldSeedIrDependencyGraph {
+  const value = typeof input === "string" ? JSON.parse(input) as unknown : input;
+  const document = requireRecord(value, "WorldSeed IR dependency graph");
+  if (document["format"] !== WORLDSEED_IR_DEPENDENCY_FORMAT) {
+    throw new Error(`Unsupported WorldSeed IR dependency format: ${String(document["format"])}`);
+  }
+  if (document["version"] !== WORLDSEED_IR_VERSION) {
+    throw new Error(`Unsupported WorldSeed IR dependency version: ${String(document["version"])}`);
+  }
+  if (!Array.isArray(document["nodes"])) throw new Error("WorldSeed IR dependency nodes must be an array");
+  return document as unknown as WorldSeedIrDependencyGraph;
+}
+
+export function diffWorldSeedIrDependencyGraphs(
+  previous: WorldSeedIrDependencyGraph,
+  next: WorldSeedIrDependencyGraph,
+): WorldSeedIrDependencyDiff {
+  const previousById = new Map(previous.nodes.map((node) => [node.id, node]));
+  const nextById = new Map(next.nodes.map((node) => [node.id, node]));
+  const added: string[] = [];
+  const changed: string[] = [];
+  const removed: string[] = [];
+
+  for (const node of next.nodes) {
+    const before = previousById.get(node.id);
+    if (!before) added.push(node.id);
+    else if (before.contentHash !== node.contentHash) changed.push(node.id);
+  }
+  for (const node of previous.nodes) {
+    if (!nextById.has(node.id)) removed.push(node.id);
+  }
+
+  const reverse = new Map<string, Set<string>>();
+  const addReverse = (graph: WorldSeedIrDependencyGraph): void => {
+    for (const node of graph.nodes) {
+      for (const dependency of node.dependsOn) {
+        const dependents = reverse.get(dependency) ?? new Set<string>();
+        dependents.add(node.id);
+        reverse.set(dependency, dependents);
+      }
+    }
+  };
+  addReverse(previous);
+  addReverse(next);
+
+  const impacted = new Set([...added, ...changed, ...removed]);
+  const queue = [...impacted];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const dependent of reverse.get(current) ?? []) {
+      if (impacted.has(dependent)) continue;
+      impacted.add(dependent);
+      queue.push(dependent);
+    }
+  }
+
+  const impactedList = [...impacted].sort();
+  const artifactIds = new Set([
+    ...previous.nodes.filter((node) => node.kind === "artifact").map((node) => node.id),
+    ...next.nodes.filter((node) => node.kind === "artifact").map((node) => node.id),
+  ]);
+  return {
+    added: added.sort(),
+    changed: changed.sort(),
+    removed: removed.sort(),
+    impacted: impactedList,
+    impactedArtifacts: impactedList.filter((id) => artifactIds.has(id)),
+  };
 }
 
 export function createWorldSeedIrPatchManifest(
@@ -521,6 +815,7 @@ export function encodeWorldSeedIrFiles(
     "drive-route.json": serializeCanonicalJson(document.navigation.driveRoute),
     "worldseed-ir.json": serializeWorldSeedIr(document),
     "worldseed-ir.index.json": serializeCanonicalJson(chunkSet.index),
+    "worldseed-ir.dependencies.json": serializeCanonicalJson(createWorldSeedIrDependencyGraph(document, tileSizeMeters)),
   };
   for (const chunk of chunkSet.chunks) {
     files[chunkPath(chunk.tile.x, chunk.tile.z)] = serializeCanonicalJson(chunk);
@@ -584,6 +879,28 @@ function descriptorForChunk(chunk: WorldSeedIrChunk): WorldSeedIrChunkDescriptor
     },
     contentHash: hashCanonicalJson(chunk),
   };
+}
+
+function dependencyNode(
+  id: string,
+  kind: WorldSeedIrDependencyKind,
+  content: unknown,
+  dependsOn: string[],
+  chunkId?: string,
+  metadata?: Record<string, string | number | boolean | null>,
+): WorldSeedIrDependencyNode {
+  return {
+    id,
+    kind,
+    ...(chunkId ? { chunkId } : {}),
+    contentHash: hashCanonicalJson(content),
+    dependsOn: [...new Set(dependsOn)].sort(),
+    ...(metadata ? { metadata } : {}),
+  };
+}
+
+function stableIdPart(value: string): string {
+  return encodeURIComponent(value.trim().toLowerCase());
 }
 
 function patchChunk(chunk: WorldSeedIrChunkDescriptor): WorldSeedIrPatchChunk {
