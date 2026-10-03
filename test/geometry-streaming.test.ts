@@ -100,6 +100,7 @@ describe("geometry tile export", () => {
     const previous: WorldSeedGeometryIndex = {
       format: "worldseed-geometry-index",
       version: "1",
+      recipeVersion: "1",
       coordinateSystem: "local meters; X east, Y up, Z south",
       tiles: [
         tile("-1:0", -1),
@@ -110,6 +111,7 @@ describe("geometry tile export", () => {
     const next: WorldSeedGeometryIndex = {
       format: "worldseed-geometry-index",
       version: "1",
+      recipeVersion: "1",
       coordinateSystem: "local meters; X east, Y up, Z south",
       tiles: [
         tile("0:0", 0, { layer: "roads" }),
@@ -141,6 +143,61 @@ describe("geometry tile export", () => {
     expect(plan.manifest.reusedCount).toBe(1);
     expect(plan.manifest.fromIrRevisionHash).toBe("old");
     expect(plan.manifest.toIrRevisionHash).toBe("new");
+  });
+
+  it("invalidates all geometry tiles when the geometry recipe changes", () => {
+    const makeIndex = (recipeVersion) => ({
+      format: "worldseed-geometry-index",
+      version: "1",
+      recipeVersion,
+      coordinateSystem: "local meters; X east, Y up, Z south",
+      tiles: [
+        {
+          id: "0:0",
+          path: "worldseed-tiles/0_0.glb",
+          x: 0,
+          z: 0,
+          centerX: 0,
+          centerZ: 0,
+          size: 300,
+          objectCount: 1,
+          detailObjectCount: 0,
+          layers: ["roads"],
+        },
+        {
+          id: "1:0",
+          path: "worldseed-tiles/1_0.glb",
+          x: 1,
+          z: 0,
+          centerX: 300,
+          centerZ: 0,
+          size: 300,
+          objectCount: 1,
+          detailObjectCount: 0,
+          layers: ["buildings"],
+        },
+      ],
+    });
+
+    const plan = createGeometryIncrementalPlan(
+      makeIndex("1"),
+      makeIndex("2"),
+      {
+        format: "worldseed-ir-patch",
+        version: "1",
+        fromRevisionHash: "same-a",
+        toRevisionHash: "same-b",
+        globalChanged: false,
+        geometryGlobalChanged: false,
+        added: [],
+        changed: [],
+        removed: [],
+        unchangedCount: 2,
+      },
+    );
+
+    expect([...plan.regenerateTileIds].sort()).toEqual(["0:0", "1:0"]);
+    expect(plan.manifest.reusedCount).toBe(0);
   });
 
   it("prefetches only tiles ahead of movement and prefers the nearest corridor", () => {
