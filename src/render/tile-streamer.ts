@@ -1,7 +1,13 @@
 import * as THREE from "three";
 import type { ExploreMode } from "../types";
 import { streamingRange, tileIsVisible, type WorldTile } from "../generation/tiling";
-import { streamingGpuUploadDelayFrames, type AdaptiveStreamingBudget } from "./adaptive-streaming";
+import {
+  initialStreamingGpuUploadLearningState,
+  streamingGpuUploadDelayFrames,
+  updateStreamingGpuUploadLearningState,
+  type AdaptiveStreamingBudget,
+  type StreamingGpuUploadHints,
+} from "./adaptive-streaming";
 
 const GPU_RELEASE_MARGIN_METERS = 220;
 
@@ -28,10 +34,12 @@ export class TileStreamer {
   private readonly objects: StreamedObject[] = [];
   private readonly tiles = new Map<string, WorldTile>();
   private readonly gpuReleased = new WeakSet<THREE.Object3D>();
-  private readonly baseUploadDelay = new Map<string, number>();
+  private readonly baseUploadHints = new Map<string, StreamingGpuUploadHints>();
   private readonly baseActivationFrame = new Map<string, number>();
   private readonly activatedBaseTiles = new Set<string>();
   private frameIndex = 0;
+  private uploadFeedbackPending = false;
+  private gpuUploadLearning = initialStreamingGpuUploadLearningState();
   private motionHint: StreamingMotionHint | null = null;
   private optionalWorkAllowed = true;
   private readonly activatedDetail = new WeakSet<THREE.Object3D>();
@@ -96,11 +104,11 @@ export class TileStreamer {
     });
 
     for (const [tileId, stats] of uploadStats) {
-      this.baseUploadDelay.set(tileId, streamingGpuUploadDelayFrames({
+      this.baseUploadHints.set(tileId, {
         vertexCount: stats.vertexCount,
         geometryByteLength: stats.geometryByteLength,
         materialCount: stats.materials.size,
-      }));
+      });
     }
   }
 
@@ -119,6 +127,15 @@ export class TileStreamer {
 
   setOptionalWorkAllowed(allowed: boolean): void {
     this.optionalWorkAllowed = allowed;
+  }
+
+  observeFrameTime(frameTimeMs: number): void {
+    if (!this.uploadFeedbackPending) return;
+    this.gpuUploadLearning = updateStreamingGpuUploadLearningState(
+      this.gpuUploadLearning,
+      frameTimeMs,
+    );
+    this.uploadFeedbackPending = false;
   }
 
 
@@ -151,9 +168,13 @@ export class TileStreamer {
         if (this.activatedBaseTiles.has(entry.tile.id)) {
           baseVisible = true;
         } else {
-          const delayFrames = this.baseUploadDelay.get(entry.tile.id) ?? 0;
+          const delayFrames = streamingGpuUploadDelayFrames(
+            this.baseUploadHints.get(entry.tile.id) ?? {},
+            this.gpuUploadLearning.thresholdScale,
+          );
           if (delayFrames <= 0) {
             this.activatedBaseTiles.add(entry.tile.id);
+            this.uploadFeedbackPending = true;
             baseVisible = true;
           } else {
             const activationFrame = this.baseActivationFrame.get(entry.tile.id)
@@ -163,6 +184,7 @@ export class TileStreamer {
               this.activatedBaseTiles.add(entry.tile.id);
               this.baseActivationFrame.delete(entry.tile.id);
               heavyBaseActivatedThisFrame = true;
+              this.uploadFeedbackPending = true;
               baseVisible = true;
             }
           }
