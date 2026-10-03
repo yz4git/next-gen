@@ -513,6 +513,155 @@ describe("geometry tile export", () => {
     expect(plan.manifest.reusedBatchCount).toBe(1);
   });
 
+  it("emits a sub-batch removal without rebuilding the containing tile", () => {
+    const batch = (id: string, dependencyId: string) => ({
+      id,
+      layer: "buildings",
+      detail: false,
+      featureIds: [id],
+      dependencyIds: [dependencyId],
+      objectCount: 1,
+      vertexCount: 24,
+      geometryByteLength: 512,
+      materialCount: 1,
+    });
+    const tile = (batches: ReturnType<typeof batch>[]): WorldSeedGeometryIndex["tiles"][number] => ({
+      id: "0:0",
+      path: "worldseed-tiles/0_0.glb",
+      x: 0,
+      z: 0,
+      centerX: 0,
+      centerZ: 0,
+      size: 300,
+      objectCount: batches.length,
+      detailObjectCount: 0,
+      layers: ["buildings"],
+      batches,
+    });
+    const previous: WorldSeedGeometryIndex = {
+      format: "worldseed-geometry-index",
+      version: "1",
+      recipeVersion: "2",
+      coordinateSystem: "local meters; X east, Y up, Z south",
+      tiles: [tile([
+        batch("buildings:0:0:0:sb0", "semantic:demo:buildings:a"),
+        batch("buildings:0:0:0:sb1", "semantic:demo:buildings:b"),
+      ])],
+    };
+    const next: WorldSeedGeometryIndex = {
+      ...previous,
+      tiles: [tile([
+        batch("buildings:0:0:0:sb1", "semantic:demo:buildings:b"),
+      ])],
+    };
+
+    const plan = createGeometryIncrementalPlan(previous, next, {
+      format: "worldseed-ir-patch",
+      version: "1",
+      fromRevisionHash: "before",
+      toRevisionHash: "after",
+      globalChanged: false,
+      geometryGlobalChanged: false,
+      added: [],
+      changed: [{ id: "0:0", path: "worldseed-ir/chunks/0_0.json", contentHash: "new" }],
+      removed: [],
+      unchangedCount: 0,
+      dependencyGraphHash: "deps",
+      dependencyDiff: {
+        added: [],
+        changed: [],
+        removed: ["semantic:demo:buildings:a"],
+        impacted: [
+          "semantic:demo:buildings:a",
+          "artifact:geometry:0:0",
+          "artifact:colliders",
+          "artifact:semantic-manifest",
+        ],
+        impactedArtifacts: [
+          "artifact:colliders",
+          "artifact:geometry:0:0",
+          "artifact:semantic-manifest",
+        ],
+      },
+    });
+
+    expect([...plan.regenerateTileIds]).toEqual([]);
+    expect([...plan.reusedTileIds]).toEqual(["0:0"]);
+    expect(plan.manifest.regeneratedBatches).toEqual([]);
+    expect(plan.manifest.removedBatches).toEqual([
+      {
+        id: "buildings:0:0:0:sb0",
+        tileId: "0:0",
+        detail: false,
+      },
+    ]);
+    expect(plan.manifest.reusedBatchCount).toBe(1);
+  });
+
+  it("forces one full rebuild when upgrading a recipe-v1 baseline to sub-batch recipe v2", () => {
+    const previous: WorldSeedGeometryIndex = {
+      format: "worldseed-geometry-index",
+      version: "1",
+      recipeVersion: "1",
+      coordinateSystem: "local meters; X east, Y up, Z south",
+      tiles: [{
+        id: "0:0",
+        path: "worldseed-tiles/0_0.glb",
+        x: 0,
+        z: 0,
+        centerX: 0,
+        centerZ: 0,
+        size: 300,
+        objectCount: 1,
+        detailObjectCount: 0,
+        layers: ["buildings"],
+      }],
+    };
+    const next: WorldSeedGeometryIndex = {
+      ...previous,
+      recipeVersion: "2",
+      tiles: [{
+        ...previous.tiles[0]!,
+        batches: [{
+          id: "buildings:0:0:0:sb0",
+          layer: "buildings",
+          detail: false,
+          featureIds: ["a"],
+          dependencyIds: ["semantic:demo:buildings:a"],
+          objectCount: 1,
+          vertexCount: 24,
+          geometryByteLength: 512,
+          materialCount: 1,
+        }],
+      }],
+    };
+
+    const plan = createGeometryIncrementalPlan(previous, next, {
+      format: "worldseed-ir-patch",
+      version: "1",
+      fromRevisionHash: "before",
+      toRevisionHash: "after",
+      globalChanged: false,
+      geometryGlobalChanged: false,
+      added: [],
+      changed: [],
+      removed: [],
+      unchangedCount: 1,
+      dependencyGraphHash: "deps",
+      dependencyDiff: {
+        added: [],
+        changed: [],
+        removed: [],
+        impacted: [],
+        impactedArtifacts: [],
+      },
+    });
+
+    expect([...plan.regenerateTileIds]).toEqual(["0:0"]);
+    expect(plan.manifest.regeneratedBatches).toEqual([]);
+    expect(plan.manifest.reusedCount).toBe(0);
+  });
+
   it("does not rebuild geometry for spawn-only dependency changes", () => {
     const index: WorldSeedGeometryIndex = {
       format: "worldseed-geometry-index",
