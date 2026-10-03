@@ -268,6 +268,65 @@ describe("WorldSeed IR", () => {
     expect(diff.impactedArtifacts).not.toContain("artifact:colliders");
   });
 
+  it("emits only metadata files for metadata-only dependency changes", () => {
+    const beforeDocument = createDocument();
+    const beforeIndex = createWorldSeedIrChunkSet(beforeDocument, 300).index;
+    const beforeDependencies = createWorldSeedIrDependencyGraph(beforeDocument, 300);
+    const afterDocument = createDocument();
+    afterDocument.metadata = { ...afterDocument.metadata, buildTag: "next" };
+
+    const result = encodeWorldSeedIrPatchFiles(
+      afterDocument,
+      beforeIndex,
+      300,
+      beforeDependencies,
+    );
+
+    expect(Object.keys(result.files).sort()).toEqual([
+      "worldseed-ir.dependencies.json",
+      "worldseed-ir.index.json",
+      "worldseed-ir.patch.json",
+      "worldseed.json",
+    ]);
+    expect(result.dependencyDiff?.impactedArtifacts).toEqual(["artifact:world-metadata"]);
+  });
+
+  it("propagates route changes into route-linked spawn output without touching geometry", () => {
+    const createRoutedDocument = () => {
+      const document = createDocument();
+      document.navigation.driveRoute = {
+        id: "route:test",
+        seed: 1,
+        edgeIds: ["edge:test"],
+        points: [
+          { x: -220, y: 0, z: 0 },
+          { x: -180, y: 0, z: 0 },
+        ],
+        checkpoints: [{ x: -180, y: 0, z: 0 }],
+        lengthMeters: 40,
+      };
+      const vehicles = document.navigation.spawnPoints["vehicles"] as Array<Record<string, unknown>>;
+      vehicles[0] = { ...vehicles[0], routeId: "route:test" };
+      return document;
+    };
+
+    const beforeDocument = createRoutedDocument();
+    const afterDocument = createRoutedDocument();
+    afterDocument.navigation.driveRoute = {
+      ...afterDocument.navigation.driveRoute!,
+      lengthMeters: 44,
+    };
+
+    const diff = diffWorldSeedIrDependencyGraphs(
+      createWorldSeedIrDependencyGraph(beforeDocument, 300),
+      createWorldSeedIrDependencyGraph(afterDocument, 300),
+    );
+
+    expect(diff.impactedArtifacts).toContain("artifact:drive-route");
+    expect(diff.impactedArtifacts).toContain("artifact:spawn-points");
+    expect(diff.impactedArtifacts.some((id) => id.startsWith("artifact:geometry:"))).toBe(false);
+  });
+
   it("marks global metadata changes separately from tile-local changes", () => {
     const before = createWorldSeedIrChunkSet(createDocument(), 300).index;
     const changedDocument = createDocument();
