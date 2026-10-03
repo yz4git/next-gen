@@ -54,7 +54,7 @@ See [docs/REUSE.md](docs/REUSE.md) for concrete integration paths and export-fil
 - Bounded generation at 100–1,000 m with 2,500-building safety cap and merged geometry batches
 - Five views: Low poly, Anime, Cyber, Blueprint, and Data quality
 - Orbit, first-person walk with footprint collision, free-flight, and Drive modes
-- GLB download and a zipped Three.js game kit with separated terrain, colliders, road graph, route, spawn points, versioned JSON Schema contracts, chunkable WorldSeed IR data, and lazy-loaded 300 m geometry GLBs
+- GLB download and a zipped Three.js game kit with separated terrain, colliders, road graph, route, spawn points, versioned JSON Schema contracts, chunkable WorldSeed IR data, lazy-loaded 300 m geometry GLBs, deterministic chunk/revision hashes, and incremental patch planning
 - Always-visible viewport attribution, provenance warnings, and a per-seed height-quality meter
 - IndexedDB request caching, coordinate-safe service-worker shell caching, and an offline synthetic first-run demo
 - Just-in-time location disclosure, explicit share choices, privacy-safe export defaults, and local-data clearing
@@ -169,7 +169,15 @@ The starter-kit ZIP contains:
 - `schemas/v1/*.schema.json` with machine-readable contracts for every exported JSON document
 - a minimal Vite + Three.js viewer that prioritizes nearby tiles, limits geometry loading to two jobs at a time, streams base geometry at wider range and detail geometry only nearby, prefetches 1–2 base tiles ahead into IndexedDB, adapts base/detail distance, DPR, concurrency, prefetching and cache size from measured FPS, defers detail/prefetch work after frame-time spikes, keeps network/IndexedDB fetch up to two jobs ahead of parsing, learns base/detail GLB parse cost from real timings and tile byte sizes, stages heavy parsed scenes across frames using vertex/geometry-byte/material pressure, learns upload thresholds and GPU milliseconds-per-work-unit from post-attach frame-time excess above a rolling normal-frame baseline, with confidence weighting and repeated-direction outlier rejection, reuses cached GLB/IR data for seven days, and falls back to `city.glb` for older exports
 
-Schema compatibility is documented in [docs/SCHEMA_VERSIONING.md](docs/SCHEMA_VERSIONING.md). The independent [export consumer example](examples/export-consumer/) imports only the ZIP contract—no WorldSeed runtime code—and renders the GLB, road graph, spawn points, and route in a separate Three.js app.
+Schema compatibility is documented in [docs/SCHEMA_VERSIONING.md](docs/SCHEMA_VERSIONING.md). The independent [export consumer example](examples/export-consumer/) imports only the ZIP contract—no WorldSeed runtime code—and renders the GLB, road graph, spawn points, and route in a separate Three.js app. It can also apply a `worldseed-patch.zip` on top of a matching loaded export, validating the IR revision before replacing only changed geometry/data.
+
+### Incremental World builds
+
+The REDox-inspired IR now supports content-addressed incremental updates. Each 300 m IR chunk has a deterministic canonical content hash, the IR index has global/geometry-global/revision hashes, and geometry exports carry a recipe version.
+
+Given the previous IR and geometry indexes, the incremental export API can produce a compact patch ZIP containing only changed/added chunk JSON, regenerated tile GLBs, removal instructions, updated indexes, and required global support files. Metadata-only changes do not force every geometry tile to rebuild; style/global-geometry changes and geometry recipe-version changes do.
+
+The standalone consumer can apply a patch ZIP without clearing the loaded world. It rejects a patch when its `fromRevisionHash` does not match the currently loaded IR revision, unloads only invalidated tile scenes, merges changed archive files, removes obsolete paths, and restreams only the affected geometry.
 
 ### Build something with WorldSeed
 
