@@ -269,6 +269,50 @@ describe("learned GPU upload cost model", () => {
     })).toBeCloseTo(12);
   });
 
+  it("builds confidence gradually and blends early predictions", () => {
+    let state = initialStreamingGpuCostModelState();
+    const hints = {
+      geometryByteLength: 4 * 1024 * 1024,
+      vertexCount: 0,
+      materialCount: 0,
+    };
+
+    state = recordStreamingGpuUploadCost(state, hints, 16);
+    expect(state.samples).toBe(1);
+    expect(state.confidence).toBeCloseTo(1 / 6);
+    expect(estimateStreamingGpuUploadExcessMs(state, hints)).toBeGreaterThan(6.4);
+    expect(estimateStreamingGpuUploadExcessMs(state, hints)).toBeLessThan(16);
+
+    for (let i = 0; i < 5; i += 1) {
+      state = recordStreamingGpuUploadCost(state, hints, 16);
+    }
+    expect(state.confidence).toBe(1);
+  });
+
+  it("holds a single extreme GPU cost outlier but accepts repeated evidence", () => {
+    let state = initialStreamingGpuCostModelState();
+    const hints = {
+      geometryByteLength: 4 * 1024 * 1024,
+      vertexCount: 0,
+      materialCount: 0,
+    };
+
+    state = recordStreamingGpuUploadCost(state, hints, 8);
+    state = recordStreamingGpuUploadCost(state, hints, 8);
+    const stableRate = state.msPerEquivalentMb;
+    const stableSamples = state.samples;
+
+    state = recordStreamingGpuUploadCost(state, hints, 80);
+    expect(state.msPerEquivalentMb).toBeCloseTo(stableRate);
+    expect(state.samples).toBe(stableSamples);
+    expect(state.outlierStreak).toBe(1);
+
+    state = recordStreamingGpuUploadCost(state, hints, 80);
+    expect(state.msPerEquivalentMb).toBeGreaterThan(stableRate);
+    expect(state.samples).toBe(stableSamples + 1);
+    expect(state.outlierStreak).toBe(0);
+  });
+
   it("maps predicted GPU excess into upload staging delay", () => {
     expect(streamingGpuPredictedDelayFrames(6)).toBe(0);
     expect(streamingGpuPredictedDelayFrames(12)).toBe(1);
