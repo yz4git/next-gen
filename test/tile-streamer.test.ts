@@ -226,6 +226,53 @@ describe("TileStreamer GPU release", () => {
     expect(mesh.visible).toBe(true);
   });
 
+  it("uses learned GPU work rate to stage a tile below the fixed thresholds", () => {
+    const root = new THREE.Group();
+    const makeLightTile = (id: string, centerX: number) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+      mesh.userData = {
+        worldseedTile: { id, x: centerX / 300, z: 0, centerX, centerZ: 0, size: 300 },
+      };
+      root.add(mesh);
+      return mesh;
+    };
+
+    makeLightTile("0:0", 0);
+    makeLightTile("4:0", 1_200);
+
+    const predicted = new THREE.BufferGeometry();
+    predicted.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(new Float32Array(150_000 * 3), 3),
+    );
+    const predictedMesh = new THREE.Mesh(predicted, new THREE.MeshBasicMaterial());
+    predictedMesh.userData = {
+      worldseedTile: { id: "8:0", x: 8, z: 0, centerX: 2_400, centerZ: 0, size: 300 },
+    };
+    root.add(predictedMesh);
+
+    const streamer = new TileStreamer(root, 500);
+    const camera = new THREE.PerspectiveCamera();
+
+    camera.position.set(0, 0, 0);
+    streamer.update(camera, "drive");
+    streamer.observeFrameTime(26.2);
+
+    camera.position.set(1_200, 0, 0);
+    streamer.update(camera, "drive");
+    streamer.observeFrameTime(26.2);
+
+    camera.position.set(2_400, 0, 0);
+    streamer.update(camera, "drive");
+    expect(predictedMesh.visible).toBe(false);
+
+    streamer.update(camera, "drive");
+    expect(predictedMesh.visible).toBe(false);
+
+    streamer.update(camera, "drive");
+    expect(predictedMesh.visible).toBe(true);
+  });
+
   it("keeps just-hidden tiles warm inside the release margin", () => {
     const { root, mesh, geometry } = makeRoot();
     let geometryDisposals = 0;
