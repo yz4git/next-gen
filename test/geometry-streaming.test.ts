@@ -209,13 +209,14 @@ describe("geometry tile export", () => {
 
     expect(preview.objectChanges).toEqual({ added: 0, changed: 1, removed: 0 });
     expect(preview.regeneratedTileIds).toEqual([]);
+    expect(preview.regeneratedBatchCount).toBe(0);
     expect(preview.reusedTileCount).toBe(1);
     expect(preview.updates.spawnPoints).toBe(true);
     expect(preview.updates.colliders).toBe(false);
     expect(preview.estimatedUncompressedBytes).toBeGreaterThan(0);
   });
 
-  it("previews building edits as tile and collider invalidation", () => {
+  it("previews building edits as sub-batch and collider invalidation", () => {
     const fixture = previewFixture();
     const spawn = { x: 0, y: 0, z: 0 };
     const baseline = createCurrentWorldSeedBuildState(
@@ -245,7 +246,9 @@ describe("geometry tile export", () => {
       false,
     );
 
-    expect(preview.regeneratedTileIds).toEqual(["0:0"]);
+    expect(preview.regeneratedTileIds).toEqual([]);
+    expect(preview.regeneratedBatchCount).toBe(1);
+    expect(preview.reusedTileCount).toBe(1);
     expect(preview.updates.colliders).toBe(true);
     expect(preview.updates.semanticManifest).toBe(true);
     expect(preview.updates.roadGraph).toBe(false);
@@ -429,6 +432,85 @@ describe("geometry tile export", () => {
     expect(plan.manifest.reusedCount).toBe(1);
     expect(plan.manifest.fromIrRevisionHash).toBe("old");
     expect(plan.manifest.toIrRevisionHash).toBe("new");
+  });
+
+  it("regenerates only the impacted stable sub-batch inside a reused tile", () => {
+    const makeBatch = (id: string, dependencyId: string) => ({
+      id,
+      layer: "buildings",
+      detail: false,
+      featureIds: [id],
+      dependencyIds: [dependencyId],
+      objectCount: 1,
+      vertexCount: 24,
+      geometryByteLength: 512,
+      materialCount: 1,
+    });
+    const tile = (batches: ReturnType<typeof makeBatch>[]): WorldSeedGeometryIndex["tiles"][number] => ({
+      id: "0:0",
+      path: "worldseed-tiles/0_0.glb",
+      x: 0,
+      z: 0,
+      centerX: 0,
+      centerZ: 0,
+      size: 300,
+      objectCount: 2,
+      detailObjectCount: 0,
+      layers: ["buildings"],
+      batches,
+    });
+    const previous: WorldSeedGeometryIndex = {
+      format: "worldseed-geometry-index",
+      version: "1",
+      recipeVersion: "1",
+      coordinateSystem: "local meters; X east, Y up, Z south",
+      tiles: [tile([
+        makeBatch("buildings:0:0:0:sb0", "semantic:demo:buildings:a"),
+        makeBatch("buildings:0:0:0:sb1", "semantic:demo:buildings:b"),
+      ])],
+    };
+    const next: WorldSeedGeometryIndex = structuredClone(previous);
+
+    const plan = createGeometryIncrementalPlan(previous, next, {
+      format: "worldseed-ir-patch",
+      version: "1",
+      fromRevisionHash: "before",
+      toRevisionHash: "after",
+      globalChanged: false,
+      geometryGlobalChanged: false,
+      added: [],
+      changed: [{ id: "0:0", path: "worldseed-ir/chunks/0_0.json", contentHash: "new" }],
+      removed: [],
+      unchangedCount: 0,
+      dependencyGraphHash: "deps",
+      dependencyDiff: {
+        added: [],
+        changed: ["semantic:demo:buildings:a"],
+        removed: [],
+        impacted: [
+          "semantic:demo:buildings:a",
+          "artifact:geometry:0:0",
+          "artifact:colliders",
+          "artifact:semantic-manifest",
+        ],
+        impactedArtifacts: [
+          "artifact:colliders",
+          "artifact:geometry:0:0",
+          "artifact:semantic-manifest",
+        ],
+      },
+    });
+
+    expect([...plan.regenerateTileIds]).toEqual([]);
+    expect([...plan.reusedTileIds]).toEqual(["0:0"]);
+    expect(plan.manifest.regeneratedBatches).toEqual([
+      expect.objectContaining({
+        id: "buildings:0:0:0:sb0",
+        tileId: "0:0",
+        detail: false,
+      }),
+    ]);
+    expect(plan.manifest.reusedBatchCount).toBe(1);
   });
 
   it("does not rebuild geometry for spawn-only dependency changes", () => {
