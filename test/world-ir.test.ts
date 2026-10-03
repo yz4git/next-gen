@@ -208,6 +208,7 @@ describe("WorldSeed IR", () => {
     const legacy = {
       ...before,
       globalHash: undefined,
+      geometryGlobalHash: undefined,
       revisionHash: undefined,
       chunks: before.chunks.map(({ contentHash: _contentHash, ...chunk }) => chunk),
     };
