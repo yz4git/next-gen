@@ -317,6 +317,32 @@ Unchanged tile descriptors reuse previous base/detail GLB byte-length metadata a
 
 The geometry index has a separate recipe version so a renderer/export-algorithm change can invalidate all geometry even when source IR content is unchanged.
 
+### Stable geometry sub-batches
+
+Geometry recipe v2 adds a second incremental boundary inside each 300 m tile. Buildings, roofs, areas, and road geometry are assigned to one of four deterministic sub-batches using a stable hash of the source feature ID. The hash slot does not depend on insertion order, so adding an unrelated object does not reshuffle existing objects between batches.
+
+Each geometry tile descriptor can carry a `batches` array. A batch records:
+
+- stable batch ID
+- base/detail role and semantic layer
+- source feature IDs
+- stable IR dependency IDs
+- object, vertex, geometry-byte, and material counts
+- an optional override GLB `path` and measured `byteLength`
+
+Full exports still store normal whole-tile base/detail GLBs. Batch GLBs appear only when a v2 incremental patch replaces a changed sub-batch. The geometry index in the next build state keeps those override paths, so later patches can chain without flattening the tile.
+
+The incremental planner is hybrid:
+
+- new tiles, geometry-global changes, forced tiles, or recipe changes regenerate the whole tile
+- old baselines without batch metadata fall back to whole-tile invalidation
+- recipe-v2 baselines compare stable batches and regenerate only batches whose dependencies or geometry structure changed
+- removed batches are emitted separately without rebuilding unaffected batches
+
+The geometry recipe version is now `2`. Moving from recipe 1 to recipe 2 intentionally performs one conservative full-tile rebuild; after that build state is saved, later edits can use sub-batch granularity.
+
+The top-level incremental patch contract is version `2` when batch overrides may be present. The standalone consumer accepts patch v1 and v2. A v2 consumer keeps the original full tile as its baseline, retires baked-in nodes for replaced/removed batch IDs, and layers the current override GLBs on top. The visible affected tile is reloaded from the local archive so resource ownership remains simple, but the network/export payload can remain sub-batch-sized.
+
 ### Portable build state
 
 Full kit exports and incremental patch archives include `worldseed-build-state.json`. The app can also download this file directly through **Build state**.
@@ -344,7 +370,8 @@ Every new full kit and every patch archive carries the next build state, so incr
 - added/changed/removed stable object-node counts when a dependency graph baseline is available
 - changed IR chunk count
 - geometry tile IDs that will be regenerated or removed
-- the count of reusable geometry tiles
+- stable geometry sub-batches that will be replaced/removed
+- reusable tile and sub-batch counts
 - whether metadata, semantic manifest, road graph, spawn points, drive route, colliders, or terrain will be refreshed
 - an estimated uncompressed payload size
 
@@ -365,8 +392,9 @@ The app recalculates Patch Preview when the privacy option changes, because incl
 - updated public structured-data files when required
 - `worldseed-tiles.patch.json`
 - the new `worldseed-tiles.index.json`
-- only regenerated base/detail GLBs
-- explicit geometry removal paths
+- regenerated whole-tile base/detail GLBs only when whole-tile fallback is required
+- v2 `worldseed-batches/.../*.glb` overrides for changed stable sub-batches
+- explicit tile and sub-batch removal records
 - refreshed colliders only when the collider dependency artifact is impacted (legacy bases conservatively refresh on tile-local IR changes)
 - refreshed terrain when geometry-global inputs changed
 
@@ -378,6 +406,6 @@ The standalone export consumer accepts a full export first and then an increment
 
 Before applying it, the consumer requires the loaded IR `revisionHash` to equal the patch `fromRevisionHash`. This prevents applying a patch to the wrong base world.
 
-When accepted, the consumer cancels stale tile jobs, unloads only regenerated/removed tile IDs, removes obsolete archive paths, merges patch files, swaps the IR/geometry indexes, refreshes terrain and structured-data overlays when included, and restarts streaming. Unchanged loaded tiles remain alive.
+When accepted, the consumer cancels stale tile jobs, invalidates tiles named by whole-tile or sub-batch changes, removes obsolete tile/batch paths, merges patch files, swaps the IR/geometry indexes, refreshes terrain and structured-data overlays when included, and restarts streaming. For recipe-v2 batch patches, the full tile remains the baseline while override GLBs replace only current batch IDs.
 
 This turns the REDox-style IR from an internal normalization layer into a dependency graph for reproducible partial world updates.
