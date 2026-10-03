@@ -3,6 +3,9 @@
 ## Unreleased
 
 - Added a REDox-inspired, dependency-free WorldSeed IR v1 that normalizes metadata, semantic objects, road graphs, spawn points, and drive routes behind one versioned intermediate representation.
+- Added deterministic per-chunk IR content hashes plus global, geometry-global, and revision hashes for dependency-aware incremental builds.
+- Added minimal IR patch manifests/files and IR-driven geometry patch planning so unchanged 300 m tile GLBs can be reused instead of regenerated.
+- Added geometry recipe-version invalidation, unified `worldseed-patch.zip` creation, explicit removed-path handling, and standalone-consumer hot patch application with base-revision validation.
 - Starter-kit exports now route structured data through the IR, emit deterministic JSON key ordering, and include `worldseed-ir.json` while preserving all existing schema v1 filenames and semantics.
 - Added an explicit IR migration boundary plus regression tests for round-tripping, deterministic serialization, and unsupported versions.
 - Added 300 m chunked IR exports with a lightweight spatial index, tile-local semantic objects, road graph subsets, spawn data, boundary-aware chunk selection, and a storage-agnostic lazy chunk reader.
