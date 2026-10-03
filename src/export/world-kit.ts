@@ -488,14 +488,16 @@ export async function createWorldSeedIncrementalPatchArchive(
 
   const patchManifest: WorldSeedIncrementalPatchManifest = {
     format: WORLDSEED_INCREMENTAL_PATCH_FORMAT,
-    version: WORLDSEED_GEOMETRY_INDEX_VERSION,
+    version: WORLDSEED_INCREMENTAL_PATCH_VERSION,
     fromRevisionHash: irPatch.patch.fromRevisionHash,
     toRevisionHash: irPatch.patch.toRevisionHash,
     irPatchPath: "worldseed-ir.patch.json",
     geometryPatchPath: "worldseed-tiles.patch.json",
     compatibilityFallbackNeedsRefresh:
       geometryPatch.patch.regenerated.length > 0
-      || geometryPatch.patch.removed.length > 0,
+      || geometryPatch.patch.removed.length > 0
+      || geometryPatch.patch.regeneratedBatches.length > 0
+      || geometryPatch.patch.removedBatches.length > 0,
     includedGlobalFiles,
   };
   files["worldseed.patch.json"] = strToU8(serializeCanonicalJson(patchManifest));
@@ -976,23 +978,48 @@ export async function createGeometryTilePatchArchiveFiles(
   const files: Record<string, Uint8Array> = {};
 
   for (const tile of tiles) {
-    if (plan.reusedTileIds.has(tile.descriptor.id)) {
-      const before = previousById.get(tile.descriptor.id);
-      if (before) {
-        tile.descriptor.byteLength = before.byteLength;
-        tile.descriptor.detailByteLength = before.detailByteLength;
+    const before = previousById.get(tile.descriptor.id);
+    if (plan.reusedTileIds.has(tile.descriptor.id) && before) {
+      tile.descriptor.byteLength = before.byteLength;
+      tile.descriptor.detailByteLength = before.detailByteLength;
+    }
+
+    const beforeBatches = new Map(
+      (before?.batches ?? []).map((batch) => [geometryBatchKey(tile.descriptor.id, batch), batch]),
+    );
+    for (const batch of tile.descriptor.batches ?? []) {
+      const key = geometryBatchKey(tile.descriptor.id, batch);
+      const previousBatch = beforeBatches.get(key);
+      if (plan.reusedBatchKeys.has(key) && previousBatch) {
+        batch.path = previousBatch.path;
+        batch.byteLength = previousBatch.byteLength;
+      }
+    }
+
+    if (plan.regenerateTileIds.has(tile.descriptor.id)) {
+      const binary = await createGlb(tile.group, false);
+      tile.descriptor.byteLength = binary.byteLength;
+      files[tile.descriptor.path] = new Uint8Array(binary);
+      if (tile.detailGroup && tile.descriptor.detailPath) {
+        const detailBinary = await createGlb(tile.detailGroup, false);
+        tile.descriptor.detailByteLength = detailBinary.byteLength;
+        files[tile.descriptor.detailPath] = new Uint8Array(detailBinary);
       }
       continue;
     }
-    if (!plan.regenerateTileIds.has(tile.descriptor.id)) continue;
 
-    const binary = await createGlb(tile.group, false);
-    tile.descriptor.byteLength = binary.byteLength;
-    files[tile.descriptor.path] = new Uint8Array(binary);
-    if (tile.detailGroup && tile.descriptor.detailPath) {
-      const detailBinary = await createGlb(tile.detailGroup, false);
-      tile.descriptor.detailByteLength = detailBinary.byteLength;
-      files[tile.descriptor.detailPath] = new Uint8Array(detailBinary);
+    for (const batch of tile.descriptor.batches ?? []) {
+      const key = geometryBatchKey(tile.descriptor.id, batch);
+      if (!plan.regenerateBatchKeys.has(key)) continue;
+      const exportGroup = createGeometryBatchExportGroup(tile, batch);
+      if (!exportGroup) {
+        throw new Error("WorldSeed geometry batch export could not find " + batch.id);
+      }
+      const binary = await createGlb(exportGroup, false);
+      const path = geometryBatchPatchPath(tile.descriptor, batch);
+      batch.path = path;
+      batch.byteLength = binary.byteLength;
+      files[path] = new Uint8Array(binary);
     }
   }
 
@@ -1154,19 +1181,7 @@ function geometryBatchDescriptors(
   const grouped = new Map<string, THREE.Object3D[]>();
   for (let index = 0; index < objects.length; index += 1) {
     const object = objects[index]!;
-    const layer = typeof object.userData["worldseedLayer"] === "string"
-      ? object.userData["worldseedLayer"]
-      : "unknown";
-    const featureIds = stringArray(object.userData["featureIds"]);
-    const rawBatchId = object.userData["worldseedBatchId"];
-    const batchId = typeof rawBatchId === "string" && rawBatchId.length > 0
-      ? rawBatchId
-      : [
-        "legacy",
-        layer,
-        detail ? "detail" : "base",
-        featureIds.join(",") || object.name || String(index),
-      ].join(":");
+    const batchId = geometryBatchIdForObject(object, index, detail);
     const members = grouped.get(batchId) ?? [];
     members.push(object);
     grouped.set(batchId, members);
@@ -1232,6 +1247,52 @@ function geometryUploadStatsForObjects(objects: THREE.Object3D[]): {
   }
 
   return { vertexCount, geometryByteLength, materialCount: materials.size };
+}
+
+function geometryBatchIdForObject(
+  object: THREE.Object3D,
+  index: number,
+  detail: boolean,
+): string {
+  const rawBatchId = object.userData["worldseedBatchId"];
+  if (typeof rawBatchId === "string" && rawBatchId.length > 0) return rawBatchId;
+  const layer = typeof object.userData["worldseedLayer"] === "string"
+    ? object.userData["worldseedLayer"]
+    : "unknown";
+  const featureIds = stringArray(object.userData["featureIds"]);
+  return [
+    "legacy",
+    layer,
+    detail ? "detail" : "base",
+    featureIds.join(",") || object.name || String(index),
+  ].join(":");
+}
+
+function createGeometryBatchExportGroup(
+  tile: WorldSeedGeometryTileGroup,
+  batch: WorldSeedGeometryBatchDescriptor,
+): THREE.Group | null {
+  const source = batch.detail ? tile.detailGroup : tile.group;
+  if (!source) return null;
+  const group = new THREE.Group();
+  group.name = "WorldSeed Batch " + batch.id;
+  group.userData = {
+    worldseedTile: tile.descriptor.id,
+    worldseedBatchId: batch.id,
+    worldseedLod: batch.detail ? "detail" : "base",
+    exactOriginIncluded: false,
+  };
+  for (let index = 0; index < source.children.length; index += 1) {
+    const object = source.children[index]!;
+    if (geometryBatchIdForObject(object, index, batch.detail) !== batch.id) continue;
+    const clone = object.clone(false);
+    clone.matrixAutoUpdate = false;
+    clone.matrix.copy(object.matrix);
+    clone.matrixWorld.copy(clone.matrix);
+    clone.visible = true;
+    group.add(clone);
+  }
+  return group.children.length > 0 ? group : null;
 }
 
 function stringArray(value: unknown): string[] {
