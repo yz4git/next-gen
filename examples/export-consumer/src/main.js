@@ -47,6 +47,16 @@ const desiredJobs = new Set();
 let activeTileLoads = 0;
 let activeArchive = null;
 let activeGeometryIndex = null;
+let activeIrIndex = null;
+let activeMetadata = null;
+let activeObjects = null;
+let activeGraph = null;
+let activeSpawns = null;
+let activeRoute = null;
+let activeTerrainScene = null;
+let roadOverlay = null;
+let spawnOverlay = null;
+let routeOverlay = null;
 let lastStreamUpdate = 0;
 let importGeneration = 0;
 let fpsFrames = 0;
@@ -107,24 +117,38 @@ async function importZip(file) {
   const generation = ++importGeneration;
   try {
     const archive = unzipSync(new Uint8Array(await file.arrayBuffer()));
+    const incrementalPatch = readJson(archive, "worldseed.patch.json", true);
+    if (incrementalPatch) {
+      await applyIncrementalPatch(archive, incrementalPatch, file.name);
+      return;
+    }
+
     const metadata = readJson(archive, "worldseed.json");
     const objects = readJson(archive, "worldseed-objects.json");
     const graph = readJson(archive, "road-graph.json");
     const spawns = readJson(archive, "spawn-points.json");
     const route = readJson(archive, "drive-route.json", true);
     const geometryIndex = readJson(archive, "worldseed-tiles.index.json", true);
+    const irIndex = readJson(archive, "worldseed-ir.index.json", true);
     checkContract(metadata, objects, graph, spawns, route);
 
     clearImported();
     importGeneration = generation;
     activeArchive = archive;
     activeGeometryIndex = geometryIndex?.tiles?.length ? geometryIndex : null;
+    activeIrIndex = irIndex;
+    activeMetadata = metadata;
+    activeObjects = objects;
+    activeGraph = graph;
+    activeSpawns = spawns;
+    activeRoute = route;
 
     if (activeGeometryIndex) {
       const terrain = archive["terrain.glb"];
       if (terrain) {
         const terrainGltf = await loader.parseAsync(exactArrayBuffer(terrain), "");
-        imported.add(terrainGltf.scene);
+        activeTerrainScene = terrainGltf.scene;
+        imported.add(activeTerrainScene);
       }
       imported.add(streamedTiles);
       updateStreamedGeometry(true);
@@ -135,9 +159,7 @@ async function importZip(file) {
       imported.add(gltf.scene);
     }
 
-    imported.add(createRoadGraphOverlay(graph));
-    imported.add(createSpawnOverlay(spawns));
-    if (route) imported.add(createRouteOverlay(route));
+    rebuildDataOverlays(graph, spawns, route);
 
     fitCamera(metadata.radiusMeters ?? 500);
     writeDetails(metadata, objects, graph, spawns, route);
@@ -148,6 +170,119 @@ async function importZip(file) {
   } catch (error) {
     status.textContent = error instanceof Error ? error.message : String(error);
   }
+}
+
+async function applyIncrementalPatch(archive, patchManifest, fileName) {
+  if (patchManifest.format !== "worldseed-incremental-patch" || patchManifest.version !== "1") {
+    throw new Error("Unsupported WorldSeed incremental patch");
+  }
+  if (!activeArchive || !activeGeometryIndex || !activeIrIndex) {
+    throw new Error("Load the matching full WorldSeed export before applying a patch");
+  }
+  if (
+    patchManifest.fromRevisionHash
+    && activeIrIndex.revisionHash !== patchManifest.fromRevisionHash
+  ) {
+    throw new Error(
+      "Patch base revision mismatch: expected "
+      + patchManifest.fromRevisionHash
+      + ", loaded "
+      + (activeIrIndex.revisionHash || "unknown"),
+    );
+  }
+
+  const irPatch = readJson(archive, patchManifest.irPatchPath || "worldseed-ir.patch.json");
+  const geometryPatch = readJson(
+    archive,
+    patchManifest.geometryPatchPath || "worldseed-tiles.patch.json",
+  );
+  const nextIrIndex = readJson(archive, "worldseed-ir.index.json");
+  const nextGeometryIndex = readJson(archive, "worldseed-tiles.index.json");
+
+  if (irPatch.toRevisionHash && nextIrIndex.revisionHash !== irPatch.toRevisionHash) {
+    throw new Error("Patch IR index revision does not match patch manifest");
+  }
+
+  importGeneration += 1;
+  desiredJobs.clear();
+  queuedJobs.clear();
+  pendingJobs.clear();
+  for (const upload of uploadJobs.values()) disposeObject(upload.scene);
+  uploadJobs.clear();
+
+  const invalidateIds = new Set([
+    ...(geometryPatch.regenerated || []).map((entry) => entry.id),
+    ...(geometryPatch.removed || []).map((entry) => entry.id),
+  ]);
+  for (const id of invalidateIds) {
+    unloadGeometryTile(id, "detail");
+    unloadGeometryTile(id, "base");
+  }
+
+  const mergedArchive = { ...activeArchive };
+  for (const removal of geometryPatch.removed || []) {
+    for (const path of removal.paths || []) delete mergedArchive[path];
+  }
+  for (const [path, bytes] of Object.entries(archive)) mergedArchive[path] = bytes;
+
+  activeArchive = mergedArchive;
+  activeGeometryIndex = nextGeometryIndex;
+  activeIrIndex = nextIrIndex;
+
+  activeMetadata = readJson(archive, "worldseed.json", true) ?? activeMetadata;
+  activeObjects = readJson(archive, "worldseed-objects.json", true) ?? activeObjects;
+  activeGraph = readJson(archive, "road-graph.json", true) ?? activeGraph;
+  activeSpawns = readJson(archive, "spawn-points.json", true) ?? activeSpawns;
+  if (archive["drive-route.json"]) {
+    activeRoute = readJson(archive, "drive-route.json", true);
+  }
+
+  if (archive["terrain.glb"]) {
+    if (activeTerrainScene) {
+      imported.remove(activeTerrainScene);
+      disposeObject(activeTerrainScene);
+    }
+    const terrainGltf = await loader.parseAsync(exactArrayBuffer(archive["terrain.glb"]), "");
+    activeTerrainScene = terrainGltf.scene;
+    imported.add(activeTerrainScene);
+  }
+
+  if (
+    archive["road-graph.json"]
+    || archive["spawn-points.json"]
+    || archive["drive-route.json"]
+  ) {
+    rebuildDataOverlays(activeGraph, activeSpawns, activeRoute);
+  }
+
+  updateStreamedGeometry(true);
+  if (activeMetadata && activeObjects && activeGraph && activeSpawns) {
+    writeDetails(activeMetadata, activeObjects, activeGraph, activeSpawns, activeRoute);
+  }
+
+  const regenerated = geometryPatch.regenerated?.length ?? 0;
+  const removed = geometryPatch.removed?.length ?? 0;
+  status.textContent =
+    "Applied " + fileName
+    + " · " + regenerated + " geometry tiles regenerated"
+    + (removed ? " · " + removed + " removals" : "")
+    + " · revision " + (nextIrIndex.revisionHash || "unknown");
+}
+
+function rebuildDataOverlays(graph, spawns, route) {
+  for (const overlay of [roadOverlay, spawnOverlay, routeOverlay]) {
+    if (!overlay) continue;
+    imported.remove(overlay);
+    disposeObject(overlay);
+  }
+
+  roadOverlay = graph ? createRoadGraphOverlay(graph) : null;
+  spawnOverlay = spawns ? createSpawnOverlay(spawns) : null;
+  routeOverlay = route ? createRouteOverlay(route) : null;
+
+  if (roadOverlay) imported.add(roadOverlay);
+  if (spawnOverlay) imported.add(spawnOverlay);
+  if (routeOverlay) imported.add(routeOverlay);
 }
 
 function readJson(archive, path, nullable = false) {
@@ -678,6 +813,16 @@ function clearImported() {
   };
   activeArchive = null;
   activeGeometryIndex = null;
+  activeIrIndex = null;
+  activeMetadata = null;
+  activeObjects = null;
+  activeGraph = null;
+  activeSpawns = null;
+  activeRoute = null;
+  activeTerrainScene = null;
+  roadOverlay = null;
+  spawnOverlay = null;
+  routeOverlay = null;
   desiredJobs.clear();
   queuedJobs.clear();
   pendingJobs.clear();
