@@ -176,15 +176,21 @@ export async function exportStarterKit(
   const geometryTileFiles = await createGeometryTileArchiveFiles(group);
   const metadata = createWorldMetadata(data, stats, style, includeExactOrigin);
   const spawnPoints = createSpawnPoints(roadGraph, route, pedestrianSpawn);
-  const irFiles = encodeWorldSeedIrFiles(createWorldSeedIr({
+  const irDocument = createWorldSeedIr({
     metadata,
     manifest,
     roadGraph,
     spawnPoints,
     driveRoute: route,
-  }));
+  });
+  const irFiles = encodeWorldSeedIrFiles(irDocument);
+  const buildState = createWorldSeedBuildState(
+    irDocument,
+    createGeometryTileGroups(group).index,
+  );
   const irArchiveFiles: Record<string, Uint8Array> = {};
   for (const [path, text] of Object.entries(irFiles)) irArchiveFiles[path] = strToU8(text);
+  irArchiveFiles["worldseed-build-state.json"] = strToU8(serializeCanonicalJson(buildState));
   const archive = zipSync(
     {
       "city.glb": new Uint8Array(binary),
@@ -247,6 +253,14 @@ export async function createWorldSeedIncrementalPatchArchive(
   const files: Record<string, Uint8Array> = {};
   for (const [path, text] of Object.entries(irPatch.files)) files[path] = strToU8(text);
   Object.assign(files, geometryPatch.files);
+  const nextBuildState: WorldSeedBuildState = {
+    format: WORLDSEED_BUILD_STATE_FORMAT,
+    version: WORLDSEED_GEOMETRY_INDEX_VERSION,
+    irIndex: irPatch.index,
+    dependencyGraph: irPatch.dependencyGraph,
+    geometryIndex: geometryPatch.index,
+  };
+  files["worldseed-build-state.json"] = strToU8(serializeCanonicalJson(nextBuildState));
 
   const touchedIrChunks = irPatch.patch.added.length
     + irPatch.patch.changed.length
