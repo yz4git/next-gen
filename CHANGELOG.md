@@ -14,6 +14,7 @@
 - Added a frame-time aware scheduler that keeps base geometry responsive while temporarily deferring new detail and background prefetch work after 28 ms / 45 ms frame spikes.
 - Added a parse-cost aware scheduler using exported GLB byte sizes and measured base/detail parse milliseconds-per-megabyte to serialize heavy jobs while retaining two-way concurrency for light tiles.
 - Added a split visible-tile fetch and parse pipeline in generated starter kits, buffering up to two fetched jobs ahead of cost-aware parsing and sharing in-flight requests with predictive prefetch.
+- Added GPU upload-aware staging using per-tile vertex/geometry-byte/material hints and parsed-scene measurements, limiting heavy scene attachments and live runtime heavy base activations to one per frame.
 - Split exported tile geometry into wider-range base GLBs and optional close-range detail GLBs while keeping terrain global and `city.glb` as a compatibility fallback.
 - Distant runtime tiles now release GPU geometry/material resources outside a hysteresis margin while retaining CPU-side data for automatic re-upload when the tile becomes visible again.
 
