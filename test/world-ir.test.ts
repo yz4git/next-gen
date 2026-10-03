@@ -5,6 +5,7 @@ import {
   createWorldSeedIrIncrementalPlan,
   createWorldSeedIrPatchManifest,
   encodeWorldSeedIrFiles,
+  encodeWorldSeedIrPatchFiles,
   hashCanonicalJson,
   loadWorldSeedIrChunks,
   migrateWorldSeedIr,
@@ -161,6 +162,25 @@ describe("WorldSeed IR", () => {
     const plan = createWorldSeedIrIncrementalPlan(before, after);
     expect([...plan.changedChunkIds]).toEqual(["1:0"]);
     expect([...plan.changedChunkPaths]).toEqual(["worldseed-ir/chunks/1_0.json"]);
+  });
+
+  it("encodes only added or changed chunk files in an incremental patch", () => {
+    const beforeDocument = createDocument();
+    const before = createWorldSeedIrChunkSet(beforeDocument, 300).index;
+    const changedDocument = createDocument();
+    const building = changedDocument.semantic.objects.find((object) => object.id === "building:test");
+    if (!building) throw new Error("fixture building missing");
+    building.properties = { ...building.properties, heightMeters: 32 };
+
+    const result = encodeWorldSeedIrPatchFiles(changedDocument, before, 300);
+    expect(Object.keys(result.files).sort()).toEqual([
+      "worldseed-ir.index.json",
+      "worldseed-ir.patch.json",
+      "worldseed-ir/chunks/1_0.json",
+    ]);
+    expect(result.patch.changed.map((chunk) => chunk.id)).toEqual(["1:0"]);
+    expect(parseWorldSeedIrIndex(result.files["worldseed-ir.index.json"] ?? "{}").revisionHash)
+      .toBe(result.index.revisionHash);
   });
 
   it("marks global metadata changes separately from tile-local changes", () => {
