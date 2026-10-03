@@ -203,6 +203,11 @@ export async function createWorldSeedIncrementalPatchArchive(
     files["colliders.glb"] = new Uint8Array(colliderBinary);
     includedGlobalFiles.push("colliders.glb");
   }
+  if (irPatch.patch.geometryGlobalChanged) {
+    const terrainBinary = await createGlb(createTerrainExport(group), false);
+    files["terrain.glb"] = new Uint8Array(terrainBinary);
+    includedGlobalFiles.push("terrain.glb");
+  }
 
   const patchManifest: WorldSeedIncrementalPatchManifest = {
     format: WORLDSEED_INCREMENTAL_PATCH_FORMAT,
@@ -410,6 +415,9 @@ export function createGeometryIncrementalPlan(
     ...irPatch.changed.map((chunk) => chunk.id),
     ...forceTileIds,
   ]);
+  if (irPatch.geometryGlobalChanged) {
+    for (const tile of next.tiles) touched.add(tile.id);
+  }
   const regenerateTileIds = new Set<string>();
   const reusedTileIds = new Set<string>();
 
