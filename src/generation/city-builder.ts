@@ -137,7 +137,7 @@ export async function buildCity(
         hasRoofSurface ||= isRoof;
         addToBucket(
           isRoof ? roofBuckets : buildingBuckets,
-          geometrySubBatchKey(`${tile.id}:plateau:${surface.kind}:${isRoof ? roofColor : bodyColor}`, building.id),
+          geometrySubBatchKey(`${isRoof ? "roofs" : "buildings"}:${tile.id}:plateau:${surface.kind}:${isRoof ? roofColor : bodyColor}`, building.id),
           tile,
           isRoof ? roofColor : bodyColor,
           geometry,
@@ -191,7 +191,7 @@ export async function buildCity(
       const buildingColor = palette.buildings[bucketIndex] ?? palette.buildings[0] ?? 0x999999;
       addToBucket(
         buildingBuckets,
-        geometrySubBatchKey(`${tile.id}:${bucketIndex}`, building.id),
+        geometrySubBatchKey(`buildings:${tile.id}:${bucketIndex}`, building.id),
         tile,
         buildingColor,
         geometry,
@@ -208,7 +208,7 @@ export async function buildCity(
         const roofColor = resolveRoofColor(building, style, palette.roofs);
         addToBucket(
           roofBuckets,
-          geometrySubBatchKey(`${tile.id}:${roofColor}`, building.id),
+          geometrySubBatchKey(`roofs:${tile.id}:${roofColor}`, building.id),
           tile,
           roofColor,
           roofGeometry,
@@ -551,7 +551,7 @@ function createAreas(areas: AreaFeature[], data: WorldData, style: WorldStyle): 
       const tile = tileForPoint(centroid.x, centroid.z, WORLD_TILE_SIZE);
       addToBucket(
         buckets,
-        geometrySubBatchKey(`${tile.id}:${area.kind}`, area.id),
+        geometrySubBatchKey(`areas:${tile.id}:${area.kind}`, area.id),
         tile,
         WORLD_PALETTES[style][area.kind],
         geometry,
@@ -672,7 +672,7 @@ function createRoads(
       worldseedLayer: "roads",
       featureIds: [...new Set(bucket.featureIds)],
       worldseedTile: bucket.tile,
-      worldseedBatchId: bucket.batchId,
+      worldseedBatchId: `roads:base:${bucket.batchId}`,
     };
     return mesh;
   });
@@ -952,7 +952,7 @@ function roadBucketMeshes(
       worldseedLayer: "roads",
       featureIds: [...new Set(bucket.featureIds)],
       worldseedTile: bucket.tile,
-      worldseedBatchId: bucket.batchId,
+      worldseedBatchId: `roads:${stableBatchLabel(name)}:${bucket.batchId}`,
       worldseedDetail: true,
     };
     return mesh;
@@ -1065,7 +1065,7 @@ function instancedDetail(
   mesh.userData = {
     worldseedLayer: "roads",
     worldseedTile: tile,
-    worldseedBatchId: `${tile.id}:furniture:${stableBatchLabel(name)}`,
+    worldseedBatchId: `roads:furniture:${tile.id}:${stableBatchLabel(name)}`,
     worldseedDetail: true,
   };
   return mesh;
