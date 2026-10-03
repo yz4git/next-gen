@@ -165,6 +165,7 @@ The starter-kit ZIP contains:
 - `worldseed-ir.json` with the unified developer-facing intermediate representation
 - `worldseed-ir.index.json` plus `worldseed-ir/chunks/*.json` for 300 m tile-local structured-data loading
 - `worldseed-ir.dependencies.json` with stable source-derived object IDs, content hashes, and explicit dependency edges for incremental invalidation
+- `worldseed-build-state.json`, a compact privacy-safe baseline containing only the IR index, dependency graph, and geometry index needed for the next incremental build
 - `worldseed-tiles.index.json`, `worldseed-tiles/*.glb` base tiles, and optional `worldseed-tiles/detail/*.glb` close-range detail tiles
 - `ATTRIBUTION.md` generated for that seed
 - `schemas/v1/*.schema.json` with machine-readable contracts for every exported JSON document
@@ -178,7 +179,7 @@ The REDox-inspired IR now supports content-addressed incremental updates. Each 3
 
 Given the previous IR, dependency graph, and geometry indexes, the incremental export API can produce a compact patch ZIP containing only changed/added chunk JSON, regenerated tile GLBs, removal instructions, updated indexes, and required global support files. Stable semantic IDs are derived from source + layer + source ID, and reverse dependency propagation separates geometry, colliders, road graph, spawn points, route, semantic manifest, and metadata invalidation. A spawn-only change can therefore reuse its tile GLB, while a building change invalidates its tile geometry plus colliders. Metadata-only changes do not force every geometry tile to rebuild; style/global-geometry changes and geometry recipe-version changes do.
 
-The app exposes this flow as **Incremental patch** under **SHIP THE WORLD**: choose the previous Three.js kit ZIP locally, then export a patch for the current world. The previous ZIP is read only in the browser. The standalone consumer can apply that patch ZIP without clearing the loaded world; it rejects a patch when its `fromRevisionHash` does not match the currently loaded IR revision, unloads only invalidated tile scenes, merges changed archive files, removes obsolete paths, and restreams only the affected geometry.
+The app exposes this flow under **SHIP THE WORLD**. **Build state** downloads a compact `worldseed-build-state.json` with no exact origin; keep that file as the preferred baseline for the next build. **Incremental patch** accepts that JSON directly, or a previous Three.js kit ZIP as a compatibility fallback, and performs the comparison only in the browser. The standalone consumer can apply that patch ZIP without clearing the loaded world; it rejects a patch when its `fromRevisionHash` does not match the currently loaded IR revision, unloads only invalidated tile scenes, merges changed archive files, removes obsolete paths, and restreams only the affected geometry.
 
 ### Build something with WorldSeed
 
