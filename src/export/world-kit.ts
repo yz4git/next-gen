@@ -9,6 +9,8 @@ import spawnPointsSchema from "../../schemas/v1/spawn-points.schema.json";
 import driveRouteSchema from "../../schemas/v1/drive-route.schema.json";
 import {
   createWorldSeedIr,
+  createWorldSeedIrDependencyGraph,
+  createWorldSeedIrChunkSet,
   encodeWorldSeedIrFiles,
   encodeWorldSeedIrPatchFiles,
   serializeCanonicalJson,
@@ -21,6 +23,7 @@ import type { DriveRoute, RoadGraph, WorldData, WorldManifest, WorldStats, World
 export const WORLDSEED_GEOMETRY_INDEX_FORMAT = "worldseed-geometry-index" as const;
 export const WORLDSEED_GEOMETRY_PATCH_FORMAT = "worldseed-geometry-patch" as const;
 export const WORLDSEED_INCREMENTAL_PATCH_FORMAT = "worldseed-incremental-patch" as const;
+export const WORLDSEED_BUILD_STATE_FORMAT = "worldseed-build-state" as const;
 export const WORLDSEED_GEOMETRY_INDEX_VERSION = "1" as const;
 export const WORLDSEED_GEOMETRY_RECIPE_VERSION = "1" as const;
 
@@ -92,6 +95,48 @@ export interface WorldSeedIncrementalBase {
   geometryIndex: WorldSeedGeometryIndex;
   dependencyGraph?: WorldSeedIrDependencyGraph;
 }
+
+export interface WorldSeedBuildState extends WorldSeedIncrementalBase {
+  format: typeof WORLDSEED_BUILD_STATE_FORMAT;
+  version: typeof WORLDSEED_GEOMETRY_INDEX_VERSION;
+  dependencyGraph: WorldSeedIrDependencyGraph;
+}
+
+export function createWorldSeedBuildState(
+  document: ReturnType<typeof createWorldSeedIr>,
+  geometryIndex: WorldSeedGeometryIndex,
+): WorldSeedBuildState {
+  const { index: irIndex } = createWorldSeedIrChunkSet(document);
+  return {
+    format: WORLDSEED_BUILD_STATE_FORMAT,
+    version: WORLDSEED_GEOMETRY_INDEX_VERSION,
+    irIndex,
+    dependencyGraph: createWorldSeedIrDependencyGraph(document),
+    geometryIndex,
+  };
+}
+
+export function parseWorldSeedBuildState(input: string | unknown): WorldSeedBuildState {
+  const value = typeof input === "string" ? JSON.parse(input) as unknown : input;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("WorldSeed build state must be an object");
+  }
+  const state = value as Partial<WorldSeedBuildState>;
+  if (state.format !== WORLDSEED_BUILD_STATE_FORMAT || state.version !== WORLDSEED_GEOMETRY_INDEX_VERSION) {
+    throw new Error("Unsupported WorldSeed build state");
+  }
+  if (state.irIndex?.format !== "worldseed-ir-index" || state.irIndex.version !== "1") {
+    throw new Error("WorldSeed build state has an unsupported IR index");
+  }
+  if (state.geometryIndex?.format !== WORLDSEED_GEOMETRY_INDEX_FORMAT || state.geometryIndex.version !== "1") {
+    throw new Error("WorldSeed build state has an unsupported geometry index");
+  }
+  if (state.dependencyGraph?.format !== "worldseed-ir-dependencies" || state.dependencyGraph.version !== "1") {
+    throw new Error("WorldSeed build state has an unsupported dependency graph");
+  }
+  return state as WorldSeedBuildState;
+}
+
 
 export interface WorldSeedIncrementalPatchManifest {
   format: typeof WORLDSEED_INCREMENTAL_PATCH_FORMAT;
@@ -267,6 +312,57 @@ export async function exportWorldSeedIncrementalPatch(
   download(
     new Blob([archiveBytes.buffer], { type: "application/zip" }),
     includeExactOrigin ? "worldseed-patch.zip" : "worldseed-patch-private.zip",
+  );
+}
+
+export function createCurrentWorldSeedBuildState(
+  group: THREE.Object3D,
+  data: WorldData,
+  stats: WorldStats,
+  style: WorldStyle,
+  manifest: WorldManifest,
+  roadGraph: RoadGraph,
+  route: DriveRoute | null,
+  pedestrianSpawn: { x: number; y: number; z: number },
+  includeExactOrigin = false,
+): WorldSeedBuildState {
+  const metadata = createWorldMetadata(data, stats, style, includeExactOrigin);
+  const spawnPoints = createSpawnPoints(roadGraph, route, pedestrianSpawn);
+  const document = createWorldSeedIr({
+    metadata,
+    manifest,
+    roadGraph,
+    spawnPoints,
+    driveRoute: route,
+  });
+  const { index: geometryIndex } = createGeometryTileGroups(group);
+  return createWorldSeedBuildState(document, geometryIndex);
+}
+
+export function exportWorldSeedBuildState(
+  group: THREE.Object3D,
+  data: WorldData,
+  stats: WorldStats,
+  style: WorldStyle,
+  manifest: WorldManifest,
+  roadGraph: RoadGraph,
+  route: DriveRoute | null,
+  pedestrianSpawn: { x: number; y: number; z: number },
+): void {
+  const state = createCurrentWorldSeedBuildState(
+    group,
+    data,
+    stats,
+    style,
+    manifest,
+    roadGraph,
+    route,
+    pedestrianSpawn,
+    false,
+  );
+  download(
+    new Blob([serializeCanonicalJson(state)], { type: "application/json" }),
+    "worldseed-build-state.json",
   );
 }
 
