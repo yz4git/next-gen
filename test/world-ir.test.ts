@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   createWorldSeedIr,
   createWorldSeedIrChunkSet,
+  createWorldSeedIrIncrementalPlan,
+  createWorldSeedIrPatchManifest,
   encodeWorldSeedIrFiles,
+  hashCanonicalJson,
   loadWorldSeedIrChunks,
   migrateWorldSeedIr,
   parseWorldSeedIr,
   parseWorldSeedIrChunk,
   parseWorldSeedIrIndex,
+  parseWorldSeedIrPatchManifest,
   selectWorldSeedIrChunks,
   serializeCanonicalJson,
   serializeWorldSeedIr,
@@ -123,6 +127,70 @@ describe("WorldSeed IR", () => {
     const chunk = parseWorldSeedIrChunk(files[buildingDescriptor?.path ?? ""] ?? "{}");
     expect(chunk.tile.id).toBe("1:0");
     expect(chunk.semantic.objects[0]?.id).toBe("building:test");
+  });
+
+  it("adds deterministic chunk and revision hashes", () => {
+    const first = createWorldSeedIrChunkSet(createDocument(), 300);
+    const second = createWorldSeedIrChunkSet(createDocument(), 300);
+
+    expect(first.index.globalHash).toBe(second.index.globalHash);
+    expect(first.index.revisionHash).toBe(second.index.revisionHash);
+    expect(first.index.chunks.every((chunk) => chunk.contentHash?.startsWith("ws1-"))).toBe(true);
+    expect(hashCanonicalJson({ b: 2, a: 1 })).toBe(hashCanonicalJson({ a: 1, b: 2 }));
+  });
+
+  it("detects only changed IR chunks and emits a patch manifest", () => {
+    const before = createWorldSeedIrChunkSet(createDocument(), 300).index;
+    const changedDocument = createDocument();
+    const building = changedDocument.semantic.objects.find((object) => object.id === "building:test");
+    if (!building) throw new Error("fixture building missing");
+    building.properties = { ...building.properties, heightMeters: 28 };
+
+    const after = createWorldSeedIrChunkSet(changedDocument, 300).index;
+    const patch = createWorldSeedIrPatchManifest(before, after);
+
+    expect(patch.globalChanged).toBe(false);
+    expect(patch.added).toEqual([]);
+    expect(patch.removed).toEqual([]);
+    expect(patch.changed.map((chunk) => chunk.id)).toEqual(["1:0"]);
+    expect(patch.unchangedCount).toBe(2);
+    expect(patch.fromRevisionHash).toBe(before.revisionHash);
+    expect(patch.toRevisionHash).toBe(after.revisionHash);
+    expect(parseWorldSeedIrPatchManifest(JSON.stringify(patch))).toEqual(patch);
+
+    const plan = createWorldSeedIrIncrementalPlan(before, after);
+    expect([...plan.changedChunkIds]).toEqual(["1:0"]);
+    expect([...plan.changedChunkPaths]).toEqual(["worldseed-ir/chunks/1_0.json"]);
+  });
+
+  it("marks global metadata changes separately from tile-local changes", () => {
+    const before = createWorldSeedIrChunkSet(createDocument(), 300).index;
+    const changedDocument = createDocument();
+    changedDocument.metadata = { ...changedDocument.metadata, buildTag: "new" };
+    const after = createWorldSeedIrChunkSet(changedDocument, 300).index;
+
+    const patch = createWorldSeedIrPatchManifest(before, after);
+    expect(patch.globalChanged).toBe(true);
+    expect(patch.changed).toEqual([]);
+    expect(patch.added).toEqual([]);
+    expect(patch.removed).toEqual([]);
+    expect(patch.unchangedCount).toBe(3);
+  });
+
+  it("treats legacy indexes without hashes conservatively", () => {
+    const before = createWorldSeedIrChunkSet(createDocument(), 300).index;
+    const after = createWorldSeedIrChunkSet(createDocument(), 300).index;
+    const legacy = {
+      ...before,
+      globalHash: undefined,
+      revisionHash: undefined,
+      chunks: before.chunks.map(({ contentHash: _contentHash, ...chunk }) => chunk),
+    };
+
+    const patch = createWorldSeedIrPatchManifest(legacy, after);
+    expect(patch.globalChanged).toBe(true);
+    expect(patch.changed.map((chunk) => chunk.id)).toEqual(["-1:0", "0:0", "1:0"]);
+    expect(patch.unchangedCount).toBe(0);
   });
 
   it("selects only chunks near a streaming position", () => {
