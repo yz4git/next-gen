@@ -202,6 +202,21 @@ describe("WorldSeed IR", () => {
     expect(patch.unchangedCount).toBe(3);
   });
 
+  it("marks style changes as geometry-global changes", () => {
+    const beforeDocument = createDocument();
+    beforeDocument.metadata = { ...beforeDocument.metadata, style: "default" };
+    const afterDocument = createDocument();
+    afterDocument.metadata = { ...afterDocument.metadata, style: "night" };
+
+    const before = createWorldSeedIrChunkSet(beforeDocument, 300).index;
+    const after = createWorldSeedIrChunkSet(afterDocument, 300).index;
+    const patch = createWorldSeedIrPatchManifest(before, after);
+
+    expect(patch.globalChanged).toBe(true);
+    expect(patch.geometryGlobalChanged).toBe(true);
+    expect(patch.changed).toEqual([]);
+  });
+
   it("treats legacy indexes without hashes conservatively", () => {
     const before = createWorldSeedIrChunkSet(createDocument(), 300).index;
     const after = createWorldSeedIrChunkSet(createDocument(), 300).index;
