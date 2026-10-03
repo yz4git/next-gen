@@ -255,3 +255,63 @@ After two accepted samples, a new rate is treated as an outlier when it is more 
 A second outlier is accepted only when it points in the same direction as the first one. This lets sustained thermal throttling or a real performance recovery update the model while preventing unrelated high/low spikes from masquerading as repeated evidence. Accepted repeated outliers are also clamped to at most 2× or 0.5× the current rate and use a smaller EMA weight.
 
 Because threshold-scale learning is skipped for a rejected GPU-cost sample, a one-off GC pause or Safari scheduling stall cannot simultaneously distort both the continuous cost predictor and the discrete upload threshold scale.
+
+
+## Incremental World Build
+
+The chunked IR is also the dependency boundary for partial rebuilds.
+
+Each IR chunk descriptor carries a deterministic canonical `contentHash`. The index also carries:
+
+- `globalHash` for global/export-level data
+- `geometryGlobalHash` for inputs that can invalidate render geometry across all tiles, currently style plus global semantic records
+- `revisionHash` for the complete IR revision
+
+`createWorldSeedIrPatchManifest(previous, next)` compares the hashes and reports added, changed, removed, and unchanged chunks. Older indexes without hashes are handled conservatively: their chunks are treated as changed rather than guessed unchanged.
+
+`encodeWorldSeedIrPatchFiles()` emits a minimal IR patch set containing the new index, the patch manifest, only added/changed chunk files, and updated public road/spawn/semantic JSON when tile-local data changed. Global metadata/route files are included when the global hash changes.
+
+### Incremental geometry
+
+IR chunk IDs and geometry tile IDs share the same 300 m coordinate space. `createGeometryIncrementalPlan()` converts the IR patch into a geometry rebuild plan.
+
+A tile is regenerated when:
+
+- its matching IR chunk was added or changed
+- it is a new geometry tile
+- its base/detail structure or layer summary changed
+- `geometryGlobalHash` changed
+- the geometry `recipeVersion` changed
+- a caller explicitly forces the tile
+
+Unchanged tile descriptors reuse previous base/detail GLB byte-length metadata and their GLBs are omitted from the patch archive. Removed tiles and obsolete detail GLBs are represented as explicit delete paths.
+
+The geometry index has a separate recipe version so a renderer/export-algorithm change can invalidate all geometry even when source IR content is unchanged.
+
+### Unified patch ZIP
+
+`createWorldSeedIncrementalPatchArchive()` combines the IR patch and geometry patch into one archive. A patch contains:
+
+- `worldseed.patch.json`
+- `worldseed-ir.patch.json`
+- the new `worldseed-ir.index.json`
+- only added/changed IR chunks
+- updated public structured-data files when required
+- `worldseed-tiles.patch.json`
+- the new `worldseed-tiles.index.json`
+- only regenerated base/detail GLBs
+- explicit geometry removal paths
+- refreshed colliders when tile-local IR changed
+- refreshed terrain when geometry-global inputs changed
+
+`city.glb` remains a compatibility fallback for full exports and is intentionally not rebuilt into every incremental patch. The top-level patch manifest flags when that fallback would need a full refresh.
+
+### Hot patch consumer
+
+The standalone export consumer accepts a full export first and then an incremental patch ZIP.
+
+Before applying it, the consumer requires the loaded IR `revisionHash` to equal the patch `fromRevisionHash`. This prevents applying a patch to the wrong base world.
+
+When accepted, the consumer cancels stale tile jobs, unloads only regenerated/removed tile IDs, removes obsolete archive paths, merges patch files, swaps the IR/geometry indexes, refreshes terrain and structured-data overlays when included, and restarts streaming. Unchanged loaded tiles remain alive.
+
+This turns the REDox-style IR from an internal normalization layer into a dependency graph for reproducible partial world updates.
