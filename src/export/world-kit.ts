@@ -27,7 +27,7 @@ export const WORLDSEED_INCREMENTAL_PATCH_FORMAT = "worldseed-incremental-patch" 
 export const WORLDSEED_INCREMENTAL_PATCH_VERSION = "2" as const;
 export const WORLDSEED_BUILD_STATE_FORMAT = "worldseed-build-state" as const;
 export const WORLDSEED_GEOMETRY_INDEX_VERSION = "1" as const;
-export const WORLDSEED_GEOMETRY_RECIPE_VERSION = "1" as const;
+export const WORLDSEED_GEOMETRY_RECIPE_VERSION = "2" as const;
 
 export interface WorldSeedGeometryBatchDescriptor {
   id: string;
