@@ -363,12 +363,16 @@ export function streamingGpuUploadExcessMs(
 export interface StreamingGpuCostModelState {
   msPerEquivalentMb: number;
   samples: number;
+  confidence: number;
+  outlierStreak: number;
 }
 
 export function initialStreamingGpuCostModelState(): StreamingGpuCostModelState {
   return {
     msPerEquivalentMb: 1.6,
     samples: 0,
+    confidence: 0,
+    outlierStreak: 0,
   };
 }
 
@@ -389,7 +393,9 @@ export function estimateStreamingGpuUploadExcessMs(
   state: StreamingGpuCostModelState,
   hints: StreamingGpuUploadHints,
 ): number {
-  return streamingGpuEquivalentMb(hints) * state.msPerEquivalentMb;
+  const learnedWeight = Math.min(1, Math.max(0, state.confidence));
+  const effectiveRate = 1.6 * (1 - learnedWeight) + state.msPerEquivalentMb * learnedWeight;
+  return streamingGpuEquivalentMb(hints) * effectiveRate;
 }
 
 export function recordStreamingGpuUploadCost(
@@ -400,12 +406,31 @@ export function recordStreamingGpuUploadCost(
   if (!Number.isFinite(uploadExcessMs) || uploadExcessMs < 0) return state;
   const equivalentMb = streamingGpuEquivalentMb(hints);
   const sampleRate = Math.min(40, Math.max(0.25, uploadExcessMs / equivalentMb));
-  const alpha = 0.3;
+
+  if (state.samples >= 2) {
+    const ratio = sampleRate / Math.max(0.25, state.msPerEquivalentMb);
+    const outlier = ratio > 3 || ratio < 1 / 3;
+    if (outlier && state.outlierStreak < 1) {
+      return {
+        ...state,
+        confidence: Math.max(0.15, state.confidence * 0.9),
+        outlierStreak: state.outlierStreak + 1,
+      };
+    }
+  }
+
+  const lower = state.samples >= 2 ? state.msPerEquivalentMb * 0.5 : 0.25;
+  const upper = state.samples >= 2 ? state.msPerEquivalentMb * 2 : 40;
+  const robustSample = Math.min(upper, Math.max(lower, sampleRate));
+  const alpha = state.outlierStreak > 0 ? 0.18 : 0.3;
+  const samples = state.samples + 1;
   return {
     msPerEquivalentMb: state.samples === 0
-      ? sampleRate
-      : state.msPerEquivalentMb * (1 - alpha) + sampleRate * alpha,
-    samples: state.samples + 1,
+      ? robustSample
+      : state.msPerEquivalentMb * (1 - alpha) + robustSample * alpha,
+    samples,
+    confidence: Math.min(1, samples / 6),
+    outlierStreak: 0,
   };
 }
 
