@@ -215,3 +215,27 @@ WorldSeed maintains a rolling baseline from normal frames only. Frames above 28 
 Lower threshold scales classify smaller tiles as medium/heavy, causing earlier staging. Higher scales let capable devices attach larger tiles without unnecessary delay.
 
 The state is intentionally session-only. It resets for a new live world/starter page and for each standalone-consumer ZIP import rather than persisting to IndexedDB, because thermal state, browser conditions, and background load can change between sessions. Normal frames update only the baseline; they do not directly train the GPU threshold scale. This prevents a device that is already rendering at, for example, ~24 ms per frame from blaming a 31 ms post-upload frame entirely on GPU upload.
+
+
+### Learned GPU cost prediction
+
+Threshold scaling remains a safety guard, but after two upload-feedback samples WorldSeed also predicts the expected frame-time increase for each new scene.
+
+Upload work is normalized into an approximate equivalent-megabyte value:
+
+- geometry buffer bytes contribute directly in MB
+- every 250k position vertices add one equivalent MB
+- every 32 unique materials add one equivalent MB
+- the minimum sample size is 0.25 equivalent MB to keep tiny scenes numerically stable
+
+For each post-attach feedback sample, WorldSeed divides the baseline-relative upload excess by the combined equivalent MB attached in that frame. This yields a per-session milliseconds-per-equivalent-MB rate, updated with an exponential moving average.
+
+The scheduler then predicts the next tile's upload overhead:
+
+- predicted excess below 10 ms: no extra learned delay
+- 10–24 ms: at least one-frame staging
+- 24 ms or more: at least two-frame staging
+
+The final delay is the stricter of the legacy vertex/byte/material threshold result and the learned-cost prediction. The learned predictor is not used until at least two samples exist, so startup behavior remains conservative and deterministic.
+
+If two light scenes attach in one frame, their upload hints are combined and learned as one frame-level sample, matching the single observed frame-time result.
