@@ -1,4 +1,4 @@
-const CACHE = "worldseed-shell-v0.8.2-drive-assist-off-drone-fast";
+const CACHE = "worldseed-shell-v0.9.1-incremental-patch-ui";
 const CACHE_PREFIXES = ["worldseed-shell-", "worldseed-sites-"];
 const SHELL = ["./index.html", "./manifest.webmanifest", "./worldseed-mark.svg"];
 
