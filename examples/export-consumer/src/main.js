@@ -56,6 +56,10 @@ let deferOptionalFrames = 0;
 let activeEstimatedParseMs = 0;
 let renderFrameIndex = 0;
 let uploadFeedbackPending = false;
+let frameBaseline = {
+  baselineMs: 16.7,
+  samples: 0,
+};
 let gpuUploadLearning = {
   thresholdScale: 1,
   goodSamples: 0,
@@ -446,14 +450,28 @@ function gpuUploadDelayFrames(hints) {
 }
 
 function sampleGpuUploadFeedback(frameTimeMs) {
-  if (!uploadFeedbackPending || !Number.isFinite(frameTimeMs) || frameTimeMs <= 0) return;
+  if (!Number.isFinite(frameTimeMs) || frameTimeMs <= 0) return;
+
+  if (!uploadFeedbackPending) {
+    if (frameTimeMs <= 28) {
+      const sample = Math.min(28, Math.max(8, frameTimeMs));
+      const alpha = frameBaseline.samples < 10 ? 0.2 : 0.06;
+      frameBaseline.baselineMs = frameBaseline.samples === 0
+        ? sample
+        : frameBaseline.baselineMs * (1 - alpha) + sample * alpha;
+      frameBaseline.samples += 1;
+    }
+    return;
+  }
+
   uploadFeedbackPending = false;
+  const uploadExcessMs = Math.max(0, frameTimeMs - frameBaseline.baselineMs);
 
   let thresholdScale = gpuUploadLearning.thresholdScale;
-  let goodSamples = frameTimeMs <= 20 ? gpuUploadLearning.goodSamples + 1 : 0;
-  let badSamples = frameTimeMs >= 28 ? gpuUploadLearning.badSamples + 1 : 0;
+  let goodSamples = uploadExcessMs <= 4 ? gpuUploadLearning.goodSamples + 1 : 0;
+  let badSamples = uploadExcessMs >= 10 ? gpuUploadLearning.badSamples + 1 : 0;
 
-  if (frameTimeMs >= 45) {
+  if (uploadExcessMs >= 24) {
     thresholdScale = Math.max(0.55, thresholdScale * 0.82);
     goodSamples = 0;
     badSamples = 0;
@@ -565,6 +583,10 @@ function exactArrayBuffer(bytes) {
 function clearImported() {
   importGeneration += 1;
   uploadFeedbackPending = false;
+  frameBaseline = {
+    baselineMs: 16.7,
+    samples: 0,
+  };
   gpuUploadLearning = {
     thresholdScale: 1,
     goodSamples: 0,
