@@ -124,6 +124,7 @@ describe("geometry tile export", () => {
       fromRevisionHash: "old",
       toRevisionHash: "new",
       globalChanged: false,
+      geometryGlobalChanged: false,
       added: [{ id: "2:0", path: "worldseed-ir/chunks/2_0.json", contentHash: "new-2" }],
       changed: [{ id: "0:0", path: "worldseed-ir/chunks/0_0.json", contentHash: "new-0" }],
       removed: [{ id: "-1:0", path: "worldseed-ir/chunks/-1_0.json", contentHash: "old--1" }],
