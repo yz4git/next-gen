@@ -365,6 +365,7 @@ export interface StreamingGpuCostModelState {
   samples: number;
   confidence: number;
   outlierStreak: number;
+  outlierDirection: -1 | 0 | 1;
 }
 
 export function initialStreamingGpuCostModelState(): StreamingGpuCostModelState {
@@ -373,6 +374,7 @@ export function initialStreamingGpuCostModelState(): StreamingGpuCostModelState 
     samples: 0,
     confidence: 0,
     outlierStreak: 0,
+    outlierDirection: 0,
   };
 }
 
@@ -409,13 +411,18 @@ export function recordStreamingGpuUploadCost(
 
   if (state.samples >= 2) {
     const ratio = sampleRate / Math.max(0.25, state.msPerEquivalentMb);
-    const outlier = ratio > 3 || ratio < 1 / 3;
-    if (outlier && state.outlierStreak < 1) {
-      return {
-        ...state,
-        confidence: Math.max(0.15, state.confidence * 0.9),
-        outlierStreak: state.outlierStreak + 1,
-      };
+    const direction: -1 | 0 | 1 = ratio > 3 ? 1 : ratio < 1 / 3 ? -1 : 0;
+    if (direction !== 0) {
+      const repeatedSameDirection = state.outlierStreak >= 1
+        && state.outlierDirection === direction;
+      if (!repeatedSameDirection) {
+        return {
+          ...state,
+          confidence: Math.max(0.15, state.confidence * 0.9),
+          outlierStreak: 1,
+          outlierDirection: direction,
+        };
+      }
     }
   }
 
@@ -431,6 +438,7 @@ export function recordStreamingGpuUploadCost(
     samples,
     confidence: Math.min(1, samples / 6),
     outlierStreak: 0,
+    outlierDirection: 0,
   };
 }
 
