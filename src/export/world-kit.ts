@@ -10,13 +10,16 @@ import driveRouteSchema from "../../schemas/v1/drive-route.schema.json";
 import {
   createWorldSeedIr,
   encodeWorldSeedIrFiles,
+  encodeWorldSeedIrPatchFiles,
   serializeCanonicalJson,
+  type WorldSeedIrIndex,
   type WorldSeedIrPatchManifest,
 } from "../ir/world-ir";
 import type { DriveRoute, RoadGraph, WorldData, WorldManifest, WorldStats, WorldStyle } from "../types";
 
 export const WORLDSEED_GEOMETRY_INDEX_FORMAT = "worldseed-geometry-index" as const;
 export const WORLDSEED_GEOMETRY_PATCH_FORMAT = "worldseed-geometry-patch" as const;
+export const WORLDSEED_INCREMENTAL_PATCH_FORMAT = "worldseed-incremental-patch" as const;
 export const WORLDSEED_GEOMETRY_INDEX_VERSION = "1" as const;
 
 export interface WorldSeedGeometryTileDescriptor {
@@ -81,6 +84,22 @@ export interface WorldSeedGeometryIncrementalPlan {
   reusedTileIds: Set<string>;
 }
 
+export interface WorldSeedIncrementalBase {
+  irIndex: WorldSeedIrIndex;
+  geometryIndex: WorldSeedGeometryIndex;
+}
+
+export interface WorldSeedIncrementalPatchManifest {
+  format: typeof WORLDSEED_INCREMENTAL_PATCH_FORMAT;
+  version: typeof WORLDSEED_GEOMETRY_INDEX_VERSION;
+  fromRevisionHash: string | null;
+  toRevisionHash: string | null;
+  irPatchPath: "worldseed-ir.patch.json";
+  geometryPatchPath: "worldseed-tiles.patch.json";
+  compatibilityFallbackNeedsRefresh: boolean;
+  includedGlobalFiles: string[];
+}
+
 
 export async function exportGlb(
   group: THREE.Group,
@@ -140,6 +159,95 @@ export async function exportStarterKit(
   download(
     new Blob([archive], { type: "application/zip" }),
     includeExactOrigin ? "worldseed-threejs-kit.zip" : "worldseed-threejs-kit-private.zip",
+  );
+}
+
+export async function createWorldSeedIncrementalPatchArchive(
+  group: THREE.Group,
+  data: WorldData,
+  stats: WorldStats,
+  style: WorldStyle,
+  manifest: WorldManifest,
+  roadGraph: RoadGraph,
+  route: DriveRoute | null,
+  pedestrianSpawn: { x: number; y: number; z: number },
+  previous: WorldSeedIncrementalBase,
+  includeExactOrigin = true,
+): Promise<Uint8Array> {
+  const metadata = createWorldMetadata(data, stats, style, includeExactOrigin);
+  const spawnPoints = createSpawnPoints(roadGraph, route, pedestrianSpawn);
+  const document = createWorldSeedIr({
+    metadata,
+    manifest,
+    roadGraph,
+    spawnPoints,
+    driveRoute: route,
+  });
+  const irPatch = encodeWorldSeedIrPatchFiles(document, previous.irIndex);
+  const geometryPatch = await createGeometryTilePatchArchiveFiles(
+    group,
+    previous.geometryIndex,
+    irPatch.patch,
+  );
+
+  const files: Record<string, Uint8Array> = {};
+  for (const [path, text] of Object.entries(irPatch.files)) files[path] = strToU8(text);
+  Object.assign(files, geometryPatch.files);
+
+  const touchedIrChunks = irPatch.patch.added.length
+    + irPatch.patch.changed.length
+    + irPatch.patch.removed.length;
+  const includedGlobalFiles: string[] = [];
+  if (touchedIrChunks > 0) {
+    const colliderBinary = await createGlb(createColliderExport(manifest), false);
+    files["colliders.glb"] = new Uint8Array(colliderBinary);
+    includedGlobalFiles.push("colliders.glb");
+  }
+
+  const patchManifest: WorldSeedIncrementalPatchManifest = {
+    format: WORLDSEED_INCREMENTAL_PATCH_FORMAT,
+    version: WORLDSEED_GEOMETRY_INDEX_VERSION,
+    fromRevisionHash: irPatch.patch.fromRevisionHash,
+    toRevisionHash: irPatch.patch.toRevisionHash,
+    irPatchPath: "worldseed-ir.patch.json",
+    geometryPatchPath: "worldseed-tiles.patch.json",
+    compatibilityFallbackNeedsRefresh:
+      geometryPatch.patch.regenerated.length > 0
+      || geometryPatch.patch.removed.length > 0,
+    includedGlobalFiles,
+  };
+  files["worldseed.patch.json"] = strToU8(serializeCanonicalJson(patchManifest));
+
+  return zipSync(files, { level: 6 });
+}
+
+export async function exportWorldSeedIncrementalPatch(
+  group: THREE.Group,
+  data: WorldData,
+  stats: WorldStats,
+  style: WorldStyle,
+  manifest: WorldManifest,
+  roadGraph: RoadGraph,
+  route: DriveRoute | null,
+  pedestrianSpawn: { x: number; y: number; z: number },
+  previous: WorldSeedIncrementalBase,
+  includeExactOrigin = true,
+): Promise<void> {
+  const archive = await createWorldSeedIncrementalPatchArchive(
+    group,
+    data,
+    stats,
+    style,
+    manifest,
+    roadGraph,
+    route,
+    pedestrianSpawn,
+    previous,
+    includeExactOrigin,
+  );
+  download(
+    new Blob([archive], { type: "application/zip" }),
+    includeExactOrigin ? "worldseed-patch.zip" : "worldseed-patch-private.zip",
   );
 }
 
