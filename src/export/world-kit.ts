@@ -21,6 +21,7 @@ export const WORLDSEED_GEOMETRY_INDEX_FORMAT = "worldseed-geometry-index" as con
 export const WORLDSEED_GEOMETRY_PATCH_FORMAT = "worldseed-geometry-patch" as const;
 export const WORLDSEED_INCREMENTAL_PATCH_FORMAT = "worldseed-incremental-patch" as const;
 export const WORLDSEED_GEOMETRY_INDEX_VERSION = "1" as const;
+export const WORLDSEED_GEOMETRY_RECIPE_VERSION = "1" as const;
 
 export interface WorldSeedGeometryTileDescriptor {
   id: string;
@@ -47,6 +48,7 @@ export interface WorldSeedGeometryTileDescriptor {
 export interface WorldSeedGeometryIndex {
   format: typeof WORLDSEED_GEOMETRY_INDEX_FORMAT;
   version: typeof WORLDSEED_GEOMETRY_INDEX_VERSION;
+  recipeVersion?: string;
   coordinateSystem: "local meters; X east, Y up, Z south";
   tiles: WorldSeedGeometryTileDescriptor[];
 }
@@ -396,6 +398,7 @@ export function createGeometryTileGroups(root: THREE.Object3D): {
     index: {
       format: WORLDSEED_GEOMETRY_INDEX_FORMAT,
       version: WORLDSEED_GEOMETRY_INDEX_VERSION,
+      recipeVersion: WORLDSEED_GEOMETRY_RECIPE_VERSION,
       coordinateSystem: "local meters; X east, Y up, Z south",
       tiles: tiles.map((tile) => tile.descriptor),
     },
@@ -421,6 +424,10 @@ export function createGeometryIncrementalPlan(
   }
   const regenerateTileIds = new Set<string>();
   const reusedTileIds = new Set<string>();
+  const recipeChanged =
+    !previous.recipeVersion
+    || !next.recipeVersion
+    || previous.recipeVersion !== next.recipeVersion;
 
   for (const tile of next.tiles) {
     const before = previousById.get(tile.id);
@@ -432,7 +439,7 @@ export function createGeometryIncrementalPlan(
         || serializeCanonicalJson(before.layers, false) !== serializeCanonicalJson(tile.layers, false)
       : true;
 
-    if (touched.has(tile.id) || structureChanged) regenerateTileIds.add(tile.id);
+    if (recipeChanged || touched.has(tile.id) || structureChanged) regenerateTileIds.add(tile.id);
     else reusedTileIds.add(tile.id);
   }
 
