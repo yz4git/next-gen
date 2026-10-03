@@ -565,6 +565,7 @@ let gpuCostModel = {
   samples: 0,
   confidence: 0,
   outlierStreak: 0,
+  outlierDirection: 0,
 };
 let parseCostState = {
   baseMsPerMb: 14,
@@ -1249,11 +1250,16 @@ function sampleGpuUploadFeedback(frameTimeMs) {
 
   if (gpuCostModel.samples >= 2) {
     const ratio = sampleRate / Math.max(0.25, gpuCostModel.msPerEquivalentMb);
-    const outlier = ratio > 3 || ratio < 1 / 3;
-    if (outlier && gpuCostModel.outlierStreak < 1) {
-      gpuCostModel.confidence = Math.max(0.15, gpuCostModel.confidence * 0.9);
-      gpuCostModel.outlierStreak += 1;
-      accepted = false;
+    const direction = ratio > 3 ? 1 : ratio < 1 / 3 ? -1 : 0;
+    if (direction !== 0) {
+      const repeatedSameDirection = gpuCostModel.outlierStreak >= 1
+        && gpuCostModel.outlierDirection === direction;
+      if (!repeatedSameDirection) {
+        gpuCostModel.confidence = Math.max(0.15, gpuCostModel.confidence * 0.9);
+        gpuCostModel.outlierStreak = 1;
+        gpuCostModel.outlierDirection = direction;
+        accepted = false;
+      }
     }
   }
 
@@ -1268,6 +1274,7 @@ function sampleGpuUploadFeedback(frameTimeMs) {
     gpuCostModel.samples += 1;
     gpuCostModel.confidence = Math.min(1, gpuCostModel.samples / 6);
     gpuCostModel.outlierStreak = 0;
+    gpuCostModel.outlierDirection = 0;
   }
   uploadFeedbackHints = { vertexCount: 0, geometryByteLength: 0, materialCount: 0 };
 
