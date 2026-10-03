@@ -489,6 +489,13 @@ export function encodeWorldSeedIrPatchFiles(
     files[entry.path] = serializeCanonicalJson(chunk);
   }
 
+  const touchedChunkCount = patch.added.length + patch.changed.length + patch.removed.length;
+  if (touchedChunkCount > 0) {
+    files["worldseed-objects.json"] = serializeCanonicalJson(document.semantic);
+    files["road-graph.json"] = serializeCanonicalJson(document.navigation.roadGraph);
+    files["spawn-points.json"] = serializeCanonicalJson(document.navigation.spawnPoints);
+  }
+
   if (patch.globalChanged) {
     files["worldseed.json"] = serializeCanonicalJson(document.metadata);
     files["drive-route.json"] = serializeCanonicalJson(document.navigation.driveRoute);
