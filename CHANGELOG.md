@@ -6,6 +6,9 @@
 - Added deterministic per-chunk IR content hashes plus global, geometry-global, and revision hashes for dependency-aware incremental builds.
 - Added minimal IR patch manifests/files and IR-driven geometry patch planning so unchanged 300 m tile GLBs can be reused instead of regenerated.
 - Added geometry recipe-version invalidation, unified `worldseed-patch.zip` creation, explicit removed-path handling, and standalone-consumer hot patch application with base-revision validation.
+- Added a stable object dependency graph with source-derived semantic IDs, node/dependency hashes, reverse impact propagation, and artifact-specific invalidation for geometry, colliders, road graph, spawns, route, semantic manifest, and metadata.
+- Incremental geometry now uses impacted `artifact:geometry:*` nodes when dependency data is available, so spawn-only changes can reuse existing tile GLBs; collider regeneration is also skipped unless building dependencies are impacted.
+- Added an in-app **Incremental patch** export flow that reads a previous Three.js kit ZIP locally in the browser and emits the current-world patch.
 - Starter-kit exports now route structured data through the IR, emit deterministic JSON key ordering, and include `worldseed-ir.json` while preserving all existing schema v1 filenames and semantics.
 - Added an explicit IR migration boundary plus regression tests for round-tripping, deterministic serialization, and unsupported versions.
 - Added 300 m chunked IR exports with a lightweight spatial index, tile-local semantic objects, road graph subsets, spawn data, boundary-aware chunk selection, and a storage-agnostic lazy chunk reader.
