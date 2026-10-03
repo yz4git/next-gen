@@ -337,6 +337,23 @@ Every new full kit and every patch archive carries the next build state, so incr
 
 `parseWorldSeedBuildState()` validates the internal format/version and the embedded IR, dependency, and geometry index formats before the state is accepted.
 
+### Patch preview
+
+`createWorldSeedPatchPreview()` runs the same IR dependency diff and geometry incremental planner used by patch export, but stops before GLB serialization. It reports:
+
+- added/changed/removed stable object-node counts when a dependency graph baseline is available
+- changed IR chunk count
+- geometry tile IDs that will be regenerated or removed
+- the count of reusable geometry tiles
+- whether metadata, semantic manifest, road graph, spawn points, drive route, colliders, or terrain will be refreshed
+- an estimated uncompressed payload size
+
+For existing tiles with measured GLB byte lengths in the previous build state, geometry size estimation scales the previous measured GLB size by the ratio of current to previous geometry-buffer bytes. New or legacy tiles fall back to vertex, geometry-buffer, and material pressure. Collider and terrain estimates use their current geometry upload statistics.
+
+The estimate deliberately describes payload before ZIP compression; it is not presented as an exact archive size.
+
+The app recalculates Patch Preview when the privacy option changes, because including the exact origin can turn metadata into an affected artifact even when scene geometry is unchanged.
+
 ### Unified patch ZIP
 
 `createWorldSeedIncrementalPatchArchive()` combines the IR patch and geometry patch into one archive. A patch contains:
