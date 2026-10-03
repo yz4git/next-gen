@@ -11,6 +11,7 @@ import type {
 export const WORLDSEED_IR_FORMAT = "worldseed-ir" as const;
 export const WORLDSEED_IR_INDEX_FORMAT = "worldseed-ir-index" as const;
 export const WORLDSEED_IR_CHUNK_FORMAT = "worldseed-ir-chunk" as const;
+export const WORLDSEED_IR_PATCH_FORMAT = "worldseed-ir-patch" as const;
 export const WORLDSEED_IR_VERSION = "1" as const;
 
 export interface WorldSeedIrDocument {
@@ -53,6 +54,7 @@ export interface WorldSeedIrChunkDescriptor {
     roadEdges: number;
     spawnPoints: number;
   };
+  contentHash?: string;
 }
 
 export interface WorldSeedIrIndex {
@@ -60,6 +62,8 @@ export interface WorldSeedIrIndex {
   version: typeof WORLDSEED_IR_VERSION;
   tileSizeMeters: number;
   coordinateSystem: string;
+  globalHash?: string;
+  revisionHash?: string;
   global: {
     metadataPath: "worldseed.json";
     fullDocumentPath: "worldseed-ir.json";
@@ -68,6 +72,30 @@ export interface WorldSeedIrIndex {
     semanticObjects: SemanticObject[];
   };
   chunks: WorldSeedIrChunkDescriptor[];
+}
+
+export interface WorldSeedIrPatchChunk {
+  id: string;
+  path: string;
+  contentHash?: string;
+}
+
+export interface WorldSeedIrPatchManifest {
+  format: typeof WORLDSEED_IR_PATCH_FORMAT;
+  version: typeof WORLDSEED_IR_VERSION;
+  fromRevisionHash: string | null;
+  toRevisionHash: string | null;
+  globalChanged: boolean;
+  added: WorldSeedIrPatchChunk[];
+  changed: WorldSeedIrPatchChunk[];
+  removed: WorldSeedIrPatchChunk[];
+  unchangedCount: number;
+}
+
+export interface WorldSeedIrIncrementalPlan {
+  patch: WorldSeedIrPatchManifest;
+  changedChunkIds: Set<string>;
+  changedChunkPaths: Set<string>;
 }
 
 export interface WorldSeedIrChunk {
@@ -257,11 +285,30 @@ export function createWorldSeedIrChunkSet(
     },
   }));
 
+  const chunkDescriptors = chunkDocuments.map((chunk) => descriptorForChunk(chunk));
+  const globalHash = hashCanonicalJson({
+    metadata: document.metadata,
+    semanticObjects: globalSemanticObjects,
+    driveRoute: document.navigation.driveRoute,
+  });
+  const revisionHash = hashCanonicalJson({
+    version: WORLDSEED_IR_VERSION,
+    tileSizeMeters,
+    coordinateSystem: document.navigation.roadGraph.coordinateSystem,
+    globalHash,
+    chunks: chunkDescriptors.map((chunk) => ({
+      id: chunk.id,
+      contentHash: chunk.contentHash,
+    })),
+  });
+
   const index: WorldSeedIrIndex = {
     format: WORLDSEED_IR_INDEX_FORMAT,
     version: WORLDSEED_IR_VERSION,
     tileSizeMeters,
     coordinateSystem: document.navigation.roadGraph.coordinateSystem,
+    globalHash,
+    revisionHash,
     global: {
       metadataPath: "worldseed.json",
       fullDocumentPath: "worldseed-ir.json",
@@ -269,7 +316,7 @@ export function createWorldSeedIrChunkSet(
       geometryIndexPath: "worldseed-tiles.index.json",
       semanticObjects: globalSemanticObjects,
     },
-    chunks: chunkDocuments.map((chunk) => descriptorForChunk(chunk)),
+    chunks: chunkDescriptors,
   };
 
   for (const chunk of chunkDocuments) {
@@ -279,6 +326,100 @@ export function createWorldSeedIrChunkSet(
   }
 
   return { index, chunks: chunkDocuments };
+}
+
+export function createWorldSeedIrPatchManifest(
+  previous: WorldSeedIrIndex,
+  next: WorldSeedIrIndex,
+): WorldSeedIrPatchManifest {
+  const previousById = new Map(previous.chunks.map((chunk) => [chunk.id, chunk]));
+  const nextById = new Map(next.chunks.map((chunk) => [chunk.id, chunk]));
+  const added: WorldSeedIrPatchChunk[] = [];
+  const changed: WorldSeedIrPatchChunk[] = [];
+  const removed: WorldSeedIrPatchChunk[] = [];
+  let unchangedCount = 0;
+
+  for (const chunk of next.chunks) {
+    const before = previousById.get(chunk.id);
+    if (!before) {
+      added.push(patchChunk(chunk));
+      continue;
+    }
+    if (
+      !before.contentHash
+      || !chunk.contentHash
+      || before.contentHash !== chunk.contentHash
+    ) {
+      changed.push(patchChunk(chunk));
+    } else {
+      unchangedCount += 1;
+    }
+  }
+
+  for (const chunk of previous.chunks) {
+    if (!nextById.has(chunk.id)) removed.push(patchChunk(chunk));
+  }
+
+  return {
+    format: WORLDSEED_IR_PATCH_FORMAT,
+    version: WORLDSEED_IR_VERSION,
+    fromRevisionHash: previous.revisionHash ?? null,
+    toRevisionHash: next.revisionHash ?? null,
+    globalChanged:
+      !previous.globalHash
+      || !next.globalHash
+      || previous.globalHash !== next.globalHash,
+    added: sortPatchChunks(added),
+    changed: sortPatchChunks(changed),
+    removed: sortPatchChunks(removed),
+    unchangedCount,
+  };
+}
+
+export function createWorldSeedIrIncrementalPlan(
+  previous: WorldSeedIrIndex,
+  next: WorldSeedIrIndex,
+): WorldSeedIrIncrementalPlan {
+  const patch = createWorldSeedIrPatchManifest(previous, next);
+  const touched = [...patch.added, ...patch.changed, ...patch.removed];
+  return {
+    patch,
+    changedChunkIds: new Set(touched.map((chunk) => chunk.id)),
+    changedChunkPaths: new Set(touched.map((chunk) => chunk.path)),
+  };
+}
+
+export function parseWorldSeedIrPatchManifest(input: string | unknown): WorldSeedIrPatchManifest {
+  const value = typeof input === "string" ? JSON.parse(input) as unknown : input;
+  const document = requireRecord(value, "WorldSeed IR patch");
+  if (document["format"] !== WORLDSEED_IR_PATCH_FORMAT) {
+    throw new Error(`Unsupported WorldSeed IR patch format: ${String(document["format"])}`);
+  }
+  if (document["version"] !== WORLDSEED_IR_VERSION) {
+    throw new Error(`Unsupported WorldSeed IR patch version: ${String(document["version"])}`);
+  }
+  for (const key of ["added", "changed", "removed"] as const) {
+    if (!Array.isArray(document[key])) throw new Error(`WorldSeed IR patch ${key} must be an array`);
+  }
+  return document as unknown as WorldSeedIrPatchManifest;
+}
+
+export function hashCanonicalJson(value: unknown): string {
+  const text = serializeCanonicalJson(value, false);
+  let h1 = 0x811c9dc5;
+  let h2 = 0x9e3779b9;
+  let h3 = 0x85ebca6b;
+  let h4 = 0xc2b2ae35;
+  for (let index = 0; index < text.length; index += 1) {
+    const code = text.charCodeAt(index);
+    h1 = Math.imul(h1 ^ code, 0x01000193);
+    h2 = Math.imul(h2 ^ code, 0x27d4eb2d);
+    h3 = Math.imul(h3 ^ code, 0x165667b1);
+    h4 = Math.imul(h4 ^ code, 0x9e3779b1);
+  }
+  return "ws1-" + [h1, h2, h3, h4]
+    .map((value) => (value >>> 0).toString(16).padStart(8, "0"))
+    .join("");
 }
 
 export function selectWorldSeedIrChunks(
@@ -387,7 +528,20 @@ function descriptorForChunk(chunk: WorldSeedIrChunk): WorldSeedIrChunkDescriptor
       roadEdges: chunk.navigation.roadGraph.edges.length,
       spawnPoints: chunk.navigation.spawnPoints.vehicles.length + chunk.navigation.spawnPoints.pedestrians.length,
     },
+    contentHash: hashCanonicalJson(chunk),
   };
+}
+
+function patchChunk(chunk: WorldSeedIrChunkDescriptor): WorldSeedIrPatchChunk {
+  return {
+    id: chunk.id,
+    path: chunk.path,
+    contentHash: chunk.contentHash,
+  };
+}
+
+function sortPatchChunks(chunks: WorldSeedIrPatchChunk[]): WorldSeedIrPatchChunk[] {
+  return chunks.sort((first, second) => first.id.localeCompare(second.id));
 }
 
 function chunkPath(x: number, z: number): string {
