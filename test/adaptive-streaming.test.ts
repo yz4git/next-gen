@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  compareStreamingUploadCandidates,
   costAwareStreamingConcurrency,
   estimateStreamingParseCostMs,
   initialAdaptiveStreamingState,
@@ -153,5 +154,22 @@ describe("GPU upload pressure model", () => {
       materialCount: 10,
     })).toBe(2);
     expect(streamingGpuUploadAttachmentsPerFrame(2)).toBe(1);
+  });
+});
+
+
+describe("GPU upload ordering", () => {
+  it("prioritizes base geometry before detail even when detail is slightly nearer", () => {
+    const jobs = [
+      { kind: "detail" as const, priority: 10, delayFrames: 0 },
+      { kind: "base" as const, priority: 20, delayFrames: 1 },
+      { kind: "base" as const, priority: 5, delayFrames: 0 },
+    ].sort(compareStreamingUploadCandidates);
+
+    expect(jobs.map((job) => job.kind + ":" + job.priority)).toEqual([
+      "base:5",
+      "base:20",
+      "detail:10",
+    ]);
   });
 });
