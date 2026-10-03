@@ -425,9 +425,16 @@ export function createGeometryIncrementalPlan(
 ): WorldSeedGeometryIncrementalPlan {
   const previousById = new Map(previous.tiles.map((tile) => [tile.id, tile]));
   const nextById = new Map(next.tiles.map((tile) => [tile.id, tile]));
+  const dependencyGeometryIds = irPatch.dependencyDiff
+    ? irPatch.dependencyDiff.impactedArtifacts
+      .filter((id) => id.startsWith("artifact:geometry:"))
+      .map((id) => id.slice("artifact:geometry:".length))
+    : null;
   const touched = new Set([
-    ...irPatch.added.map((chunk) => chunk.id),
-    ...irPatch.changed.map((chunk) => chunk.id),
+    ...(dependencyGeometryIds ?? [
+      ...irPatch.added.map((chunk) => chunk.id),
+      ...irPatch.changed.map((chunk) => chunk.id),
+    ]),
     ...forceTileIds,
   ]);
   if (irPatch.geometryGlobalChanged) {
