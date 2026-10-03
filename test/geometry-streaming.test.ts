@@ -145,6 +145,54 @@ describe("geometry tile export", () => {
     expect(plan.manifest.toIrRevisionHash).toBe("new");
   });
 
+  it("does not rebuild geometry for spawn-only dependency changes", () => {
+    const index: WorldSeedGeometryIndex = {
+      format: "worldseed-geometry-index",
+      version: "1",
+      recipeVersion: "1",
+      coordinateSystem: "local meters; X east, Y up, Z south",
+      tiles: [
+        {
+          id: "0:0",
+          path: "worldseed-tiles/0_0.glb",
+          x: 0,
+          z: 0,
+          centerX: 0,
+          centerZ: 0,
+          size: 300,
+          objectCount: 1,
+          detailObjectCount: 0,
+          layers: ["roads"],
+        },
+      ],
+    };
+
+    const plan = createGeometryIncrementalPlan(index, index, {
+      format: "worldseed-ir-patch",
+      version: "1",
+      fromRevisionHash: "before",
+      toRevisionHash: "after",
+      globalChanged: false,
+      geometryGlobalChanged: false,
+      added: [],
+      changed: [{ id: "0:0", path: "worldseed-ir/chunks/0_0.json", contentHash: "new" }],
+      removed: [],
+      unchangedCount: 0,
+      dependencyGraphHash: "deps",
+      dependencyDiff: {
+        added: [],
+        changed: ["spawn:vehicles:vehicle%3Atest"],
+        removed: [],
+        impacted: ["artifact:spawn-points", "spawn:vehicles:vehicle%3Atest"],
+        impactedArtifacts: ["artifact:spawn-points"],
+      },
+    });
+
+    expect([...plan.regenerateTileIds]).toEqual([]);
+    expect([...plan.reusedTileIds]).toEqual(["0:0"]);
+    expect(plan.manifest.reusedCount).toBe(1);
+  });
+
   it("invalidates all geometry tiles when the geometry recipe changes", () => {
     const makeIndex = (recipeVersion: string): WorldSeedGeometryIndex => ({
       format: "worldseed-geometry-index",
