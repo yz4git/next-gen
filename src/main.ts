@@ -754,6 +754,8 @@ async function clearPrivateData(): Promise<void> {
     requestedRouteSeed = null;
     setMode("orbit");
     lastLiveRequestAt = Number.NEGATIVE_INFINITY;
+    pendingPatchBase = null;
+    pendingPatchBaseName = "";
     required<HTMLInputElement>("#coordinate-input").value = formatCoordinate(center);
     required<HTMLInputElement>("#radius-input").value = String(radius);
     required<HTMLOutputElement>("#radius-output").value = `${radius} m`;
