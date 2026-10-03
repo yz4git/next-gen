@@ -1,4 +1,4 @@
-const CACHE = "worldseed-shell-v0.9.1-incremental-patch-ui";
+const CACHE = "worldseed-shell-v0.9.1-sub-batch-patch-v2";
 const CACHE_PREFIXES = ["worldseed-shell-", "worldseed-sites-"];
 const SHELL = ["./index.html", "./manifest.webmanifest", "./worldseed-mark.svg"];
 
