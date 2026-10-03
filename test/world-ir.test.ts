@@ -151,6 +151,7 @@ describe("WorldSeed IR", () => {
     const patch = createWorldSeedIrPatchManifest(before, after);
 
     expect(patch.globalChanged).toBe(false);
+    expect(patch.geometryGlobalChanged).toBe(false);
     expect(patch.added).toEqual([]);
     expect(patch.removed).toEqual([]);
     expect(patch.changed.map((chunk) => chunk.id)).toEqual(["1:0"]);
@@ -174,9 +175,12 @@ describe("WorldSeed IR", () => {
 
     const result = encodeWorldSeedIrPatchFiles(changedDocument, before, 300);
     expect(Object.keys(result.files).sort()).toEqual([
+      "road-graph.json",
+      "spawn-points.json",
       "worldseed-ir.index.json",
       "worldseed-ir.patch.json",
       "worldseed-ir/chunks/1_0.json",
+      "worldseed-objects.json",
     ]);
     expect(result.patch.changed.map((chunk) => chunk.id)).toEqual(["1:0"]);
     expect(parseWorldSeedIrIndex(result.files["worldseed-ir.index.json"] ?? "{}").revisionHash)
@@ -191,6 +195,7 @@ describe("WorldSeed IR", () => {
 
     const patch = createWorldSeedIrPatchManifest(before, after);
     expect(patch.globalChanged).toBe(true);
+    expect(patch.geometryGlobalChanged).toBe(false);
     expect(patch.changed).toEqual([]);
     expect(patch.added).toEqual([]);
     expect(patch.removed).toEqual([]);
@@ -209,6 +214,7 @@ describe("WorldSeed IR", () => {
 
     const patch = createWorldSeedIrPatchManifest(legacy, after);
     expect(patch.globalChanged).toBe(true);
+    expect(patch.geometryGlobalChanged).toBe(true);
     expect(patch.changed.map((chunk) => chunk.id)).toEqual(["-1:0", "0:0", "1:0"]);
     expect(patch.unchangedCount).toBe(0);
   });
