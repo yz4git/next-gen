@@ -37,6 +37,7 @@ interface TiledGeometryBucket {
   featureIds: string[];
   tile: WorldTile;
   color: number;
+  batchId: string;
 }
 
 interface RoadTileBucket {
@@ -45,6 +46,7 @@ interface RoadTileBucket {
   featureIds: string[];
   tile: WorldTile;
   vertex: number;
+  batchId: string;
 }
 
 interface FurnitureBucket {
@@ -55,6 +57,7 @@ interface FurnitureBucket {
 }
 
 const ROAD_SURFACE_SAMPLE_METERS = 7.5;
+const GEOMETRY_SUB_BATCH_COUNT = 4;
 
 export interface BuiltCity {
   group: THREE.Group;
@@ -134,7 +137,7 @@ export async function buildCity(
         hasRoofSurface ||= isRoof;
         addToBucket(
           isRoof ? roofBuckets : buildingBuckets,
-          `${tile.id}:plateau:${surface.kind}:${isRoof ? roofColor : bodyColor}`,
+          geometrySubBatchKey(`${tile.id}:plateau:${surface.kind}:${isRoof ? roofColor : bodyColor}`, building.id),
           tile,
           isRoof ? roofColor : bodyColor,
           geometry,
@@ -188,7 +191,7 @@ export async function buildCity(
       const buildingColor = palette.buildings[bucketIndex] ?? palette.buildings[0] ?? 0x999999;
       addToBucket(
         buildingBuckets,
-        `${tile.id}:${bucketIndex}`,
+        geometrySubBatchKey(`${tile.id}:${bucketIndex}`, building.id),
         tile,
         buildingColor,
         geometry,
@@ -205,7 +208,7 @@ export async function buildCity(
         const roofColor = resolveRoofColor(building, style, palette.roofs);
         addToBucket(
           roofBuckets,
-          `${tile.id}:${roofColor}`,
+          geometrySubBatchKey(`${tile.id}:${roofColor}`, building.id),
           tile,
           roofColor,
           roofGeometry,
@@ -241,6 +244,7 @@ export async function buildCity(
       worldseedLayer: "buildings",
       featureIds: [...new Set(featureIds)],
       worldseedTile: tile,
+      worldseedBatchId: bucket.batchId,
     };
     layers.buildings.add(mesh);
   }
@@ -260,6 +264,7 @@ export async function buildCity(
       worldseedLayer: "roofs",
       featureIds: [...new Set(featureIds)],
       worldseedTile: tile,
+      worldseedBatchId: bucket.batchId,
       worldseedDetail: true,
     };
     layers.roofs.add(mesh);
@@ -291,6 +296,22 @@ export async function buildCity(
   };
 }
 
+export function stableGeometrySubBatchSlot(featureId: string): number {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < featureId.length; index += 1) {
+    hash = Math.imul(hash ^ featureId.charCodeAt(index), 0x01000193);
+  }
+  return (hash >>> 0) % GEOMETRY_SUB_BATCH_COUNT;
+}
+
+function geometrySubBatchKey(base: string, featureId: string): string {
+  return `${base}:sb${stableGeometrySubBatchSlot(featureId)}`;
+}
+
+function stableBatchLabel(value: string): string {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
 function addToBucket(
   buckets: Map<string, TiledGeometryBucket>,
   key: string,
@@ -299,7 +320,7 @@ function addToBucket(
   geometry: THREE.BufferGeometry,
   featureId: string,
 ): void {
-  const bucket = buckets.get(key) ?? { geometries: [], featureIds: [], tile, color };
+  const bucket = buckets.get(key) ?? { geometries: [], featureIds: [], tile, color, batchId: key };
   bucket.geometries.push(normalizeMergeGeometry(geometry));
   bucket.featureIds.push(featureId);
   buckets.set(key, bucket);
@@ -530,7 +551,7 @@ function createAreas(areas: AreaFeature[], data: WorldData, style: WorldStyle): 
       const tile = tileForPoint(centroid.x, centroid.z, WORLD_TILE_SIZE);
       addToBucket(
         buckets,
-        `${tile.id}:${area.kind}`,
+        geometrySubBatchKey(`${tile.id}:${area.kind}`, area.id),
         tile,
         WORLD_PALETTES[style][area.kind],
         geometry,
@@ -551,6 +572,7 @@ function createAreas(areas: AreaFeature[], data: WorldData, style: WorldStyle): 
       worldseedLayer: "areas",
       featureIds: [...new Set(featureIds)],
       worldseedTile: tile,
+      worldseedBatchId: bucket.batchId,
     };
     return [mesh];
   });
@@ -650,6 +672,7 @@ function createRoads(
       worldseedLayer: "roads",
       featureIds: [...new Set(bucket.featureIds)],
       worldseedTile: bucket.tile,
+      worldseedBatchId: bucket.batchId,
     };
     return mesh;
   });
@@ -789,7 +812,8 @@ function appendRoadJunctionPatch(
   featureId: string,
 ): void {
   if (polygon.length < 3) return;
-  const bucket = buckets.get(tile.id) ?? { positions: [], indices: [], featureIds: [], tile, vertex: 0 };
+  const batchId = geometrySubBatchKey(tile.id, featureId);
+  const bucket = buckets.get(batchId) ?? { positions: [], indices: [], featureIds: [], tile, vertex: 0, batchId };
   const centerIndex = bucket.vertex;
   bucket.positions.push(
     center.x,
@@ -815,7 +839,7 @@ function appendRoadJunctionPatch(
     );
   }
   bucket.featureIds.push(featureId);
-  buckets.set(tile.id, bucket);
+  buckets.set(batchId, bucket);
 }
 
 function appendSidewalkCornerStrip(
@@ -828,7 +852,8 @@ function appendSidewalkCornerStrip(
 ): void {
   const segmentCount = Math.min(inner.length, outer.length) - 1;
   if (segmentCount < 1) return;
-  const bucket = buckets.get(tile.id) ?? { positions: [], indices: [], featureIds: [], tile, vertex: 0 };
+  const batchId = geometrySubBatchKey(tile.id, featureId);
+  const bucket = buckets.get(batchId) ?? { positions: [], indices: [], featureIds: [], tile, vertex: 0, batchId };
   for (let index = 0; index < segmentCount; index += 1) {
     const innerStart = inner[index]!;
     const innerEnd = inner[index + 1]!;
@@ -847,7 +872,7 @@ function appendSidewalkCornerStrip(
     bucket.vertex += 4;
   }
   bucket.featureIds.push(featureId);
-  buckets.set(tile.id, bucket);
+  buckets.set(batchId, bucket);
 }
 
 function appendRoadStrip(
@@ -869,7 +894,8 @@ function appendRoadStrip(
   const nx = -dz / length;
   const nz = dx / length;
   const segmentCount = Math.max(1, Math.ceil(length / Math.max(1, maximumSegmentLength)));
-  const bucket = buckets.get(tile.id) ?? { positions: [], indices: [], featureIds: [], tile, vertex: 0 };
+  const batchId = geometrySubBatchKey(tile.id, featureId);
+  const bucket = buckets.get(batchId) ?? { positions: [], indices: [], featureIds: [], tile, vertex: 0, batchId };
 
   for (let segment = 0; segment < segmentCount; segment += 1) {
     const first = interpolateSegment(start, end, segment / segmentCount);
@@ -901,7 +927,7 @@ function appendRoadStrip(
   }
 
   bucket.featureIds.push(featureId);
-  buckets.set(tile.id, bucket);
+  buckets.set(batchId, bucket);
 }
 
 function roadBucketMeshes(
@@ -926,6 +952,7 @@ function roadBucketMeshes(
       worldseedLayer: "roads",
       featureIds: [...new Set(bucket.featureIds)],
       worldseedTile: bucket.tile,
+      worldseedBatchId: bucket.batchId,
       worldseedDetail: true,
     };
     return mesh;
@@ -1006,7 +1033,7 @@ function createRoadFurniture(roadGraph: RoadGraph, data: WorldData, style: World
 function furnitureBucket(buckets: Map<string, FurnitureBucket>, x: number, z: number): FurnitureBucket {
   const tile = tileForPoint(x, z, WORLD_TILE_SIZE);
   const bucket = buckets.get(tile.id) ?? { tile, trees: [], lights: [], signs: [] };
-  buckets.set(tile.id, bucket);
+  buckets.set(batchId, bucket);
   return bucket;
 }
 
@@ -1035,7 +1062,12 @@ function instancedDetail(
   mesh.name = name;
   mesh.castShadow = true;
   mesh.receiveShadow = true;
-  mesh.userData = { worldseedLayer: "roads", worldseedTile: tile, worldseedDetail: true };
+  mesh.userData = {
+    worldseedLayer: "roads",
+    worldseedTile: tile,
+    worldseedBatchId: `${tile.id}:furniture:${stableBatchLabel(name)}`,
+    worldseedDetail: true,
+  };
   return mesh;
 }
 
