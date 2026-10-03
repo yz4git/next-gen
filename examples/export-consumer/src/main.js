@@ -371,7 +371,8 @@ function pumpGpuUploadQueue() {
       renderFrameIndex >= upload.availableAtFrame
       && (upload.job.kind !== "detail" || optionalWorkAllowed()))
     .sort((first, second) =>
-      first[1].job.priority - second[1].job.priority
+      (first[1].job.kind === "base" ? 0 : 1) - (second[1].job.kind === "base" ? 0 : 1)
+      || first[1].job.priority - second[1].job.priority
       || first[1].job.tile.z - second[1].job.tile.z
       || first[1].job.tile.x - second[1].job.tile.x);
 
