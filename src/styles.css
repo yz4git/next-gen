@@ -256,6 +256,17 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 .check-choice strong, .check-choice small { display: block; }
 .check-choice strong { font-size: 10px; }
 .check-choice small { margin-top: 4px; color: #808a84; font-size: 8px; line-height: 1.4; }
+.patch-preview { margin-top: 13px; padding: 12px; border: 1px solid rgba(184,243,75,.22); border-radius: 10px; background: rgba(184,243,75,.045); }
+.patch-preview__head { display: flex; justify-content: space-between; gap: 10px; align-items: center; color: var(--accent); font-size: 8px; font-weight: 850; letter-spacing: .12em; }
+.patch-preview__head small { color: #7d8982; font-size: 7px; font-weight: 650; letter-spacing: 0; }
+.patch-preview__grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
+.patch-preview__grid div { min-width: 0; padding: 8px; border: 1px solid #303a33; border-radius: 8px; background: rgba(14,19,16,.72); }
+.patch-preview__grid strong { display: block; color: #eff4ec; font: 720 14px/1 "SFMono-Regular", Consolas, monospace; }
+.patch-preview__grid span { display: block; margin-top: 4px; color: #727d76; font-size: 7px; line-height: 1.2; }
+.patch-preview p { margin: 9px 0 0 !important; color: #a5afa9 !important; font-size: 8px !important; line-height: 1.45 !important; }
+.patch-preview .patch-preview__note { color: #768179 !important; }
+.patch-preview.is-no-change { border-color: rgba(103,215,135,.34); background: rgba(103,215,135,.055); }
+.patch-preview.is-legacy { border-color: rgba(224,174,84,.35); background: rgba(224,174,84,.055); }
 .privacy-status { padding: 8px 10px; border: 1px solid #323a35; border-radius: 7px; background: #181e1a; color: #c0c9c3 !important; }
 .privacy-status.has-seed { border-color: rgba(224,174,84,.45); color: #f0ca83 !important; }
 .privacy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--line); }
@@ -321,6 +332,8 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 }
 
 @media (max-width: 520px) {
+  .patch-preview__grid { grid-template-columns: 1fr 1fr; }
+
   .seed-panel { height: min(45%, 390px); }
   .viewport-top { top: calc(min(45%, 390px) + 17px); }
   .compass { display: none; }
