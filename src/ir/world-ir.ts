@@ -488,7 +488,9 @@ export function createWorldSeedIrDependencyGraph(
   const chunkIds = new Set(dependencyNodes.map((node) => node.chunkId).filter((id): id is string => Boolean(id)));
   for (const chunkId of chunkIds) {
     const dependencies = dependencyNodes
-      .filter((node) => node.chunkId === chunkId && node.kind !== "artifact")
+      .filter((node) =>
+        node.chunkId === chunkId
+        && (node.kind === "semantic" || node.kind === "road-edge"))
       .map((node) => node.id)
       .sort();
     const id = "artifact:geometry:" + chunkId;
