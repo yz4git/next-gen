@@ -274,6 +274,7 @@ export interface StreamingGpuUploadHints {
 
 export function streamingGpuUploadDelayFrames(
   hints: StreamingGpuUploadHints,
+  thresholdScale = 1,
 ): number {
   const vertices = Number.isFinite(hints.vertexCount) ? Math.max(0, hints.vertexCount ?? 0) : 0;
   const bytes = Number.isFinite(hints.geometryByteLength)
@@ -281,8 +282,19 @@ export function streamingGpuUploadDelayFrames(
     : 0;
   const materials = Number.isFinite(hints.materialCount) ? Math.max(0, hints.materialCount ?? 0) : 0;
 
-  if (vertices >= 350_000 || bytes >= 12 * 1024 * 1024 || materials >= 32) return 2;
-  if (vertices >= 180_000 || bytes >= 6 * 1024 * 1024 || materials >= 16) return 1;
+  const scale = Number.isFinite(thresholdScale)
+    ? Math.min(1.5, Math.max(0.5, thresholdScale))
+    : 1;
+  if (
+    vertices >= 350_000 * scale
+    || bytes >= 12 * 1024 * 1024 * scale
+    || materials >= 32 * scale
+  ) return 2;
+  if (
+    vertices >= 180_000 * scale
+    || bytes >= 6 * 1024 * 1024 * scale
+    || materials >= 16 * scale
+  ) return 1;
   return 0;
 }
 
@@ -308,4 +320,53 @@ export function compareStreamingUploadCandidates(
   return firstKind - secondKind
     || first.priority - second.priority
     || second.delayFrames - first.delayFrames;
+}
+
+
+export interface StreamingGpuUploadLearningState {
+  thresholdScale: number;
+  goodSamples: number;
+  badSamples: number;
+  samples: number;
+}
+
+export function initialStreamingGpuUploadLearningState(): StreamingGpuUploadLearningState {
+  return {
+    thresholdScale: 1,
+    goodSamples: 0,
+    badSamples: 0,
+    samples: 0,
+  };
+}
+
+export function updateStreamingGpuUploadLearningState(
+  state: StreamingGpuUploadLearningState,
+  postUploadFrameTimeMs: number,
+): StreamingGpuUploadLearningState {
+  if (!Number.isFinite(postUploadFrameTimeMs) || postUploadFrameTimeMs <= 0) return state;
+
+  let thresholdScale = state.thresholdScale;
+  let goodSamples = postUploadFrameTimeMs <= 20 ? state.goodSamples + 1 : 0;
+  let badSamples = postUploadFrameTimeMs >= 28 ? state.badSamples + 1 : 0;
+
+  if (postUploadFrameTimeMs >= 45) {
+    thresholdScale = Math.max(0.55, thresholdScale * 0.82);
+    goodSamples = 0;
+    badSamples = 0;
+  } else if (badSamples >= 2) {
+    thresholdScale = Math.max(0.55, thresholdScale * 0.9);
+    goodSamples = 0;
+    badSamples = 0;
+  } else if (goodSamples >= 5) {
+    thresholdScale = Math.min(1.35, thresholdScale * 1.06);
+    goodSamples = 0;
+    badSamples = 0;
+  }
+
+  return {
+    thresholdScale,
+    goodSamples,
+    badSamples,
+    samples: state.samples + 1,
+  };
 }
