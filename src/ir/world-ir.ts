@@ -454,6 +454,41 @@ export async function loadWorldSeedIrChunks(
   }));
 }
 
+export function encodeWorldSeedIrPatchFiles(
+  document: WorldSeedIrDocument,
+  previousIndex: WorldSeedIrIndex,
+  tileSizeMeters = WORLD_TILE_SIZE,
+): {
+  index: WorldSeedIrIndex;
+  patch: WorldSeedIrPatchManifest;
+  files: Record<string, string>;
+} {
+  const chunkSet = createWorldSeedIrChunkSet(document, tileSizeMeters);
+  const patch = createWorldSeedIrPatchManifest(previousIndex, chunkSet.index);
+  const chunkById = new Map(chunkSet.chunks.map((chunk) => [chunk.tile.id, chunk]));
+  const files: Record<string, string> = {
+    "worldseed-ir.index.json": serializeCanonicalJson(chunkSet.index),
+    "worldseed-ir.patch.json": serializeCanonicalJson(patch),
+  };
+
+  for (const entry of [...patch.added, ...patch.changed]) {
+    const chunk = chunkById.get(entry.id);
+    if (!chunk) continue;
+    files[entry.path] = serializeCanonicalJson(chunk);
+  }
+
+  if (patch.globalChanged) {
+    files["worldseed.json"] = serializeCanonicalJson(document.metadata);
+    files["drive-route.json"] = serializeCanonicalJson(document.navigation.driveRoute);
+  }
+
+  return {
+    index: chunkSet.index,
+    patch,
+    files,
+  };
+}
+
 export function encodeWorldSeedIrFiles(
   document: WorldSeedIrDocument,
   tileSizeMeters = WORLD_TILE_SIZE,
