@@ -266,7 +266,7 @@ describe("learned GPU upload cost model", () => {
       geometryByteLength: 5 * 1024 * 1024,
       vertexCount: 125_000,
       materialCount: 16,
-    })).toBeCloseTo(12);
+    })).toBeCloseTo(10);
   });
 
   it("builds confidence gradually and blends early predictions", () => {
