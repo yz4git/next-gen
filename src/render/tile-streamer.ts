@@ -146,15 +146,20 @@ export class TileStreamer {
       return;
     }
     const uploadExcessMs = streamingGpuUploadExcessMs(this.frameBaseline, frameTimeMs);
-    this.gpuCostModel = recordStreamingGpuUploadCost(
+    const previousSamples = this.gpuCostModel.samples;
+    const nextGpuCostModel = recordStreamingGpuUploadCost(
       this.gpuCostModel,
       this.uploadFeedbackHints,
       uploadExcessMs,
     );
-    this.gpuUploadLearning = updateStreamingGpuUploadLearningState(
-      this.gpuUploadLearning,
-      uploadExcessMs,
-    );
+    const accepted = nextGpuCostModel.samples > previousSamples;
+    this.gpuCostModel = nextGpuCostModel;
+    if (accepted) {
+      this.gpuUploadLearning = updateStreamingGpuUploadLearningState(
+        this.gpuUploadLearning,
+        uploadExcessMs,
+      );
+    }
     this.uploadFeedbackPending = false;
     this.uploadFeedbackHints = {};
   }
