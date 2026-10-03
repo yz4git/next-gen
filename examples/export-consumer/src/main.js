@@ -173,7 +173,10 @@ async function importZip(file) {
 }
 
 async function applyIncrementalPatch(archive, patchManifest, fileName) {
-  if (patchManifest.format !== "worldseed-incremental-patch" || patchManifest.version !== "1") {
+  if (
+    patchManifest.format !== "worldseed-incremental-patch"
+    || !["1", "2"].includes(patchManifest.version)
+  ) {
     throw new Error("Unsupported WorldSeed incremental patch");
   }
   if (!activeArchive || !activeGeometryIndex || !activeIrIndex) {
@@ -213,6 +216,8 @@ async function applyIncrementalPatch(archive, patchManifest, fileName) {
   const invalidateIds = new Set([
     ...(geometryPatch.regenerated || []).map((entry) => entry.id),
     ...(geometryPatch.removed || []).map((entry) => entry.id),
+    ...(geometryPatch.regeneratedBatches || []).map((entry) => entry.tileId),
+    ...(geometryPatch.removedBatches || []).map((entry) => entry.tileId),
   ]);
   for (const id of invalidateIds) {
     unloadGeometryTile(id, "detail");
@@ -222,6 +227,20 @@ async function applyIncrementalPatch(archive, patchManifest, fileName) {
   const mergedArchive = { ...activeArchive };
   for (const removal of geometryPatch.removed || []) {
     for (const path of removal.paths || []) delete mergedArchive[path];
+  }
+  const previousTiles = new Map((activeGeometryIndex.tiles || []).map((tile) => [tile.id, tile]));
+  const previousBatchPath = (entry) => {
+    const tile = previousTiles.get(entry.tileId);
+    const batch = tile?.batches?.find((candidate) =>
+      candidate.id === entry.id && Boolean(candidate.detail) === Boolean(entry.detail));
+    return batch?.path ?? null;
+  };
+  for (const entry of [
+    ...(geometryPatch.regeneratedBatches || []),
+    ...(geometryPatch.removedBatches || []),
+  ]) {
+    const oldPath = previousBatchPath(entry);
+    if (oldPath) delete mergedArchive[oldPath];
   }
   for (const [path, bytes] of Object.entries(archive)) mergedArchive[path] = bytes;
 
@@ -262,10 +281,14 @@ async function applyIncrementalPatch(archive, patchManifest, fileName) {
 
   const regenerated = geometryPatch.regenerated?.length ?? 0;
   const removed = geometryPatch.removed?.length ?? 0;
+  const regeneratedBatches = geometryPatch.regeneratedBatches?.length ?? 0;
+  const removedBatches = geometryPatch.removedBatches?.length ?? 0;
   status.textContent =
     "Applied " + fileName
     + " · " + regenerated + " geometry tiles regenerated"
-    + (removed ? " · " + removed + " removals" : "")
+    + (regeneratedBatches ? " · " + regeneratedBatches + " sub-batches replaced" : "")
+    + (removed ? " · " + removed + " tile removals" : "")
+    + (removedBatches ? " · " + removedBatches + " sub-batch removals" : "")
     + " · revision " + (nextIrIndex.revisionHash || "unknown");
 }
 
@@ -425,6 +448,11 @@ async function runGeometryTileLoad(job, generation, estimatedParseMs) {
       disposeObject(gltf.scene);
       return;
     }
+    await reconcileGeometryBatches(gltf.scene, job.tile, job.kind);
+    if (generation !== importGeneration || !activeArchive || !desiredJobs.has(key)) {
+      disposeObject(gltf.scene);
+      return;
+    }
     gltf.scene.userData.worldseedTileId = job.tile.id;
     gltf.scene.userData.worldseedLod = job.kind;
     const uploadHints = collectGpuUploadHints(gltf.scene);
@@ -442,6 +470,54 @@ async function runGeometryTileLoad(job, generation, estimatedParseMs) {
     activeTileLoads = Math.max(0, activeTileLoads - 1);
     activeEstimatedParseMs = Math.max(0, activeEstimatedParseMs - estimatedParseMs);
     pumpGeometryQueue();
+  }
+}
+
+async function reconcileGeometryBatches(scene, tile, kind) {
+  const batches = Array.isArray(tile.batches)
+    ? tile.batches.filter((batch) => Boolean(batch.detail) === (kind === "detail"))
+    : null;
+  if (!batches) return;
+
+  const expected = new Map(batches.map((batch) => [batch.id, batch]));
+  let retired = null;
+  const retire = (object) => {
+    if (!retired) {
+      retired = new THREE.Group();
+      retired.name = "Retired WorldSeed batches";
+      retired.visible = false;
+      scene.add(retired);
+    }
+    retired.add(object);
+  };
+
+  const existing = [];
+  scene.traverse((object) => {
+    if (object === scene || object === retired) return;
+    const batchId = object.userData?.worldseedBatchId;
+    if (typeof batchId === "string") existing.push({ object, batchId });
+  });
+
+  const replaced = new Set();
+  for (const { object, batchId } of existing) {
+    const descriptor = expected.get(batchId);
+    if (!descriptor || descriptor.path) {
+      if (object.parent) retire(object);
+      if (descriptor?.path) replaced.add(batchId);
+    }
+  }
+
+  for (const batch of batches) {
+    if (!batch.path) continue;
+    const overrideBytes = activeArchive?.[batch.path];
+    if (!overrideBytes) {
+      throw new Error("Missing geometry batch override " + batch.path);
+    }
+    const override = await loader.parseAsync(exactArrayBuffer(overrideBytes), "");
+    override.scene.userData.worldseedBatchOverride = true;
+    override.scene.userData.worldseedBatchId = batch.id;
+    scene.add(override.scene);
+    replaced.add(batch.id);
   }
 }
 
