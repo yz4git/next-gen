@@ -5,6 +5,7 @@ import {
   estimateStreamingParseCostMs,
   initialAdaptiveStreamingState,
   initialFrameTimeSchedulerState,
+  initialStreamingGpuUploadLearningState,
   initialStreamingParseCostState,
   optionalStreamingWorkAllowed,
   recordStreamingParseCost,
@@ -13,6 +14,7 @@ import {
   streamingGpuUploadDelayFrames,
   updateAdaptiveStreamingState,
   updateFrameTimeSchedulerState,
+  updateStreamingGpuUploadLearningState,
 } from "../src/render/adaptive-streaming";
 
 describe("adaptive streaming budget", () => {
@@ -171,5 +173,38 @@ describe("GPU upload ordering", () => {
       "base:20",
       "detail:10",
     ]);
+  });
+});
+
+
+describe("GPU upload threshold learning", () => {
+  it("becomes more conservative after a severe post-upload frame", () => {
+    let state = initialStreamingGpuUploadLearningState();
+    state = updateStreamingGpuUploadLearningState(state, 50);
+    expect(state.thresholdScale).toBeCloseTo(0.82);
+    expect(state.samples).toBe(1);
+
+    expect(streamingGpuUploadDelayFrames({
+      vertexCount: 155_000,
+      geometryByteLength: 3 * 1024 * 1024,
+      materialCount: 8,
+    }, state.thresholdScale)).toBe(1);
+  });
+
+  it("becomes gradually more permissive after sustained smooth upload frames", () => {
+    let state = initialStreamingGpuUploadLearningState();
+    for (let i = 0; i < 5; i += 1) {
+      state = updateStreamingGpuUploadLearningState(state, 16);
+    }
+    expect(state.thresholdScale).toBeCloseTo(1.06);
+    expect(state.samples).toBe(5);
+  });
+
+  it("requires two moderately slow upload frames before tightening", () => {
+    let state = initialStreamingGpuUploadLearningState();
+    state = updateStreamingGpuUploadLearningState(state, 31);
+    expect(state.thresholdScale).toBe(1);
+    state = updateStreamingGpuUploadLearningState(state, 30);
+    expect(state.thresholdScale).toBeCloseTo(0.9);
   });
 });
