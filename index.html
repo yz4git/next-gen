@@ -289,6 +289,20 @@
         <input id="include-export-origin" type="checkbox" />
         <span><strong>Include exact latitude and longitude</strong><small>Needed only when the file must be georeferenced.</small></span>
       </label>
+      <section class="patch-preview" id="patch-preview" hidden aria-live="polite">
+        <div class="patch-preview__head">
+          <span>PATCH PREVIEW</span>
+          <small id="patch-preview-baseline">Dependency graph</small>
+        </div>
+        <div class="patch-preview__grid">
+          <div><strong id="patch-preview-objects">—</strong><span>object changes</span></div>
+          <div><strong id="patch-preview-regenerate">—</strong><span>tiles rebuild</span></div>
+          <div><strong id="patch-preview-reuse">—</strong><span>tiles reused</span></div>
+          <div><strong id="patch-preview-size">—</strong><span>est. payload</span></div>
+        </div>
+        <p id="patch-preview-updates">Calculating affected artifacts…</p>
+        <p class="patch-preview__note" id="patch-preview-note">Estimate is before ZIP compression.</p>
+      </section>
       <p class="dialog-note">Removing metadata does not anonymize recognizable streets or buildings. Treat the geometry itself as potentially identifying.</p>
       <div class="dialog-actions">
         <button class="button-secondary" type="button" data-close-dialog>Cancel</button>
