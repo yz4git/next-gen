@@ -55,6 +55,13 @@ let lastFrameAt = performance.now();
 let deferOptionalFrames = 0;
 let activeEstimatedParseMs = 0;
 let renderFrameIndex = 0;
+let uploadFeedbackPending = false;
+let gpuUploadLearning = {
+  thresholdScale: 1,
+  goodSamples: 0,
+  badSamples: 0,
+  samples: 0,
+};
 let parseCostState = {
   baseMsPerMb: 14,
   detailMsPerMb: 16,
@@ -390,6 +397,7 @@ function pumpGpuUploadQueue() {
 
     if (heavy) break;
   }
+  if (attachments > 0) uploadFeedbackPending = true;
 }
 
 function collectGpuUploadHints(root) {
@@ -423,17 +431,48 @@ function collectGpuUploadHints(root) {
 }
 
 function gpuUploadDelayFrames(hints) {
+  const scale = Math.min(1.5, Math.max(0.5, gpuUploadLearning.thresholdScale));
   if (
-    hints.vertexCount >= 350_000
-    || hints.geometryByteLength >= 12 * 1024 * 1024
-    || hints.materialCount >= 32
+    hints.vertexCount >= 350_000 * scale
+    || hints.geometryByteLength >= 12 * 1024 * 1024 * scale
+    || hints.materialCount >= 32 * scale
   ) return 2;
   if (
-    hints.vertexCount >= 180_000
-    || hints.geometryByteLength >= 6 * 1024 * 1024
-    || hints.materialCount >= 16
+    hints.vertexCount >= 180_000 * scale
+    || hints.geometryByteLength >= 6 * 1024 * 1024 * scale
+    || hints.materialCount >= 16 * scale
   ) return 1;
   return 0;
+}
+
+function sampleGpuUploadFeedback(frameTimeMs) {
+  if (!uploadFeedbackPending || !Number.isFinite(frameTimeMs) || frameTimeMs <= 0) return;
+  uploadFeedbackPending = false;
+
+  let thresholdScale = gpuUploadLearning.thresholdScale;
+  let goodSamples = frameTimeMs <= 20 ? gpuUploadLearning.goodSamples + 1 : 0;
+  let badSamples = frameTimeMs >= 28 ? gpuUploadLearning.badSamples + 1 : 0;
+
+  if (frameTimeMs >= 45) {
+    thresholdScale = Math.max(0.55, thresholdScale * 0.82);
+    goodSamples = 0;
+    badSamples = 0;
+  } else if (badSamples >= 2) {
+    thresholdScale = Math.max(0.55, thresholdScale * 0.9);
+    goodSamples = 0;
+    badSamples = 0;
+  } else if (goodSamples >= 5) {
+    thresholdScale = Math.min(1.35, thresholdScale * 1.06);
+    goodSamples = 0;
+    badSamples = 0;
+  }
+
+  gpuUploadLearning = {
+    thresholdScale,
+    goodSamples,
+    badSamples,
+    samples: gpuUploadLearning.samples + 1,
+  };
 }
 
 function jobByteLength(job) {
@@ -525,6 +564,13 @@ function exactArrayBuffer(bytes) {
 
 function clearImported() {
   importGeneration += 1;
+  uploadFeedbackPending = false;
+  gpuUploadLearning = {
+    thresholdScale: 1,
+    goodSamples: 0,
+    badSamples: 0,
+    samples: 0,
+  };
   activeArchive = null;
   activeGeometryIndex = null;
   desiredJobs.clear();
@@ -584,7 +630,9 @@ function resize() {
 renderer.setAnimationLoop(() => {
   renderFrameIndex += 1;
   const frameNow = performance.now();
-  sampleFrameTime(frameNow - lastFrameAt);
+  const frameTimeMs = frameNow - lastFrameAt;
+  sampleGpuUploadFeedback(frameTimeMs);
+  sampleFrameTime(frameTimeMs);
   lastFrameAt = frameNow;
 
   resize();
