@@ -13,6 +13,7 @@ import {
   createWorldSeedIrChunkSet,
   encodeWorldSeedIrFiles,
   encodeWorldSeedIrPatchFiles,
+  hashCanonicalJson,
   serializeCanonicalJson,
   type WorldSeedIrDependencyGraph,
   type WorldSeedIrIndex,
@@ -23,12 +24,15 @@ import type { DriveRoute, RoadGraph, WorldData, WorldManifest, WorldStats, World
 export const WORLDSEED_GEOMETRY_INDEX_FORMAT = "worldseed-geometry-index" as const;
 export const WORLDSEED_GEOMETRY_PATCH_FORMAT = "worldseed-geometry-patch" as const;
 export const WORLDSEED_INCREMENTAL_PATCH_FORMAT = "worldseed-incremental-patch" as const;
+export const WORLDSEED_INCREMENTAL_PATCH_VERSION = "2" as const;
 export const WORLDSEED_BUILD_STATE_FORMAT = "worldseed-build-state" as const;
 export const WORLDSEED_GEOMETRY_INDEX_VERSION = "1" as const;
 export const WORLDSEED_GEOMETRY_RECIPE_VERSION = "1" as const;
 
 export interface WorldSeedGeometryBatchDescriptor {
   id: string;
+  path?: string;
+  byteLength?: number;
   layer: string;
   detail: boolean;
   featureIds: string[];
@@ -87,6 +91,20 @@ export interface WorldSeedGeometryPatchRemoval {
   paths: string[];
 }
 
+export interface WorldSeedGeometryPatchBatch {
+  id: string;
+  tileId: string;
+  detail: boolean;
+  path: string;
+}
+
+export interface WorldSeedGeometryPatchBatchRemoval {
+  id: string;
+  tileId: string;
+  detail: boolean;
+}
+
+
 export interface WorldSeedGeometryPatchManifest {
   format: typeof WORLDSEED_GEOMETRY_PATCH_FORMAT;
   version: typeof WORLDSEED_GEOMETRY_INDEX_VERSION;
@@ -94,13 +112,18 @@ export interface WorldSeedGeometryPatchManifest {
   toIrRevisionHash: string | null;
   regenerated: WorldSeedGeometryPatchTile[];
   removed: WorldSeedGeometryPatchRemoval[];
+  regeneratedBatches: WorldSeedGeometryPatchBatch[];
+  removedBatches: WorldSeedGeometryPatchBatchRemoval[];
   reusedCount: number;
+  reusedBatchCount: number;
 }
 
 export interface WorldSeedGeometryIncrementalPlan {
   manifest: WorldSeedGeometryPatchManifest;
   regenerateTileIds: Set<string>;
   reusedTileIds: Set<string>;
+  regenerateBatchKeys: Set<string>;
+  reusedBatchKeys: Set<string>;
 }
 
 export interface WorldSeedIncrementalBase {
@@ -181,7 +204,7 @@ export interface WorldSeedPatchPreview {
 
 export interface WorldSeedIncrementalPatchManifest {
   format: typeof WORLDSEED_INCREMENTAL_PATCH_FORMAT;
-  version: typeof WORLDSEED_GEOMETRY_INDEX_VERSION;
+  version: typeof WORLDSEED_INCREMENTAL_PATCH_VERSION;
   fromRevisionHash: string | null;
   toRevisionHash: string | null;
   irPatchPath: "worldseed-ir.patch.json";
