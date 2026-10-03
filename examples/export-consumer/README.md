@@ -36,6 +36,12 @@ npm run dev
 
 Export a Three.js kit from WorldSeed and drop the resulting ZIP onto the example.
 
+## Incremental patch trial
+
+After a full tiled export is loaded, you can drop a matching `worldseed-patch.zip` onto the same consumer. The patch must start from the loaded IR revision. The consumer validates `fromRevisionHash`, removes obsolete tile paths, unloads only regenerated/removed tile scenes, merges the changed files, updates overlays/indexes, and streams the replacement tiles without clearing unchanged geometry.
+
+A patch from another base revision is rejected instead of being applied optimistically.
+
 The consumer overlays the routable road graph, shows vehicle/pedestrian spawn points, and draws the active drive route. New exports use the geometry tile index to parse only nearby tile GLBs into the Three.js scene, prioritize the nearest jobs, adapt base/detail range, DPR and one/two-job parsing concurrency from measured FPS, defer new detail parses briefly after frame-time spikes, learn parse cost from actual ZIP byte sizes and measured GLTF parse timings so heavy jobs serialize while light jobs can stay two-way, stage parsed scenes through a GPU upload queue so vertex/material-heavy tiles attach at most one per frame and learn stricter/looser upload thresholds plus confidence-weighted milliseconds-per-work-unit from post-attach frame-time excess above a rolling normal-frame baseline, reject isolated GPU-cost outliers unless the same direction repeats, then predict upload staging for later tiles in the current import, add optional detail GLBs only at closer range, and dispose distant GPU resources; older exports fall back to `city.glb`. It rejects JSON contract versions other than schema `1.0`.
 
 ## Why this example exists
