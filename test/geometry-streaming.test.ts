@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import {
+  createGeometryIncrementalPlan,
   createGeometryTileGroups,
   selectGeometryPrefetchTiles,
   selectGeometryTiles,
@@ -75,6 +76,70 @@ describe("geometry tile export", () => {
     expect(position.x).toBeCloseTo(15);
     expect(position.y).toBeCloseTo(4);
     expect(position.z).toBeCloseTo(-2);
+  });
+
+  it("plans incremental geometry rebuilds from IR patch changes", () => {
+    const tile = (
+      id: string,
+      x: number,
+      options: { detail?: boolean; layer?: string } = {},
+    ) => ({
+      id,
+      path: `worldseed-tiles/${x}_0.glb`,
+      ...(options.detail ? { detailPath: `worldseed-tiles/detail/${x}_0.glb` } : {}),
+      x,
+      z: 0,
+      centerX: x * 300,
+      centerZ: 0,
+      size: 300,
+      objectCount: options.detail ? 2 : 1,
+      detailObjectCount: options.detail ? 1 : 0,
+      layers: [options.layer ?? "buildings"],
+    });
+
+    const previous: WorldSeedGeometryIndex = {
+      format: "worldseed-geometry-index",
+      version: "1",
+      coordinateSystem: "local meters; X east, Y up, Z south",
+      tiles: [
+        tile("-1:0", -1),
+        tile("0:0", 0, { detail: true, layer: "roads" }),
+        tile("1:0", 1),
+      ],
+    };
+    const next: WorldSeedGeometryIndex = {
+      format: "worldseed-geometry-index",
+      version: "1",
+      coordinateSystem: "local meters; X east, Y up, Z south",
+      tiles: [
+        tile("0:0", 0, { layer: "roads" }),
+        tile("1:0", 1),
+        tile("2:0", 2),
+      ],
+    };
+
+    const plan = createGeometryIncrementalPlan(previous, next, {
+      format: "worldseed-ir-patch",
+      version: "1",
+      fromRevisionHash: "old",
+      toRevisionHash: "new",
+      globalChanged: false,
+      added: [{ id: "2:0", path: "worldseed-ir/chunks/2_0.json", contentHash: "new-2" }],
+      changed: [{ id: "0:0", path: "worldseed-ir/chunks/0_0.json", contentHash: "new-0" }],
+      removed: [{ id: "-1:0", path: "worldseed-ir/chunks/-1_0.json", contentHash: "old--1" }],
+      unchangedCount: 1,
+    });
+
+    expect([...plan.regenerateTileIds].sort()).toEqual(["0:0", "2:0"]);
+    expect([...plan.reusedTileIds]).toEqual(["1:0"]);
+    expect(plan.manifest.regenerated.map((entry) => entry.id)).toEqual(["0:0", "2:0"]);
+    expect(plan.manifest.removed).toEqual([
+      { id: "-1:0", paths: ["worldseed-tiles/-1_0.glb"] },
+      { id: "0:0", paths: ["worldseed-tiles/detail/0_0.glb"] },
+    ]);
+    expect(plan.manifest.reusedCount).toBe(1);
+    expect(plan.manifest.fromIrRevisionHash).toBe("old");
+    expect(plan.manifest.toIrRevisionHash).toBe("new");
   });
 
   it("prefetches only tiles ahead of movement and prefers the nearest corridor", () => {
