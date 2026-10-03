@@ -15,7 +15,7 @@ import {
   requestIsCoolingDown,
 } from "./privacy";
 import { WorldRenderer } from "./render/world-renderer";
-import type { WorldSeedIncrementalBase } from "./export/world-kit";
+import type { WorldSeedIncrementalBase, WorldSeedPatchPreview } from "./export/world-kit";
 import type { DriveRoute, ExploreMode, LonLat, WorldData, WorldStats, WorldStyle } from "./types";
 
 type ExportKind = "glb" | "kit" | "patch";
@@ -62,6 +62,8 @@ let lastLiveRequestAt = Number.NEGATIVE_INFINITY;
 let pendingExportKind: ExportKind | null = null;
 let pendingPatchBase: WorldSeedIncrementalBase | null = null;
 let pendingPatchBaseName = "";
+let pendingPatchPreview: WorldSeedPatchPreview | null = null;
+let patchPreviewGeneration = 0;
 let clearingPrivateData = false;
 let locationRequestGeneration = 0;
 let requestedMode: ExploreMode = "orbit";
@@ -296,7 +298,12 @@ function bindUi(): void {
     const file = input.files?.[0];
     if (file) void prepareIncrementalPatchBase(file);
   });
-  required("#include-export-origin").addEventListener("change", updateExportButtonLabel);
+  required("#include-export-origin").addEventListener("change", () => {
+    updateExportButtonLabel();
+    if (pendingExportKind === "patch") {
+      void refreshPatchPreview(required<HTMLInputElement>("#include-export-origin").checked);
+    }
+  });
   required("#confirm-export").addEventListener("click", () => {
     if (!pendingExportKind) return;
     const kind = pendingExportKind;
@@ -472,7 +479,7 @@ async function runExport(kind: ExportKind, includeExactOrigin: boolean): Promise
           includeExactOrigin,
         );
       } else {
-        if (!pendingPatchBase) throw new Error("Choose a previous Three.js kit ZIP before exporting a patch.");
+        if (!pendingPatchBase) throw new Error("Choose a previous WorldSeed build state or Three.js kit before exporting a patch.");
         await exportWorldSeedIncrementalPatch(
           city.group,
           data,
@@ -678,10 +685,13 @@ async function prepareIncrementalPatchBase(file: File): Promise<void> {
     }
 
     pendingPatchBaseName = file.name;
+    pendingPatchPreview = null;
     openExportDialog("patch");
   } catch (error) {
     pendingPatchBase = null;
     pendingPatchBaseName = "";
+    pendingPatchPreview = null;
+    patchPreviewGeneration += 1;
     showError(error instanceof Error ? error.message : "The previous WorldSeed build state could not be read.");
     setStatus(data ? readyStatus(data) : "Ready", "error");
   } finally {
@@ -724,11 +734,110 @@ function openExportDialog(kind: ExportKind): void {
       : "incremental patch";
   required("#export-dialog-title").textContent = `Export ${label}`;
   required("#export-dialog-copy").textContent = kind === "patch"
-    ? `Compare the current world against ${pendingPatchBaseName}. The previous ZIP stays local to this browser.`
+    ? `Compare the current world against ${pendingPatchBaseName}. The selected baseline stays local to this browser.`
     : `The privacy-safe default removes ${formatCoordinate(data.center)} from file metadata.`;
   required<HTMLInputElement>("#include-export-origin").checked = false;
+  const preview = required<HTMLElement>("#patch-preview");
+  preview.hidden = kind !== "patch";
+  if (kind === "patch") renderPatchPreview(null);
   updateExportButtonLabel();
   openDialog("export-dialog");
+  if (kind === "patch") void refreshPatchPreview(false);
+}
+
+async function refreshPatchPreview(includeExactOrigin: boolean): Promise<void> {
+  if (!data || !city || !pendingPatchBase || pendingExportKind !== "patch") return;
+  const generation = ++patchPreviewGeneration;
+  const confirm = required<HTMLButtonElement>("#confirm-export");
+  confirm.disabled = true;
+  renderPatchPreview(null);
+  try {
+    const { createWorldSeedPatchPreview } = await import("./export/world-kit");
+    const walkSpawn = city.collision.findOpenSpawn();
+    const preview = createWorldSeedPatchPreview(
+      city.group,
+      data,
+      city.stats,
+      style,
+      city.manifest,
+      city.roadGraph,
+      currentRoute,
+      { x: walkSpawn.x, y: city.groundHeightAt(walkSpawn.x, walkSpawn.z), z: walkSpawn.z },
+      pendingPatchBase,
+      includeExactOrigin,
+    );
+    if (generation !== patchPreviewGeneration || pendingExportKind !== "patch") return;
+    pendingPatchPreview = preview;
+    renderPatchPreview(preview);
+  } catch (error) {
+    if (generation !== patchPreviewGeneration) return;
+    pendingPatchPreview = null;
+    required("#patch-preview-updates").textContent = error instanceof Error
+      ? `Preview unavailable: ${error.message}`
+      : "Patch preview could not be calculated.";
+    required("#patch-preview-note").textContent = "You can select the baseline again to retry.";
+  } finally {
+    if (generation === patchPreviewGeneration && pendingExportKind === "patch") {
+      confirm.disabled = pendingPatchPreview === null;
+    }
+  }
+}
+
+function renderPatchPreview(preview: WorldSeedPatchPreview | null): void {
+  const container = required<HTMLElement>("#patch-preview");
+  if (container.hidden) return;
+  container.classList.toggle("is-no-change", Boolean(preview?.noChanges));
+  container.classList.toggle("is-legacy", Boolean(preview?.legacyBaseline));
+  required("#patch-preview-baseline").textContent = preview
+    ? preview.legacyBaseline ? "Legacy chunk fallback" : "Stable dependency graph"
+    : "Calculating…";
+  required("#patch-preview-objects").textContent = preview
+    ? preview.objectChanges
+      ? String(preview.objectChanges.added + preview.objectChanges.changed + preview.objectChanges.removed)
+      : "legacy"
+    : "—";
+  required("#patch-preview-regenerate").textContent = preview
+    ? String(preview.regeneratedTileIds.length)
+    : "—";
+  required("#patch-preview-reuse").textContent = preview
+    ? String(preview.reusedTileCount)
+    : "—";
+  required("#patch-preview-size").textContent = preview
+    ? formatByteSize(preview.estimatedUncompressedBytes)
+    : "—";
+
+  if (!preview) {
+    required("#patch-preview-updates").textContent = "Calculating affected artifacts…";
+    required("#patch-preview-note").textContent = "Estimate is before ZIP compression.";
+    return;
+  }
+
+  const updates: string[] = [];
+  if (preview.regeneratedTileIds.length > 0) updates.push(`Geometry ${preview.regeneratedTileIds.length} tile${preview.regeneratedTileIds.length === 1 ? "" : "s"}`);
+  if (preview.removedTileIds.length > 0) updates.push(`Remove ${preview.removedTileIds.length} tile${preview.removedTileIds.length === 1 ? "" : "s"}`);
+  if (preview.updates.colliders) updates.push("Colliders");
+  if (preview.updates.terrain) updates.push("Terrain");
+  if (preview.updates.roadGraph) updates.push("Road graph");
+  if (preview.updates.spawnPoints) updates.push("Spawn points");
+  if (preview.updates.driveRoute) updates.push("Drive route");
+  if (preview.updates.semanticManifest) updates.push("Semantic manifest");
+  if (preview.updates.metadata) updates.push("Metadata");
+  required("#patch-preview-updates").textContent = preview.noChanges
+    ? "No effective artifact changes detected."
+    : `Updates: ${updates.join(" · ") || "structured patch metadata only"}`;
+
+  const objectDetail = preview.objectChanges
+    ? `Objects +${preview.objectChanges.added} · ~${preview.objectChanges.changed} · -${preview.objectChanges.removed}`
+    : "Legacy baseline: object-level counts unavailable";
+  required("#patch-preview-note").textContent =
+    `${objectDetail} · ${preview.changedChunkCount} IR chunk change${preview.changedChunkCount === 1 ? "" : "s"} · size estimate is before ZIP compression.`;
+}
+
+function formatByteSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  if (bytes < 1_024) return `${Math.round(bytes)} B`;
+  if (bytes < 1_024 * 1_024) return `${(bytes / 1_024).toFixed(bytes < 10_240 ? 1 : 0)} KB`;
+  return `${(bytes / (1_024 * 1_024)).toFixed(bytes < 10 * 1_024 * 1_024 ? 1 : 0)} MB`;
 }
 
 function updateExportButtonLabel(): void {
