@@ -191,6 +191,20 @@ describe("GPU upload threshold learning", () => {
     expect(streamingGpuUploadExcessMs(baseline, 50)).toBeGreaterThan(30);
   });
 
+  it("does not blame GPU upload for a frame that is only slightly above a slow baseline", () => {
+    let baseline = initialStreamingFrameBaselineState();
+    for (let i = 0; i < 8; i += 1) {
+      baseline = updateStreamingFrameBaselineState(baseline, 24);
+    }
+    const excess = streamingGpuUploadExcessMs(baseline, 31);
+    expect(excess).toBeCloseTo(7, 0);
+
+    let state = initialStreamingGpuUploadLearningState();
+    state = updateStreamingGpuUploadLearningState(state, excess);
+    expect(state.thresholdScale).toBe(1);
+    expect(state.badSamples).toBe(0);
+  });
+
   it("becomes more conservative after a severe upload-attributed excess", () => {
     let state = initialStreamingGpuUploadLearningState();
     state = updateStreamingGpuUploadLearningState(state, 30);
