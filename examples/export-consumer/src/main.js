@@ -251,7 +251,7 @@ async function applyIncrementalPatch(archive, patchManifest, fileName) {
   activeGeometryIndex = nextGeometryIndex;
   activeIrIndex = nextIrIndex;
 
-  await hotSwapLoadedGeometryBatches(batchRefreshIds);
+  await hotSwapLoadedGeometryBatches(batchRefreshIds, geometryPatch);
 
   activeMetadata = readJson(archive, "worldseed.json", true) ?? activeMetadata;
   activeObjects = readJson(archive, "worldseed-objects.json", true) ?? activeObjects;
@@ -478,9 +478,19 @@ async function runGeometryTileLoad(job, generation, estimatedParseMs) {
   }
 }
 
-async function hotSwapLoadedGeometryBatches(tileIds) {
+async function hotSwapLoadedGeometryBatches(tileIds, geometryPatch) {
   if (!activeGeometryIndex || tileIds.size === 0) return;
   const nextById = new Map((activeGeometryIndex.tiles || []).map((tile) => [tile.id, tile]));
+  const targetsByTile = new Map();
+  for (const entry of [
+    ...(geometryPatch.regeneratedBatches || []),
+    ...(geometryPatch.removedBatches || []),
+  ]) {
+    const targets = targetsByTile.get(entry.tileId) ?? new Set();
+    targets.add(entry.id);
+    targetsByTile.set(entry.tileId, targets);
+  }
+
   for (const id of tileIds) {
     const tile = nextById.get(id);
     if (!tile) {
@@ -488,14 +498,15 @@ async function hotSwapLoadedGeometryBatches(tileIds) {
       unloadGeometryTile(id, "base");
       continue;
     }
+    const targets = targetsByTile.get(id) ?? null;
     const base = loadedBaseTiles.get(id);
-    if (base) await reconcileGeometryBatches(base, tile, "base");
+    if (base) await reconcileGeometryBatches(base, tile, "base", targets);
     const detail = loadedDetailTiles.get(id);
-    if (detail) await reconcileGeometryBatches(detail, tile, "detail");
+    if (detail) await reconcileGeometryBatches(detail, tile, "detail", targets);
   }
 }
 
-async function reconcileGeometryBatches(scene, tile, kind) {
+async function reconcileGeometryBatches(scene, tile, kind, targetBatchIds = null) {
   const batches = Array.isArray(tile.batches)
     ? tile.batches.filter((batch) => Boolean(batch.detail) === (kind === "detail"))
     : null;
@@ -523,6 +534,7 @@ async function reconcileGeometryBatches(scene, tile, kind) {
   });
 
   for (const { object, batchId } of existing) {
+    if (targetBatchIds && !targetBatchIds.has(batchId)) continue;
     const descriptor = expected.get(batchId);
     const shouldRetire = !descriptor || descriptor.path;
     if (!shouldRetire || !object.parent) continue;
@@ -538,6 +550,7 @@ async function reconcileGeometryBatches(scene, tile, kind) {
   if (retired) scene.add(retired);
 
   for (const batch of batches) {
+    if (targetBatchIds && !targetBatchIds.has(batch.id)) continue;
     if (!batch.path) continue;
     const overrideBytes = activeArchive?.[batch.path];
     if (!overrideBytes) {
