@@ -889,12 +889,17 @@ function dependencyNode(
   chunkId?: string,
   metadata?: Record<string, string | number | boolean | null>,
 ): WorldSeedIrDependencyNode {
+  const normalizedDependencies = [...new Set(dependsOn)].sort();
   return {
     id,
     kind,
     ...(chunkId ? { chunkId } : {}),
-    contentHash: hashCanonicalJson(content),
-    dependsOn: [...new Set(dependsOn)].sort(),
+    contentHash: hashCanonicalJson({
+      content,
+      dependsOn: normalizedDependencies,
+      metadata: metadata ?? null,
+    }),
+    dependsOn: normalizedDependencies,
     ...(metadata ? { metadata } : {}),
   };
 }
