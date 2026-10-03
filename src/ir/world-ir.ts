@@ -63,6 +63,7 @@ export interface WorldSeedIrIndex {
   tileSizeMeters: number;
   coordinateSystem: string;
   globalHash?: string;
+  geometryGlobalHash?: string;
   revisionHash?: string;
   global: {
     metadataPath: "worldseed.json";
@@ -86,6 +87,7 @@ export interface WorldSeedIrPatchManifest {
   fromRevisionHash: string | null;
   toRevisionHash: string | null;
   globalChanged: boolean;
+  geometryGlobalChanged: boolean;
   added: WorldSeedIrPatchChunk[];
   changed: WorldSeedIrPatchChunk[];
   removed: WorldSeedIrPatchChunk[];
@@ -291,11 +293,16 @@ export function createWorldSeedIrChunkSet(
     semanticObjects: globalSemanticObjects,
     driveRoute: document.navigation.driveRoute,
   });
+  const geometryGlobalHash = hashCanonicalJson({
+    style: document.metadata["style"] ?? null,
+    semanticObjects: globalSemanticObjects,
+  });
   const revisionHash = hashCanonicalJson({
     version: WORLDSEED_IR_VERSION,
     tileSizeMeters,
     coordinateSystem: document.navigation.roadGraph.coordinateSystem,
     globalHash,
+    geometryGlobalHash,
     chunks: chunkDescriptors.map((chunk) => ({
       id: chunk.id,
       contentHash: chunk.contentHash,
@@ -308,6 +315,7 @@ export function createWorldSeedIrChunkSet(
     tileSizeMeters,
     coordinateSystem: document.navigation.roadGraph.coordinateSystem,
     globalHash,
+    geometryGlobalHash,
     revisionHash,
     global: {
       metadataPath: "worldseed.json",
@@ -369,6 +377,10 @@ export function createWorldSeedIrPatchManifest(
       !previous.globalHash
       || !next.globalHash
       || previous.globalHash !== next.globalHash,
+    geometryGlobalChanged:
+      !previous.geometryGlobalHash
+      || !next.geometryGlobalHash
+      || previous.geometryGlobalHash !== next.geometryGlobalHash,
     added: sortPatchChunks(added),
     changed: sortPatchChunks(changed),
     removed: sortPatchChunks(removed),
