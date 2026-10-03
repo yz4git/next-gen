@@ -797,10 +797,10 @@ function renderPatchPreview(preview: WorldSeedPatchPreview | null): void {
       : "legacy"
     : "—";
   required("#patch-preview-regenerate").textContent = preview
-    ? String(preview.regeneratedTileIds.length)
+    ? `${preview.regeneratedTileIds.length} / ${preview.regeneratedBatchCount}`
     : "—";
   required("#patch-preview-reuse").textContent = preview
-    ? String(preview.reusedTileCount)
+    ? `${preview.reusedTileCount} / ${preview.reusedBatchCount}`
     : "—";
   required("#patch-preview-size").textContent = preview
     ? formatByteSize(preview.estimatedUncompressedBytes)
@@ -814,7 +814,9 @@ function renderPatchPreview(preview: WorldSeedPatchPreview | null): void {
 
   const updates: string[] = [];
   if (preview.regeneratedTileIds.length > 0) updates.push(`Geometry ${preview.regeneratedTileIds.length} tile${preview.regeneratedTileIds.length === 1 ? "" : "s"}`);
+  if (preview.regeneratedBatchCount > 0) updates.push(`Geometry ${preview.regeneratedBatchCount} sub-batch${preview.regeneratedBatchCount === 1 ? "" : "es"}`);
   if (preview.removedTileIds.length > 0) updates.push(`Remove ${preview.removedTileIds.length} tile${preview.removedTileIds.length === 1 ? "" : "s"}`);
+  if (preview.removedBatchCount > 0) updates.push(`Remove ${preview.removedBatchCount} sub-batch${preview.removedBatchCount === 1 ? "" : "es"}`);
   if (preview.updates.colliders) updates.push("Colliders");
   if (preview.updates.terrain) updates.push("Terrain");
   if (preview.updates.roadGraph) updates.push("Road graph");
