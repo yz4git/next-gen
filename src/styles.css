@@ -123,7 +123,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 .height-legend .provided { background: #67d787; }.height-legend .levels { background: #55aafa; }.height-legend .inferred { background: #ffc857; }
 
 .export-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-.export-actions .export-patch { grid-column: 1 / -1; }
+.export-actions .export-patch, .export-actions .export-state { grid-column: 1 / -1; }
 .export-actions button { min-width: 0; border: 1px solid #303732; background: #171c19; border-radius: 8px; height: 52px; display: flex; gap: 9px; align-items: center; padding: 0 11px; text-align: left; cursor: pointer; }
 .export-actions button:hover { border-color: rgba(184,243,75,.5); background: #1c231e; }
 .export-actions svg { width: 17px; flex: 0 0 auto; fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
