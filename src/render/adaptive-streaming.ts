@@ -323,6 +323,43 @@ export function compareStreamingUploadCandidates(
 }
 
 
+export interface StreamingFrameBaselineState {
+  baselineMs: number;
+  samples: number;
+}
+
+export function initialStreamingFrameBaselineState(): StreamingFrameBaselineState {
+  return {
+    baselineMs: 16.7,
+    samples: 0,
+  };
+}
+
+export function updateStreamingFrameBaselineState(
+  state: StreamingFrameBaselineState,
+  frameTimeMs: number,
+): StreamingFrameBaselineState {
+  if (!Number.isFinite(frameTimeMs) || frameTimeMs <= 0 || frameTimeMs > 28) return state;
+
+  const sample = Math.min(28, Math.max(8, frameTimeMs));
+  const alpha = state.samples < 10 ? 0.2 : 0.06;
+  return {
+    baselineMs: state.samples === 0
+      ? sample
+      : state.baselineMs * (1 - alpha) + sample * alpha,
+    samples: state.samples + 1,
+  };
+}
+
+export function streamingGpuUploadExcessMs(
+  baseline: StreamingFrameBaselineState,
+  postUploadFrameTimeMs: number,
+): number {
+  if (!Number.isFinite(postUploadFrameTimeMs) || postUploadFrameTimeMs <= 0) return 0;
+  return Math.max(0, postUploadFrameTimeMs - baseline.baselineMs);
+}
+
+
 export interface StreamingGpuUploadLearningState {
   thresholdScale: number;
   goodSamples: number;
@@ -341,15 +378,15 @@ export function initialStreamingGpuUploadLearningState(): StreamingGpuUploadLear
 
 export function updateStreamingGpuUploadLearningState(
   state: StreamingGpuUploadLearningState,
-  postUploadFrameTimeMs: number,
+  uploadExcessMs: number,
 ): StreamingGpuUploadLearningState {
-  if (!Number.isFinite(postUploadFrameTimeMs) || postUploadFrameTimeMs <= 0) return state;
+  if (!Number.isFinite(uploadExcessMs) || uploadExcessMs < 0) return state;
 
   let thresholdScale = state.thresholdScale;
-  let goodSamples = postUploadFrameTimeMs <= 20 ? state.goodSamples + 1 : 0;
-  let badSamples = postUploadFrameTimeMs >= 28 ? state.badSamples + 1 : 0;
+  let goodSamples = uploadExcessMs <= 4 ? state.goodSamples + 1 : 0;
+  let badSamples = uploadExcessMs >= 10 ? state.badSamples + 1 : 0;
 
-  if (postUploadFrameTimeMs >= 45) {
+  if (uploadExcessMs >= 24) {
     thresholdScale = Math.max(0.55, thresholdScale * 0.82);
     goodSamples = 0;
     badSamples = 0;
