@@ -754,35 +754,96 @@ export function createGeometryIncrementalPlan(
       .filter((id) => id.startsWith("artifact:geometry:"))
       .map((id) => id.slice("artifact:geometry:".length))
     : null;
-  const touched = new Set([
-    ...(dependencyGeometryIds ?? [
-      ...irPatch.added.map((chunk) => chunk.id),
-      ...irPatch.changed.map((chunk) => chunk.id),
-    ]),
-    ...forceTileIds,
+  const forced = new Set(forceTileIds);
+  const touched = new Set(dependencyGeometryIds ?? [
+    ...irPatch.added.map((chunk) => chunk.id),
+    ...irPatch.changed.map((chunk) => chunk.id),
   ]);
-  if (irPatch.geometryGlobalChanged) {
-    for (const tile of next.tiles) touched.add(tile.id);
-  }
   const regenerateTileIds = new Set<string>();
   const reusedTileIds = new Set<string>();
+  const regenerateBatchKeys = new Set<string>();
+  const reusedBatchKeys = new Set<string>();
+  const removedBatches: WorldSeedGeometryPatchBatchRemoval[] = [];
+  const impactedDependencies = new Set(irPatch.dependencyDiff?.impacted ?? []);
+  const impactedSemanticLayers = new Set(
+    [...impactedDependencies]
+      .map(semanticLayerFromDependencyId)
+      .filter((layer): layer is string => Boolean(layer)),
+  );
+  const roadDependencyChanged = [...impactedDependencies].some((id) =>
+    id.startsWith("road-edge:") || id.startsWith("road-node:"));
   const recipeChanged =
     !previous.recipeVersion
     || !next.recipeVersion
     || previous.recipeVersion !== next.recipeVersion;
+  const canUseBatchDiff =
+    Boolean(irPatch.dependencyDiff)
+    && !recipeChanged
+    && !irPatch.geometryGlobalChanged;
 
   for (const tile of next.tiles) {
     const before = previousById.get(tile.id);
-    const structureChanged = before
-      ? before.path !== tile.path
-        || before.detailPath !== tile.detailPath
-        || before.objectCount !== tile.objectCount
-        || before.detailObjectCount !== tile.detailObjectCount
-        || serializeCanonicalJson(before.layers, false) !== serializeCanonicalJson(tile.layers, false)
-      : true;
+    if (!before || forced.has(tile.id) || recipeChanged || irPatch.geometryGlobalChanged) {
+      regenerateTileIds.add(tile.id);
+      continue;
+    }
 
-    if (recipeChanged || touched.has(tile.id) || structureChanged) regenerateTileIds.add(tile.id);
-    else reusedTileIds.add(tile.id);
+    const pathsChanged =
+      before.path !== tile.path
+      || before.detailPath !== tile.detailPath;
+    const batchMetadataAvailable =
+      canUseBatchDiff
+      && Array.isArray(before.batches)
+      && Array.isArray(tile.batches);
+
+    if (!batchMetadataAvailable || pathsChanged) {
+      if (touched.has(tile.id) || geometryTileStructureChanged(before, tile)) {
+        regenerateTileIds.add(tile.id);
+      } else {
+        reusedTileIds.add(tile.id);
+      }
+      continue;
+    }
+
+    const beforeBatches = new Map(
+      (before.batches ?? []).map((batch) => [geometryBatchKey(tile.id, batch), batch]),
+    );
+    const nextBatches = new Map(
+      (tile.batches ?? []).map((batch) => [geometryBatchKey(tile.id, batch), batch]),
+    );
+
+    for (const [key, batch] of nextBatches) {
+      const previousBatch = beforeBatches.get(key);
+      const dependenciesChanged = batch.dependencyIds.some((id) => impactedDependencies.has(id));
+      const untrackedButAffected =
+        batch.dependencyIds.length === 0
+        && touched.has(tile.id)
+        && (
+          impactedSemanticLayers.has(batch.layer)
+          || (batch.layer === "roads" && roadDependencyChanged)
+        );
+      if (
+        !previousBatch
+        || geometryBatchStructureChanged(previousBatch, batch)
+        || dependenciesChanged
+        || untrackedButAffected
+      ) {
+        regenerateBatchKeys.add(key);
+      } else {
+        reusedBatchKeys.add(key);
+      }
+    }
+
+    for (const [key, batch] of beforeBatches) {
+      if (nextBatches.has(key)) continue;
+      removedBatches.push({
+        id: batch.id,
+        tileId: tile.id,
+        detail: batch.detail,
+      });
+    }
+
+    reusedTileIds.add(tile.id);
   }
 
   const removed: WorldSeedGeometryPatchRemoval[] = [];
@@ -809,7 +870,25 @@ export function createGeometryIncrementalPlan(
     }))
     .sort((first, second) => first.id.localeCompare(second.id));
 
+  const regeneratedBatches = next.tiles
+    .flatMap((tile) => (tile.batches ?? [])
+      .filter((batch) => regenerateBatchKeys.has(geometryBatchKey(tile.id, batch)))
+      .map((batch): WorldSeedGeometryPatchBatch => ({
+        id: batch.id,
+        tileId: tile.id,
+        detail: batch.detail,
+        path: geometryBatchPatchPath(tile, batch),
+      })))
+    .sort((first, second) =>
+      first.tileId.localeCompare(second.tileId)
+      || Number(first.detail) - Number(second.detail)
+      || first.id.localeCompare(second.id));
+
   removed.sort((first, second) => first.id.localeCompare(second.id));
+  removedBatches.sort((first, second) =>
+    first.tileId.localeCompare(second.tileId)
+    || Number(first.detail) - Number(second.detail)
+    || first.id.localeCompare(second.id));
 
   return {
     manifest: {
@@ -819,11 +898,65 @@ export function createGeometryIncrementalPlan(
       toIrRevisionHash: irPatch.toRevisionHash,
       regenerated,
       removed,
+      regeneratedBatches,
+      removedBatches,
       reusedCount: reusedTileIds.size,
+      reusedBatchCount: reusedBatchKeys.size,
     },
     regenerateTileIds,
     reusedTileIds,
+    regenerateBatchKeys,
+    reusedBatchKeys,
   };
+}
+
+
+function geometryBatchKey(tileId: string, batch: WorldSeedGeometryBatchDescriptor): string {
+  return tileId + "|" + (batch.detail ? "detail" : "base") + "|" + batch.id;
+}
+
+function geometryTileStructureChanged(
+  before: WorldSeedGeometryTileDescriptor,
+  after: WorldSeedGeometryTileDescriptor,
+): boolean {
+  return before.objectCount !== after.objectCount
+    || before.detailObjectCount !== after.detailObjectCount
+    || serializeCanonicalJson(before.layers, false) !== serializeCanonicalJson(after.layers, false);
+}
+
+function geometryBatchStructureChanged(
+  before: WorldSeedGeometryBatchDescriptor,
+  after: WorldSeedGeometryBatchDescriptor,
+): boolean {
+  return before.layer !== after.layer
+    || before.detail !== after.detail
+    || before.objectCount !== after.objectCount
+    || before.vertexCount !== after.vertexCount
+    || before.geometryByteLength !== after.geometryByteLength
+    || before.materialCount !== after.materialCount
+    || serializeCanonicalJson(before.featureIds, false) !== serializeCanonicalJson(after.featureIds, false)
+    || serializeCanonicalJson(before.dependencyIds, false) !== serializeCanonicalJson(after.dependencyIds, false);
+}
+
+function semanticLayerFromDependencyId(id: string): string | null {
+  if (!id.startsWith("semantic:")) return null;
+  const parts = id.split(":");
+  return parts.length >= 4 ? parts[2] ?? null : null;
+}
+
+function geometryBatchPatchPath(
+  tile: WorldSeedGeometryTileDescriptor,
+  batch: WorldSeedGeometryBatchDescriptor,
+): string {
+  const hash = hashCanonicalJson({
+    tileId: tile.id,
+    id: batch.id,
+    detail: batch.detail,
+  }).slice(4, 20);
+  return "worldseed-batches/"
+    + tile.x + "_" + tile.z + "/"
+    + (batch.detail ? "detail-" : "base-")
+    + hash + ".glb";
 }
 
 export async function createGeometryTilePatchArchiveFiles(
