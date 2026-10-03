@@ -199,3 +199,19 @@ Light scenes can be attached two per frame. Medium scenes (at least 180k vertice
 Parsed scenes wait in a bounded upload-ready queue. Frame-time pressure may keep detail uploads waiting, but base work is allowed one extra slot so blocked detail cannot prevent structural geometry from progressing.
 
 The live WorldSeed renderer applies the same thresholds before a base tile becomes visible for the first time or after its GPU resources were previously released. Heavy base tiles are activated at most one per frame. This spreads implicit Three.js buffer/material re-upload across frames instead of allowing several large tiles to become visible simultaneously.
+
+
+### Per-session threshold learning
+
+The 180k/350k vertex, 6/12 MB geometry-buffer, and 16/32 material thresholds are starting points rather than permanent device classifications.
+
+Whenever one or more parsed scenes are attached, only the next frame duration is treated as upload feedback:
+
+- 45 ms or slower: immediately multiply thresholds by 0.82
+- two upload-feedback frames at 28 ms or slower: multiply thresholds by 0.90
+- five upload-feedback frames at 20 ms or faster: multiply thresholds by 1.06
+- the learned scale is clamped to 0.55–1.35
+
+Lower threshold scales classify smaller tiles as medium/heavy, causing earlier staging. Higher scales let capable devices attach larger tiles without unnecessary delay.
+
+The state is intentionally session-only. It resets for a new live world/starter page and for each standalone-consumer ZIP import rather than persisting to IndexedDB, because thermal state, browser conditions, and background load can change between sessions. Normal frames without a scene attachment do not train this model.
