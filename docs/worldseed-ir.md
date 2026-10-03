@@ -66,8 +66,8 @@ That means the same loader can be backed by browser `fetch()`, an extracted star
 Structured-data chunks and render geometry use the same 300 m tile coordinate system.
 
 - `worldseed-tiles.index.json` lists renderable geometry tiles.
-- `worldseed-tiles/<x>_<z>.glb` contains base render geometry for one tile. Its descriptor can include `byteLength` for pre-parse cost estimation.
-- `worldseed-tiles/detail/<x>_<z>.glb` is optional and carries objects marked `worldseedDetail`, such as roofs, road markings, street furniture, and other close-range decoration. Its descriptor can include `detailByteLength`.
+- `worldseed-tiles/<x>_<z>.glb` contains base render geometry for one tile. Its descriptor can include `byteLength`, `vertexCount`, `geometryByteLength`, and `materialCount` hints.
+- `worldseed-tiles/detail/<x>_<z>.glb` is optional and carries objects marked `worldseedDetail`, such as roofs, road markings, street furniture, and other close-range decoration. Its descriptor can include matching `detail*` byte/vertex/material hints.
 - `worldseed-ir/chunks/<x>_<z>.json` carries the matching semantic, navigation, and spawn data when present.
 - `terrain.glb` remains global because terrain continuity crosses tile boundaries.
 - `city.glb` remains in the starter kit as a compatibility fallback.
@@ -182,3 +182,20 @@ The generated starter viewer separates visible-tile I/O from GLTF parsing.
 - stale ready jobs are dropped when the tile is no longer desired
 
 The standalone ZIP consumer does not need a network fetch queue because its GLB bytes are already resident in the unzipped archive. It therefore keeps the cost-aware parse stage without adding an artificial fetch stage.
+
+
+## GPU upload-aware activation
+
+GLTF parsing and first-render GPU upload are treated as separate costs.
+
+After a tile has parsed, the starter viewer and standalone consumer inspect the parsed scene's unique geometries and materials and estimate upload pressure from:
+
+- position vertex count
+- total BufferGeometry attribute/index byte size
+- unique material count
+
+Light scenes can be attached two per frame. Medium scenes (at least 180k vertices, 6 MB of geometry buffers, or 16 materials) wait one frame and are attached alone. Very heavy scenes (350k vertices, 12 MB, or 32 materials) wait two frames and are also attached alone.
+
+Parsed scenes wait in a bounded upload-ready queue. Frame-time pressure may keep detail uploads waiting, but base work is allowed one extra slot so blocked detail cannot prevent structural geometry from progressing.
+
+The live WorldSeed renderer applies the same thresholds before a base tile becomes visible for the first time or after its GPU resources were previously released. Heavy base tiles are activated at most one per frame. This spreads implicit Three.js buffer/material re-upload across frames instead of allowing several large tiles to become visible simultaneously.
