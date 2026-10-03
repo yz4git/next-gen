@@ -2,8 +2,13 @@ import * as THREE from "three";
 import type { ExploreMode } from "../types";
 import { streamingRange, tileIsVisible, type WorldTile } from "../generation/tiling";
 import {
+  combineStreamingGpuUploadHints,
+  estimateStreamingGpuUploadExcessMs,
   initialStreamingFrameBaselineState,
+  initialStreamingGpuCostModelState,
   initialStreamingGpuUploadLearningState,
+  recordStreamingGpuUploadCost,
+  streamingGpuPredictedDelayFrames,
   streamingGpuUploadDelayFrames,
   streamingGpuUploadExcessMs,
   updateStreamingFrameBaselineState,
@@ -42,7 +47,9 @@ export class TileStreamer {
   private readonly activatedBaseTiles = new Set<string>();
   private frameIndex = 0;
   private uploadFeedbackPending = false;
+  private uploadFeedbackHints: StreamingGpuUploadHints = {};
   private frameBaseline = initialStreamingFrameBaselineState();
+  private gpuCostModel = initialStreamingGpuCostModelState();
   private gpuUploadLearning = initialStreamingGpuUploadLearningState();
   private motionHint: StreamingMotionHint | null = null;
   private optionalWorkAllowed = true;
@@ -139,11 +146,17 @@ export class TileStreamer {
       return;
     }
     const uploadExcessMs = streamingGpuUploadExcessMs(this.frameBaseline, frameTimeMs);
+    this.gpuCostModel = recordStreamingGpuUploadCost(
+      this.gpuCostModel,
+      this.uploadFeedbackHints,
+      uploadExcessMs,
+    );
     this.gpuUploadLearning = updateStreamingGpuUploadLearningState(
       this.gpuUploadLearning,
       uploadExcessMs,
     );
     this.uploadFeedbackPending = false;
+    this.uploadFeedbackHints = {};
   }
 
 
@@ -176,13 +189,20 @@ export class TileStreamer {
         if (this.activatedBaseTiles.has(entry.tile.id)) {
           baseVisible = true;
         } else {
-          const delayFrames = streamingGpuUploadDelayFrames(
-            this.baseUploadHints.get(entry.tile.id) ?? {},
+          const uploadHints = this.baseUploadHints.get(entry.tile.id) ?? {};
+          const thresholdDelay = streamingGpuUploadDelayFrames(
+            uploadHints,
             this.gpuUploadLearning.thresholdScale,
           );
+          const predictedDelay = this.gpuCostModel.samples >= 2
+            ? streamingGpuPredictedDelayFrames(
+              estimateStreamingGpuUploadExcessMs(this.gpuCostModel, uploadHints),
+            )
+            : 0;
+          const delayFrames = Math.max(thresholdDelay, predictedDelay);
           if (delayFrames <= 0) {
             this.activatedBaseTiles.add(entry.tile.id);
-            this.uploadFeedbackPending = true;
+            this.queueUploadFeedback(uploadHints);
             baseVisible = true;
           } else {
             const activationFrame = this.baseActivationFrame.get(entry.tile.id)
@@ -192,7 +212,7 @@ export class TileStreamer {
               this.activatedBaseTiles.add(entry.tile.id);
               this.baseActivationFrame.delete(entry.tile.id);
               heavyBaseActivatedThisFrame = true;
-              this.uploadFeedbackPending = true;
+              this.queueUploadFeedback(uploadHints);
               baseVisible = true;
             }
           }
@@ -230,6 +250,13 @@ export class TileStreamer {
     if (signature === this.lastSignature) return;
     this.lastSignature = signature;
     this.listener?.({ activeTiles: active.size, totalTiles: this.tiles.size });
+  }
+
+  private queueUploadFeedback(hints: StreamingGpuUploadHints): void {
+    this.uploadFeedbackHints = this.uploadFeedbackPending
+      ? combineStreamingGpuUploadHints(this.uploadFeedbackHints, hints)
+      : hints;
+    this.uploadFeedbackPending = true;
   }
 
   private selectDrivePrefetchTiles(): Set<string> {
