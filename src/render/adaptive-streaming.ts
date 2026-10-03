@@ -291,3 +291,21 @@ export function streamingGpuUploadAttachmentsPerFrame(
 ): number {
   return delayFrames > 0 ? 1 : 2;
 }
+
+
+export interface StreamingUploadCandidate {
+  kind: StreamingParseKind;
+  priority: number;
+  delayFrames: number;
+}
+
+export function compareStreamingUploadCandidates(
+  first: StreamingUploadCandidate,
+  second: StreamingUploadCandidate,
+): number {
+  const firstKind = first.kind === "base" ? 0 : 1;
+  const secondKind = second.kind === "base" ? 0 : 1;
+  return firstKind - secondKind
+    || first.priority - second.priority
+    || second.delayFrames - first.delayFrames;
+}
