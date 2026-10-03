@@ -313,6 +313,27 @@ describe("learned GPU upload cost model", () => {
     expect(state.outlierStreak).toBe(0);
   });
 
+  it("does not treat opposite-direction GPU outliers as repeated evidence", () => {
+    let state = initialStreamingGpuCostModelState();
+    const hints = {
+      geometryByteLength: 4 * 1024 * 1024,
+      vertexCount: 0,
+      materialCount: 0,
+    };
+
+    state = recordStreamingGpuUploadCost(state, hints, 8);
+    state = recordStreamingGpuUploadCost(state, hints, 8);
+    const stableRate = state.msPerEquivalentMb;
+    const stableSamples = state.samples;
+
+    state = recordStreamingGpuUploadCost(state, hints, 80);
+    expect(state.outlierDirection).toBe(1);
+    state = recordStreamingGpuUploadCost(state, hints, 1);
+    expect(state.msPerEquivalentMb).toBeCloseTo(stableRate);
+    expect(state.samples).toBe(stableSamples);
+    expect(state.outlierDirection).toBe(-1);
+  });
+
   it("maps predicted GPU excess into upload staging delay", () => {
     expect(streamingGpuPredictedDelayFrames(6)).toBe(0);
     expect(streamingGpuPredictedDelayFrames(12)).toBe(1);
