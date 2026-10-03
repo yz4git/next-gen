@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   createWorldSeedIr,
   createWorldSeedIrChunkSet,
+  createWorldSeedIrDependencyGraph,
   createWorldSeedIrIncrementalPlan,
   createWorldSeedIrPatchManifest,
+  diffWorldSeedIrDependencyGraphs,
   encodeWorldSeedIrFiles,
   encodeWorldSeedIrPatchFiles,
   hashCanonicalJson,
@@ -11,10 +13,12 @@ import {
   migrateWorldSeedIr,
   parseWorldSeedIr,
   parseWorldSeedIrChunk,
+  parseWorldSeedIrDependencyGraph,
   parseWorldSeedIrIndex,
   parseWorldSeedIrPatchManifest,
   selectWorldSeedIrChunks,
   serializeCanonicalJson,
+  stableSemanticObjectId,
   serializeWorldSeedIr,
 } from "../src/ir/world-ir";
 import type { RoadGraph, WorldManifest } from "../src/types";
@@ -165,26 +169,103 @@ describe("WorldSeed IR", () => {
     expect([...plan.changedChunkPaths]).toEqual(["worldseed-ir/chunks/1_0.json"]);
   });
 
-  it("encodes only added or changed chunk files in an incremental patch", () => {
+  it("uses object dependencies to emit only affected public artifacts", () => {
     const beforeDocument = createDocument();
     const before = createWorldSeedIrChunkSet(beforeDocument, 300).index;
+    const beforeDependencies = createWorldSeedIrDependencyGraph(beforeDocument, 300);
     const changedDocument = createDocument();
     const building = changedDocument.semantic.objects.find((object) => object.id === "building:test");
     if (!building) throw new Error("fixture building missing");
     building.properties = { ...building.properties, heightMeters: 32 };
 
-    const result = encodeWorldSeedIrPatchFiles(changedDocument, before, 300);
+    const result = encodeWorldSeedIrPatchFiles(
+      changedDocument,
+      before,
+      300,
+      beforeDependencies,
+    );
     expect(Object.keys(result.files).sort()).toEqual([
-      "road-graph.json",
-      "spawn-points.json",
+      "worldseed-ir.dependencies.json",
       "worldseed-ir.index.json",
       "worldseed-ir.patch.json",
       "worldseed-ir/chunks/1_0.json",
       "worldseed-objects.json",
     ]);
     expect(result.patch.changed.map((chunk) => chunk.id)).toEqual(["1:0"]);
+    expect(result.dependencyDiff?.impactedArtifacts).toEqual([
+      "artifact:colliders",
+      "artifact:geometry:1:0",
+      "artifact:semantic-manifest",
+    ]);
+    expect(parseWorldSeedIrDependencyGraph(
+      result.files["worldseed-ir.dependencies.json"] ?? "{}",
+    ).graphHash).toBe(result.dependencyGraph.graphHash);
     expect(parseWorldSeedIrIndex(result.files["worldseed-ir.index.json"] ?? "{}").revisionHash)
       .toBe(result.index.revisionHash);
+  });
+
+  it("keeps semantic stable IDs tied to source identity instead of generated IDs", () => {
+    const building = manifest.objects.find((object) => object.id === "building:test");
+    if (!building) throw new Error("fixture building missing");
+    expect(stableSemanticObjectId(building))
+      .toBe(stableSemanticObjectId({ ...building, id: "building:renamed-generated-id" }));
+  });
+
+  it("propagates building changes only to dependent geometry, colliders and semantic manifest", () => {
+    const beforeDocument = createDocument();
+    const afterDocument = createDocument();
+    const building = afterDocument.semantic.objects.find((object) => object.id === "building:test");
+    if (!building) throw new Error("fixture building missing");
+    building.properties = { ...building.properties, heightMeters: 27 };
+
+    const before = createWorldSeedIrDependencyGraph(beforeDocument, 300);
+    const after = createWorldSeedIrDependencyGraph(afterDocument, 300);
+    const diff = diffWorldSeedIrDependencyGraphs(before, after);
+
+    expect(diff.changed).toContain("semantic:demo:buildings:test");
+    expect(diff.impactedArtifacts).toEqual([
+      "artifact:colliders",
+      "artifact:geometry:1:0",
+      "artifact:semantic-manifest",
+    ]);
+    expect(diff.impactedArtifacts).not.toContain("artifact:road-graph");
+    expect(diff.impactedArtifacts).not.toContain("artifact:spawn-points");
+  });
+
+  it("keeps spawn-only changes out of geometry and collider artifacts", () => {
+    const beforeDocument = createDocument();
+    const afterDocument = createDocument();
+    const vehicles = afterDocument.navigation.spawnPoints["vehicles"] as Array<Record<string, unknown>>;
+    vehicles[0] = {
+      ...vehicles[0],
+      position: { x: 20, y: 0, z: 10 },
+    };
+
+    const diff = diffWorldSeedIrDependencyGraphs(
+      createWorldSeedIrDependencyGraph(beforeDocument, 300),
+      createWorldSeedIrDependencyGraph(afterDocument, 300),
+    );
+
+    expect(diff.impactedArtifacts).toEqual(["artifact:spawn-points"]);
+  });
+
+  it("propagates road-edge changes into road and matching geometry artifacts", () => {
+    const beforeDocument = createDocument();
+    const afterDocument = createDocument();
+    afterDocument.navigation.roadGraph.edges[0] = {
+      ...afterDocument.navigation.roadGraph.edges[0]!,
+      widthMeters: 8,
+    };
+
+    const diff = diffWorldSeedIrDependencyGraphs(
+      createWorldSeedIrDependencyGraph(beforeDocument, 300),
+      createWorldSeedIrDependencyGraph(afterDocument, 300),
+    );
+
+    expect(diff.changed).toContain("road-edge:edge:test");
+    expect(diff.impactedArtifacts).toContain("artifact:road-graph");
+    expect(diff.impactedArtifacts).toContain("artifact:geometry:-1:0");
+    expect(diff.impactedArtifacts).not.toContain("artifact:colliders");
   });
 
   it("marks global metadata changes separately from tile-local changes", () => {
