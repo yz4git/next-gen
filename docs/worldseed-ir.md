@@ -341,7 +341,7 @@ The incremental planner is hybrid:
 
 The geometry recipe version is now `2`. Moving from recipe 1 to recipe 2 intentionally performs one conservative full-tile rebuild; after that build state is saved, later edits can use sub-batch granularity.
 
-The top-level incremental patch contract is version `2` when batch overrides may be present. The standalone consumer accepts patch v1 and v2. A v2 consumer keeps the original full tile as its baseline, retires baked-in nodes for replaced/removed batch IDs, and layers the current override GLBs on top. The visible affected tile is reloaded from the local archive so resource ownership remains simple, but the network/export payload can remain sub-batch-sized.
+The top-level incremental patch contract is version `2` when batch overrides may be present. The standalone consumer accepts patch v1 and v2. A v2 consumer keeps the original full tile as its baseline, retires baked-in nodes for replaced/removed batch IDs, and layers the current override GLBs on top. For already-loaded tiles it reconciles only the batch IDs named by the patch, yielding before override parsing and leaving unrelated batches attached; unloaded tiles apply the same override paths when they are streamed later.
 
 ### Portable build state
 
@@ -406,6 +406,6 @@ The standalone export consumer accepts a full export first and then an increment
 
 Before applying it, the consumer requires the loaded IR `revisionHash` to equal the patch `fromRevisionHash`. This prevents applying a patch to the wrong base world.
 
-When accepted, the consumer cancels stale tile jobs, invalidates tiles named by whole-tile or sub-batch changes, removes obsolete tile/batch paths, merges patch files, swaps the IR/geometry indexes, refreshes terrain and structured-data overlays when included, and restarts streaming. For recipe-v2 batch patches, the full tile remains the baseline while override GLBs replace only current batch IDs.
+When accepted, the consumer cancels stale tile jobs, fully invalidates only whole-tile changes, removes obsolete tile/batch paths, merges patch files, swaps the IR/geometry indexes, refreshes terrain and structured-data overlays when included, and restarts streaming. Recipe-v2 batch-only changes are hot-swapped directly into already-loaded base/detail scenes; only changed batch IDs are parsed/replaced, while the full tile and unrelated batches remain alive.
 
 This turns the REDox-style IR from an internal normalization layer into a dependency graph for reproducible partial world updates.
