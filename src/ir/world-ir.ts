@@ -94,6 +94,8 @@ export interface WorldSeedIrPatchManifest {
   changed: WorldSeedIrPatchChunk[];
   removed: WorldSeedIrPatchChunk[];
   unchangedCount: number;
+  dependencyGraphHash?: string;
+  dependencyDiff?: WorldSeedIrDependencyDiff;
 }
 
 export interface WorldSeedIrIncrementalPlan {
@@ -500,6 +502,18 @@ export function createWorldSeedIrDependencyGraph(
     ));
   }
 
+  const semanticDependencies = document.semantic.objects
+    .map((object) => stableSemanticObjectId(object))
+    .sort();
+  nodes.set("artifact:semantic-manifest", dependencyNode(
+    "artifact:semantic-manifest",
+    "artifact",
+    { dependencies: semanticDependencies },
+    semanticDependencies,
+    undefined,
+    { artifact: "semantic-manifest" },
+  ));
+
   const buildingDependencies = document.semantic.objects
     .filter((object) => object.layer === "buildings")
     .map((object) => stableSemanticObjectId(object))
@@ -764,18 +778,32 @@ export function encodeWorldSeedIrPatchFiles(
   document: WorldSeedIrDocument,
   previousIndex: WorldSeedIrIndex,
   tileSizeMeters = WORLD_TILE_SIZE,
+  previousDependencyGraph?: WorldSeedIrDependencyGraph,
 ): {
   index: WorldSeedIrIndex;
   patch: WorldSeedIrPatchManifest;
+  dependencyGraph: WorldSeedIrDependencyGraph;
+  dependencyDiff?: WorldSeedIrDependencyDiff;
   files: Record<string, string>;
 } {
   const chunkSet = createWorldSeedIrChunkSet(document, tileSizeMeters);
-  const patch = createWorldSeedIrPatchManifest(previousIndex, chunkSet.index);
+  const dependencyGraph = createWorldSeedIrDependencyGraph(document, tileSizeMeters);
+  const dependencyDiff = previousDependencyGraph
+    ? diffWorldSeedIrDependencyGraphs(previousDependencyGraph, dependencyGraph)
+    : undefined;
+  const patch: WorldSeedIrPatchManifest = {
+    ...createWorldSeedIrPatchManifest(previousIndex, chunkSet.index),
+    dependencyGraphHash: dependencyGraph.graphHash,
+    ...(dependencyDiff ? { dependencyDiff } : {}),
+  };
   const chunkById = new Map(chunkSet.chunks.map((chunk) => [chunk.tile.id, chunk]));
   const files: Record<string, string> = {
     "worldseed-ir.index.json": serializeCanonicalJson(chunkSet.index),
     "worldseed-ir.patch.json": serializeCanonicalJson(patch),
   };
+  if (!previousDependencyGraph || previousDependencyGraph.graphHash !== dependencyGraph.graphHash) {
+    files["worldseed-ir.dependencies.json"] = serializeCanonicalJson(dependencyGraph);
+  }
 
   for (const entry of [...patch.added, ...patch.changed]) {
     const chunk = chunkById.get(entry.id);
@@ -784,20 +812,35 @@ export function encodeWorldSeedIrPatchFiles(
   }
 
   const touchedChunkCount = patch.added.length + patch.changed.length + patch.removed.length;
-  if (touchedChunkCount > 0) {
+  const impactedArtifacts = new Set(dependencyDiff?.impactedArtifacts ?? []);
+  const legacyFallback = !dependencyDiff && touchedChunkCount > 0;
+
+  if (legacyFallback || impactedArtifacts.has("artifact:semantic-manifest")) {
     files["worldseed-objects.json"] = serializeCanonicalJson(document.semantic);
+  }
+  if (legacyFallback || impactedArtifacts.has("artifact:road-graph")) {
     files["road-graph.json"] = serializeCanonicalJson(document.navigation.roadGraph);
+  }
+  if (legacyFallback || impactedArtifacts.has("artifact:spawn-points")) {
     files["spawn-points.json"] = serializeCanonicalJson(document.navigation.spawnPoints);
   }
 
   if (patch.globalChanged) {
     files["worldseed.json"] = serializeCanonicalJson(document.metadata);
+  }
+  if (
+    patch.globalChanged
+    || legacyFallback
+    || impactedArtifacts.has("artifact:drive-route")
+  ) {
     files["drive-route.json"] = serializeCanonicalJson(document.navigation.driveRoute);
   }
 
   return {
     index: chunkSet.index,
     patch,
+    dependencyGraph,
+    ...(dependencyDiff ? { dependencyDiff } : {}),
     files,
   };
 }
