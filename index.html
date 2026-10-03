@@ -127,10 +127,11 @@
               <div class="export-actions">
                 <button id="export-glb" type="button"><svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg><span><strong>GLB</strong><small>Scene model</small></span></button>
                 <button id="export-kit" type="button"><svg viewBox="0 0 24 24"><path d="m12 3 8 4-8 4-8-4 8-4Zm-8 9 8 4 8-4M4 17l8 4 8-4"/></svg><span><strong>Three.js kit</strong><small>Ready to run</small></span></button>
-                <button class="export-patch" id="export-patch" type="button"><svg viewBox="0 0 24 24"><path d="M5 7h9m-3-3 3 3-3 3M19 17h-9m3-3-3 3 3 3"/></svg><span><strong>Incremental patch</strong><small>Compare previous kit ZIP locally</small></span></button>
-                <input id="patch-base-file" type="file" accept=".zip,application/zip" hidden />
+                <button class="export-patch" id="export-patch" type="button"><svg viewBox="0 0 24 24"><path d="M5 7h9m-3-3 3 3-3 3M19 17h-9m3-3-3 3 3 3"/></svg><span><strong>Incremental patch</strong><small>Compare previous state or kit locally</small></span></button>
+                <button class="export-state" id="export-state" type="button"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></svg><span><strong>Build state</strong><small>Tiny baseline for the next patch</small></span></button>
+                <input id="patch-base-file" type="file" accept=".json,.zip,application/json,application/zip" hidden />
               </div>
-              <p class="local-file-note">Patch export reads the previous kit ZIP only in this browser and writes changed IR/GLB files.</p>
+              <p class="local-file-note">Patch export reads a previous build-state JSON (recommended) or kit ZIP only in this browser and writes changed IR/GLB files.</p>
             </section>
 
             <section class="attribution" id="attribution">
