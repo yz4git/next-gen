@@ -164,6 +164,7 @@ The starter-kit ZIP contains:
 - `drive-route.json` with the current deterministic time-attack route
 - `worldseed-ir.json` with the unified developer-facing intermediate representation
 - `worldseed-ir.index.json` plus `worldseed-ir/chunks/*.json` for 300 m tile-local structured-data loading
+- `worldseed-ir.dependencies.json` with stable source-derived object IDs, content hashes, and explicit dependency edges for incremental invalidation
 - `worldseed-tiles.index.json`, `worldseed-tiles/*.glb` base tiles, and optional `worldseed-tiles/detail/*.glb` close-range detail tiles
 - `ATTRIBUTION.md` generated for that seed
 - `schemas/v1/*.schema.json` with machine-readable contracts for every exported JSON document
@@ -175,9 +176,9 @@ Schema compatibility is documented in [docs/SCHEMA_VERSIONING.md](docs/SCHEMA_VE
 
 The REDox-inspired IR now supports content-addressed incremental updates. Each 300 m IR chunk has a deterministic canonical content hash, the IR index has global/geometry-global/revision hashes, and geometry exports carry a recipe version.
 
-Given the previous IR and geometry indexes, the incremental export API can produce a compact patch ZIP containing only changed/added chunk JSON, regenerated tile GLBs, removal instructions, updated indexes, and required global support files. Metadata-only changes do not force every geometry tile to rebuild; style/global-geometry changes and geometry recipe-version changes do.
+Given the previous IR, dependency graph, and geometry indexes, the incremental export API can produce a compact patch ZIP containing only changed/added chunk JSON, regenerated tile GLBs, removal instructions, updated indexes, and required global support files. Stable semantic IDs are derived from source + layer + source ID, and reverse dependency propagation separates geometry, colliders, road graph, spawn points, route, semantic manifest, and metadata invalidation. A spawn-only change can therefore reuse its tile GLB, while a building change invalidates its tile geometry plus colliders. Metadata-only changes do not force every geometry tile to rebuild; style/global-geometry changes and geometry recipe-version changes do.
 
-The standalone consumer can apply a patch ZIP without clearing the loaded world. It rejects a patch when its `fromRevisionHash` does not match the currently loaded IR revision, unloads only invalidated tile scenes, merges changed archive files, removes obsolete paths, and restreams only the affected geometry.
+The app exposes this flow as **Incremental patch** under **SHIP THE WORLD**: choose the previous Three.js kit ZIP locally, then export a patch for the current world. The previous ZIP is read only in the browser. The standalone consumer can apply that patch ZIP without clearing the loaded world; it rejects a patch when its `fromRevisionHash` does not match the currently loaded IR revision, unloads only invalidated tile scenes, merges changed archive files, removes obsolete paths, and restreams only the affected geometry.
 
 ### Build something with WorldSeed
 
