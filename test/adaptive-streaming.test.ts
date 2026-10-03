@@ -1,16 +1,22 @@
 import { describe, expect, it } from "vitest";
 import {
+  combineStreamingGpuUploadHints,
   compareStreamingUploadCandidates,
   costAwareStreamingConcurrency,
+  estimateStreamingGpuUploadExcessMs,
   estimateStreamingParseCostMs,
   initialAdaptiveStreamingState,
   initialFrameTimeSchedulerState,
   initialStreamingFrameBaselineState,
+  initialStreamingGpuCostModelState,
   initialStreamingGpuUploadLearningState,
   initialStreamingParseCostState,
   optionalStreamingWorkAllowed,
+  recordStreamingGpuUploadCost,
   recordStreamingParseCost,
   streamingFetchBufferSlots,
+  streamingGpuEquivalentMb,
+  streamingGpuPredictedDelayFrames,
   streamingGpuUploadAttachmentsPerFrame,
   streamingGpuUploadDelayFrames,
   streamingGpuUploadExcessMs,
@@ -233,5 +239,50 @@ describe("GPU upload threshold learning", () => {
     expect(state.thresholdScale).toBe(1);
     state = updateStreamingGpuUploadLearningState(state, 11);
     expect(state.thresholdScale).toBeCloseTo(0.9);
+  });
+});
+
+
+describe("learned GPU upload cost model", () => {
+  it("converts geometry, vertices, and materials into equivalent upload MB", () => {
+    expect(streamingGpuEquivalentMb({
+      geometryByteLength: 10 * 1024 * 1024,
+      vertexCount: 250_000,
+      materialCount: 32,
+    })).toBeCloseTo(12);
+  });
+
+  it("learns milliseconds per equivalent MB from baseline-relative upload cost", () => {
+    let state = initialStreamingGpuCostModelState();
+    state = recordStreamingGpuUploadCost(state, {
+      geometryByteLength: 10 * 1024 * 1024,
+      vertexCount: 250_000,
+      materialCount: 32,
+    }, 24);
+
+    expect(state.msPerEquivalentMb).toBeCloseTo(2);
+    expect(state.samples).toBe(1);
+    expect(estimateStreamingGpuUploadExcessMs(state, {
+      geometryByteLength: 5 * 1024 * 1024,
+      vertexCount: 125_000,
+      materialCount: 16,
+    })).toBeCloseTo(12);
+  });
+
+  it("maps predicted GPU excess into upload staging delay", () => {
+    expect(streamingGpuPredictedDelayFrames(6)).toBe(0);
+    expect(streamingGpuPredictedDelayFrames(12)).toBe(1);
+    expect(streamingGpuPredictedDelayFrames(28)).toBe(2);
+  });
+
+  it("combines hints when two light scenes attach in one frame", () => {
+    expect(combineStreamingGpuUploadHints(
+      { geometryByteLength: 2 * 1024 * 1024, vertexCount: 50_000, materialCount: 4 },
+      { geometryByteLength: 3 * 1024 * 1024, vertexCount: 70_000, materialCount: 5 },
+    )).toEqual({
+      geometryByteLength: 5 * 1024 * 1024,
+      vertexCount: 120_000,
+      materialCount: 9,
+    });
   });
 });
