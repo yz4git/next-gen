@@ -17,6 +17,7 @@
 - Added GPU upload-aware staging using per-tile vertex/geometry-byte/material hints and parsed-scene measurements, limiting heavy scene attachments and live runtime heavy base activations to one per frame.
 - Added per-session GPU upload threshold learning from post-attach frame-time excess above a rolling normal-frame baseline, reducing false GPU blame from unrelated or generally slow frames.
 - Added a milliseconds-per-equivalent-MB GPU cost model combining geometry bytes, vertices, and materials; after two samples it predicts upload overhead and adds one/two-frame staging when the expected GPU cost reaches 10/24 ms.
+- Added confidence-weighted GPU cost prediction with single-outlier holdout, same-direction repeated-outlier confirmation, robust clamping, and threshold-learning suppression for rejected samples.
 - Split exported tile geometry into wider-range base GLBs and optional close-range detail GLBs while keeping terrain global and `city.glb` as a compatibility fallback.
 - Distant runtime tiles now release GPU geometry/material resources outside a hysteresis margin while retaining CPU-side data for automatic re-upload when the tile becomes visible again.
 
