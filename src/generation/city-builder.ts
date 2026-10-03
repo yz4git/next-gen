@@ -1033,7 +1033,7 @@ function createRoadFurniture(roadGraph: RoadGraph, data: WorldData, style: World
 function furnitureBucket(buckets: Map<string, FurnitureBucket>, x: number, z: number): FurnitureBucket {
   const tile = tileForPoint(x, z, WORLD_TILE_SIZE);
   const bucket = buckets.get(tile.id) ?? { tile, trees: [], lights: [], signs: [] };
-  buckets.set(batchId, bucket);
+  buckets.set(tile.id, bucket);
   return bucket;
 }
 
