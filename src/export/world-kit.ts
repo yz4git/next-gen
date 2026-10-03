@@ -173,7 +173,8 @@ export async function exportStarterKit(
   const binary = await createGlb(group, includeExactOrigin);
   const terrainBinary = await createGlb(createTerrainExport(group), false);
   const colliderBinary = await createGlb(createColliderExport(manifest), false);
-  const geometryTileFiles = await createGeometryTileArchiveFiles(group);
+  const geometryTileArchive = await createGeometryTileArchiveFiles(group);
+  const geometryTileFiles = geometryTileArchive.files;
   const metadata = createWorldMetadata(data, stats, style, includeExactOrigin);
   const spawnPoints = createSpawnPoints(roadGraph, route, pedestrianSpawn);
   const irDocument = createWorldSeedIr({
@@ -186,7 +187,7 @@ export async function exportStarterKit(
   const irFiles = encodeWorldSeedIrFiles(irDocument);
   const buildState = createWorldSeedBuildState(
     irDocument,
-    createGeometryTileGroups(group).index,
+    geometryTileArchive.index,
   );
   const irArchiveFiles: Record<string, Uint8Array> = {};
   for (const [path, text] of Object.entries(irFiles)) irArchiveFiles[path] = strToU8(text);
@@ -712,7 +713,10 @@ export function selectGeometryTiles(
     .map(({ tile }) => tile);
 }
 
-async function createGeometryTileArchiveFiles(root: THREE.Object3D): Promise<Record<string, Uint8Array>> {
+async function createGeometryTileArchiveFiles(root: THREE.Object3D): Promise<{
+  index: WorldSeedGeometryIndex;
+  files: Record<string, Uint8Array>;
+}> {
   const { index, tiles } = createGeometryTileGroups(root);
   const files: Record<string, Uint8Array> = {};
   for (const tile of tiles) {
@@ -726,7 +730,7 @@ async function createGeometryTileArchiveFiles(root: THREE.Object3D): Promise<Rec
     }
   }
   files["worldseed-tiles.index.json"] = strToU8(serializeCanonicalJson(index));
-  return files;
+  return { index, files };
 }
 
 function geometryUploadStats(root: THREE.Object3D): {
