@@ -12,6 +12,10 @@
 - Added portable `worldseed-build-state.json` baselines containing the IR index, dependency graph, and geometry index; full kits and patches bundle the next state, the app can download it separately without exact-origin metadata, and Incremental patch now prefers this small JSON over reopening a large previous kit ZIP.
 - Added **Patch Preview** before incremental export, showing stable-object changes, geometry rebuild/reuse counts, affected artifacts, removed tiles, and estimated uncompressed payload size; the preview recomputes when exact-origin export changes.
 - Full-export build states now retain measured per-tile GLB byte lengths so later patch-size estimates can scale from real previous payloads instead of geometry heuristics alone.
+- Added stable four-way geometry sub-batches keyed by feature-ID hashes for buildings, roofs, areas, and roads, with per-batch stable dependency IDs and geometry/upload statistics in the geometry index.
+- Added incremental patch contract v2 with replacement/removal sub-batch GLBs and persistent override paths, allowing recipe-v2 edits such as a single building change to reuse the surrounding 300 m tile instead of re-exporting it wholesale.
+- Bumped the geometry recipe to v2; recipe-v1 baselines conservatively rebuild tiles once, then subsequent build states use sub-batch patching. The standalone consumer accepts v1/v2 patches and reconciles batch overrides while preserving the original full tile as a baseline.
+- Patch Preview now reports full-tile and sub-batch rebuild/reuse counts and includes sub-batch GLB estimates in the pre-compression payload estimate.
 - Starter-kit exports now route structured data through the IR, emit deterministic JSON key ordering, and include `worldseed-ir.json` while preserving all existing schema v1 filenames and semantics.
 - Added an explicit IR migration boundary plus regression tests for round-tripping, deterministic serialization, and unsupported versions.
 - Added 300 m chunked IR exports with a lightweight spatial index, tile-local semantic objects, road graph subsets, spawn data, boundary-aware chunk selection, and a storage-agnostic lazy chunk reader.
