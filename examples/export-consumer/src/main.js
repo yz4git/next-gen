@@ -70,6 +70,8 @@ let gpuUploadLearning = {
 let gpuCostModel = {
   msPerEquivalentMb: 1.6,
   samples: 0,
+  confidence: 0,
+  outlierStreak: 0,
 };
 let parseCostState = {
   baseMsPerMb: 14,
@@ -462,7 +464,10 @@ function gpuUploadDelayFrames(hints) {
   ) thresholdDelay = 1;
 
   if (gpuCostModel.samples < 2) return thresholdDelay;
-  const predictedExcessMs = gpuEquivalentMb(hints) * gpuCostModel.msPerEquivalentMb;
+  const learnedWeight = Math.min(1, Math.max(0, gpuCostModel.confidence));
+  const effectiveRate = 1.6 * (1 - learnedWeight)
+    + gpuCostModel.msPerEquivalentMb * learnedWeight;
+  const predictedExcessMs = gpuEquivalentMb(hints) * effectiveRate;
   const predictedDelay = predictedExcessMs >= 24 ? 2 : predictedExcessMs >= 10 ? 1 : 0;
   return Math.max(thresholdDelay, predictedDelay);
 }
@@ -502,37 +507,58 @@ function sampleGpuUploadFeedback(frameTimeMs) {
   const uploadExcessMs = Math.max(0, frameTimeMs - frameBaseline.baselineMs);
   const equivalentMb = gpuEquivalentMb(uploadFeedbackHints);
   const sampleRate = Math.min(40, Math.max(0.25, uploadExcessMs / equivalentMb));
-  const costAlpha = 0.3;
-  gpuCostModel.msPerEquivalentMb = gpuCostModel.samples === 0
-    ? sampleRate
-    : gpuCostModel.msPerEquivalentMb * (1 - costAlpha) + sampleRate * costAlpha;
-  gpuCostModel.samples += 1;
-  uploadFeedbackHints = { vertexCount: 0, geometryByteLength: 0, materialCount: 0 };
+  let accepted = true;
 
-  let thresholdScale = gpuUploadLearning.thresholdScale;
-  let goodSamples = uploadExcessMs <= 4 ? gpuUploadLearning.goodSamples + 1 : 0;
-  let badSamples = uploadExcessMs >= 10 ? gpuUploadLearning.badSamples + 1 : 0;
-
-  if (uploadExcessMs >= 24) {
-    thresholdScale = Math.max(0.55, thresholdScale * 0.82);
-    goodSamples = 0;
-    badSamples = 0;
-  } else if (badSamples >= 2) {
-    thresholdScale = Math.max(0.55, thresholdScale * 0.9);
-    goodSamples = 0;
-    badSamples = 0;
-  } else if (goodSamples >= 5) {
-    thresholdScale = Math.min(1.35, thresholdScale * 1.06);
-    goodSamples = 0;
-    badSamples = 0;
+  if (gpuCostModel.samples >= 2) {
+    const ratio = sampleRate / Math.max(0.25, gpuCostModel.msPerEquivalentMb);
+    const outlier = ratio > 3 || ratio < 1 / 3;
+    if (outlier && gpuCostModel.outlierStreak < 1) {
+      gpuCostModel.confidence = Math.max(0.15, gpuCostModel.confidence * 0.9);
+      gpuCostModel.outlierStreak += 1;
+      accepted = false;
+    }
   }
 
-  gpuUploadLearning = {
-    thresholdScale,
-    goodSamples,
-    badSamples,
-    samples: gpuUploadLearning.samples + 1,
-  };
+  if (accepted) {
+    const lower = gpuCostModel.samples >= 2 ? gpuCostModel.msPerEquivalentMb * 0.5 : 0.25;
+    const upper = gpuCostModel.samples >= 2 ? gpuCostModel.msPerEquivalentMb * 2 : 40;
+    const robustSample = Math.min(upper, Math.max(lower, sampleRate));
+    const costAlpha = gpuCostModel.outlierStreak > 0 ? 0.18 : 0.3;
+    gpuCostModel.msPerEquivalentMb = gpuCostModel.samples === 0
+      ? robustSample
+      : gpuCostModel.msPerEquivalentMb * (1 - costAlpha) + robustSample * costAlpha;
+    gpuCostModel.samples += 1;
+    gpuCostModel.confidence = Math.min(1, gpuCostModel.samples / 6);
+    gpuCostModel.outlierStreak = 0;
+  }
+  uploadFeedbackHints = { vertexCount: 0, geometryByteLength: 0, materialCount: 0 };
+
+  if (accepted) {
+    let thresholdScale = gpuUploadLearning.thresholdScale;
+    let goodSamples = uploadExcessMs <= 4 ? gpuUploadLearning.goodSamples + 1 : 0;
+    let badSamples = uploadExcessMs >= 10 ? gpuUploadLearning.badSamples + 1 : 0;
+
+    if (uploadExcessMs >= 24) {
+      thresholdScale = Math.max(0.55, thresholdScale * 0.82);
+      goodSamples = 0;
+      badSamples = 0;
+    } else if (badSamples >= 2) {
+      thresholdScale = Math.max(0.55, thresholdScale * 0.9);
+      goodSamples = 0;
+      badSamples = 0;
+    } else if (goodSamples >= 5) {
+      thresholdScale = Math.min(1.35, thresholdScale * 1.06);
+      goodSamples = 0;
+      badSamples = 0;
+    }
+
+    gpuUploadLearning = {
+      thresholdScale,
+      goodSamples,
+      badSamples,
+      samples: gpuUploadLearning.samples + 1,
+    };
+  }
 }
 
 function jobByteLength(job) {
@@ -639,6 +665,8 @@ function clearImported() {
   gpuCostModel = {
     msPerEquivalentMb: 1.6,
     samples: 0,
+    confidence: 0,
+    outlierStreak: 0,
   };
   activeArchive = null;
   activeGeometryIndex = null;
