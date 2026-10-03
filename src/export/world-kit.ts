@@ -138,6 +138,33 @@ export function parseWorldSeedBuildState(input: string | unknown): WorldSeedBuil
 }
 
 
+export interface WorldSeedPatchPreview {
+  fromRevisionHash: string | null;
+  toRevisionHash: string | null;
+  legacyBaseline: boolean;
+  noChanges: boolean;
+  objectChanges: {
+    added: number;
+    changed: number;
+    removed: number;
+  } | null;
+  changedChunkCount: number;
+  regeneratedTileIds: string[];
+  removedTileIds: string[];
+  reusedTileCount: number;
+  impactedArtifacts: string[];
+  updates: {
+    metadata: boolean;
+    semanticManifest: boolean;
+    roadGraph: boolean;
+    spawnPoints: boolean;
+    driveRoute: boolean;
+    colliders: boolean;
+    terrain: boolean;
+  };
+  estimatedUncompressedBytes: number;
+}
+
 export interface WorldSeedIncrementalPatchManifest {
   format: typeof WORLDSEED_INCREMENTAL_PATCH_FORMAT;
   version: typeof WORLDSEED_GEOMETRY_INDEX_VERSION;
@@ -216,6 +243,142 @@ export async function exportStarterKit(
     new Blob([archive], { type: "application/zip" }),
     includeExactOrigin ? "worldseed-threejs-kit.zip" : "worldseed-threejs-kit-private.zip",
   );
+}
+
+export function createWorldSeedPatchPreview(
+  group: THREE.Object3D,
+  data: WorldData,
+  stats: WorldStats,
+  style: WorldStyle,
+  manifest: WorldManifest,
+  roadGraph: RoadGraph,
+  route: DriveRoute | null,
+  pedestrianSpawn: { x: number; y: number; z: number },
+  previous: WorldSeedIncrementalBase,
+  includeExactOrigin = false,
+): WorldSeedPatchPreview {
+  const metadata = createWorldMetadata(data, stats, style, includeExactOrigin);
+  const spawnPoints = createSpawnPoints(roadGraph, route, pedestrianSpawn);
+  const document = createWorldSeedIr({
+    metadata,
+    manifest,
+    roadGraph,
+    spawnPoints,
+    driveRoute: route,
+  });
+  const irPatch = encodeWorldSeedIrPatchFiles(
+    document,
+    previous.irIndex,
+    undefined,
+    previous.dependencyGraph,
+  );
+  const { index: geometryIndex } = createGeometryTileGroups(group);
+  const geometryPlan = createGeometryIncrementalPlan(
+    previous.geometryIndex,
+    geometryIndex,
+    irPatch.patch,
+  );
+  const impactedArtifacts = irPatch.dependencyDiff?.impactedArtifacts ?? [];
+  const impacted = new Set(impactedArtifacts);
+  const touchedIrChunks = irPatch.patch.added.length
+    + irPatch.patch.changed.length
+    + irPatch.patch.removed.length;
+  const collidersChanged = irPatch.dependencyDiff
+    ? impacted.has("artifact:colliders")
+    : touchedIrChunks > 0;
+
+  const previousTiles = new Map(previous.geometryIndex.tiles.map((tile) => [tile.id, tile]));
+  const nextTiles = new Map(geometryIndex.tiles.map((tile) => [tile.id, tile]));
+  let estimatedGeometryBytes = 0;
+  for (const tileId of geometryPlan.regenerateTileIds) {
+    const nextTile = nextTiles.get(tileId);
+    if (!nextTile) continue;
+    estimatedGeometryBytes += estimateGeometryTilePayloadBytes(nextTile, previousTiles.get(tileId));
+  }
+
+  let estimatedGlobalGeometryBytes = 0;
+  if (collidersChanged) {
+    estimatedGlobalGeometryBytes += estimateGlbPayloadFromStats(geometryUploadStats(createColliderExport(manifest)));
+  }
+  if (irPatch.patch.geometryGlobalChanged) {
+    estimatedGlobalGeometryBytes += estimateGlbPayloadFromStats(geometryUploadStats(createTerrainExport(group)));
+  }
+
+  const nextBuildState: WorldSeedBuildState = {
+    format: WORLDSEED_BUILD_STATE_FORMAT,
+    version: WORLDSEED_GEOMETRY_INDEX_VERSION,
+    irIndex: irPatch.index,
+    dependencyGraph: irPatch.dependencyGraph,
+    geometryIndex,
+  };
+  const structuredText = [
+    ...Object.values(irPatch.files),
+    serializeCanonicalJson(geometryIndex),
+    serializeCanonicalJson(geometryPlan.manifest),
+    serializeCanonicalJson(nextBuildState),
+  ].join("\n");
+  const structuredBytes = new TextEncoder().encode(structuredText).byteLength;
+
+  const dependencyDiff = irPatch.dependencyDiff;
+  const objectChanges = dependencyDiff
+    ? {
+      added: dependencyDiff.added.filter((id) => !id.startsWith("artifact:")).length,
+      changed: dependencyDiff.changed.filter((id) => !id.startsWith("artifact:")).length,
+      removed: dependencyDiff.removed.filter((id) => !id.startsWith("artifact:")).length,
+    }
+    : null;
+  const regeneratedTileIds = [...geometryPlan.regenerateTileIds].sort();
+  const removedTileIds = geometryPlan.manifest.removed.map((item) => item.id).sort();
+  const metadataChanged = dependencyDiff
+    ? impacted.has("artifact:world-metadata")
+    : irPatch.patch.globalChanged;
+  const semanticChanged = dependencyDiff
+    ? impacted.has("artifact:semantic-manifest")
+    : touchedIrChunks > 0;
+  const roadChanged = dependencyDiff
+    ? impacted.has("artifact:road-graph")
+    : touchedIrChunks > 0;
+  const spawnChanged = dependencyDiff
+    ? impacted.has("artifact:spawn-points")
+    : touchedIrChunks > 0;
+  const routeChanged = dependencyDiff
+    ? impacted.has("artifact:drive-route")
+    : irPatch.patch.globalChanged || touchedIrChunks > 0;
+
+  const noChanges =
+    !metadataChanged
+    && !semanticChanged
+    && !roadChanged
+    && !spawnChanged
+    && !routeChanged
+    && !collidersChanged
+    && !irPatch.patch.geometryGlobalChanged
+    && regeneratedTileIds.length === 0
+    && removedTileIds.length === 0;
+
+  return {
+    fromRevisionHash: irPatch.patch.fromRevisionHash,
+    toRevisionHash: irPatch.patch.toRevisionHash,
+    legacyBaseline: !previous.dependencyGraph,
+    noChanges,
+    objectChanges,
+    changedChunkCount: touchedIrChunks,
+    regeneratedTileIds,
+    removedTileIds,
+    reusedTileCount: geometryPlan.reusedTileIds.size,
+    impactedArtifacts: [...impactedArtifacts].sort(),
+    updates: {
+      metadata: metadataChanged,
+      semanticManifest: semanticChanged,
+      roadGraph: roadChanged,
+      spawnPoints: spawnChanged,
+      driveRoute: routeChanged,
+      colliders: collidersChanged,
+      terrain: irPatch.patch.geometryGlobalChanged,
+    },
+    estimatedUncompressedBytes:
+      structuredBytes + estimatedGeometryBytes + estimatedGlobalGeometryBytes,
+  };
 }
 
 export async function createWorldSeedIncrementalPatchArchive(
@@ -775,6 +938,34 @@ function geometryUploadStats(root: THREE.Object3D): {
     geometryByteLength,
     materialCount: materials.size,
   };
+}
+
+function estimateGeometryTilePayloadBytes(
+  next: WorldSeedGeometryTileDescriptor,
+  previous?: WorldSeedGeometryTileDescriptor,
+): number {
+  const nextGeometryBytes = (next.geometryByteLength ?? 0) + (next.detailGeometryByteLength ?? 0);
+  const previousGeometryBytes = (previous?.geometryByteLength ?? 0) + (previous?.detailGeometryByteLength ?? 0);
+  const previousGlbBytes = (previous?.byteLength ?? 0) + (previous?.detailByteLength ?? 0);
+  if (previousGlbBytes > 0 && previousGeometryBytes > 0 && nextGeometryBytes > 0) {
+    const ratio = Math.min(2.5, Math.max(0.4, nextGeometryBytes / previousGeometryBytes));
+    return Math.max(1_024, Math.round(previousGlbBytes * ratio));
+  }
+  if (previousGlbBytes > 0) return previousGlbBytes;
+  return estimateGlbPayloadFromStats({
+    vertexCount: (next.vertexCount ?? 0) + (next.detailVertexCount ?? 0),
+    geometryByteLength: nextGeometryBytes,
+    materialCount: (next.materialCount ?? 0) + (next.detailMaterialCount ?? 0),
+  });
+}
+
+function estimateGlbPayloadFromStats(stats: {
+  vertexCount: number;
+  geometryByteLength: number;
+  materialCount: number;
+}): number {
+  const structuralOverhead = stats.vertexCount * 2 + stats.materialCount * 1_024 + 4_096;
+  return Math.max(1_024, Math.round(stats.geometryByteLength * 1.08 + structuralOverhead));
 }
 
 function prefixDetailGeometryStats(stats: {
