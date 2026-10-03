@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { ExploreMode } from "../types";
 import { streamingRange, tileIsVisible, type WorldTile } from "../generation/tiling";
-import type { AdaptiveStreamingBudget } from "./adaptive-streaming";
+import { streamingGpuUploadDelayFrames, type AdaptiveStreamingBudget } from "./adaptive-streaming";
 
 const GPU_RELEASE_MARGIN_METERS = 220;
 
@@ -28,6 +28,10 @@ export class TileStreamer {
   private readonly objects: StreamedObject[] = [];
   private readonly tiles = new Map<string, WorldTile>();
   private readonly gpuReleased = new WeakSet<THREE.Object3D>();
+  private readonly baseUploadDelay = new Map<string, number>();
+  private readonly baseActivationFrame = new Map<string, number>();
+  private readonly activatedBaseTiles = new Set<string>();
+  private frameIndex = 0;
   private motionHint: StreamingMotionHint | null = null;
   private optionalWorkAllowed = true;
   private readonly activatedDetail = new WeakSet<THREE.Object3D>();
@@ -46,16 +50,58 @@ export class TileStreamer {
   private listener?: (stats: StreamingStats) => void;
 
   constructor(root: THREE.Object3D, private readonly radius: number) {
+    const uploadStats = new Map<string, {
+      geometries: Set<string>;
+      materials: Set<string>;
+      vertexCount: number;
+      geometryByteLength: number;
+    }>();
+
     root.traverse((object) => {
       const tile = object.userData["worldseedTile"] as WorldTile | undefined;
       if (!tile) return;
-      this.objects.push({
-        object,
-        tile,
-        detail: object.userData["worldseedDetail"] === true,
-      });
+      const detail = object.userData["worldseedDetail"] === true;
+      this.objects.push({ object, tile, detail });
       this.tiles.set(tile.id, tile);
+
+      if (detail) return;
+      const stats = uploadStats.get(tile.id) ?? {
+        geometries: new Set<string>(),
+        materials: new Set<string>(),
+        vertexCount: 0,
+        geometryByteLength: 0,
+      };
+      const renderable = object as THREE.Object3D & {
+        geometry?: THREE.BufferGeometry;
+        material?: THREE.Material | THREE.Material[];
+      };
+      const geometry = renderable.geometry;
+      if (geometry?.isBufferGeometry && !stats.geometries.has(geometry.uuid)) {
+        stats.geometries.add(geometry.uuid);
+        const position = geometry.getAttribute("position");
+        if (position) stats.vertexCount += position.count;
+        for (const attribute of Object.values(geometry.attributes)) {
+          if (attribute?.array?.byteLength) stats.geometryByteLength += attribute.array.byteLength;
+        }
+        const index = geometry.getIndex();
+        if (index?.array?.byteLength) stats.geometryByteLength += index.array.byteLength;
+      }
+      const material = renderable.material;
+      if (Array.isArray(material)) {
+        for (const item of material) if (item?.uuid) stats.materials.add(item.uuid);
+      } else if (material?.uuid) {
+        stats.materials.add(material.uuid);
+      }
+      uploadStats.set(tile.id, stats);
     });
+
+    for (const [tileId, stats] of uploadStats) {
+      this.baseUploadDelay.set(tileId, streamingGpuUploadDelayFrames({
+        vertexCount: stats.vertexCount,
+        geometryByteLength: stats.geometryByteLength,
+        materialCount: stats.materials.size,
+      }));
+    }
   }
 
   onChange(listener: (stats: StreamingStats) => void): void {
@@ -77,6 +123,8 @@ export class TileStreamer {
 
 
   update(camera: THREE.Camera, mode: ExploreMode): void {
+    this.frameIndex += 1;
+    let heavyBaseActivatedThisFrame = false;
     const range = streamingRange(mode, this.radius);
     const baseDistance = range.base * this.budget.baseScale;
     const detailDistance = range.detail * this.budget.detailScale;
@@ -92,10 +140,38 @@ export class TileStreamer {
         camera.position.z,
         distance,
       );
+      const requestedBaseVisible = !entry.detail
+        && (normalVisible || prefetchedTiles.has(entry.tile.id));
       const detailVisible = entry.detail
         ? normalVisible && (this.optionalWorkAllowed || this.activatedDetail.has(entry.object))
-        : normalVisible;
-      const visible = detailVisible || (!entry.detail && prefetchedTiles.has(entry.tile.id));
+        : false;
+
+      let baseVisible = false;
+      if (requestedBaseVisible) {
+        if (this.activatedBaseTiles.has(entry.tile.id)) {
+          baseVisible = true;
+        } else {
+          const delayFrames = this.baseUploadDelay.get(entry.tile.id) ?? 0;
+          if (delayFrames <= 0) {
+            this.activatedBaseTiles.add(entry.tile.id);
+            baseVisible = true;
+          } else {
+            const activationFrame = this.baseActivationFrame.get(entry.tile.id)
+              ?? this.frameIndex + delayFrames;
+            this.baseActivationFrame.set(entry.tile.id, activationFrame);
+            if (this.frameIndex >= activationFrame && !heavyBaseActivatedThisFrame) {
+              this.activatedBaseTiles.add(entry.tile.id);
+              this.baseActivationFrame.delete(entry.tile.id);
+              heavyBaseActivatedThisFrame = true;
+              baseVisible = true;
+            }
+          }
+        }
+      } else if (!entry.detail && !this.activatedBaseTiles.has(entry.tile.id)) {
+        this.baseActivationFrame.delete(entry.tile.id);
+      }
+
+      const visible = entry.detail ? detailVisible : baseVisible;
       entry.object.visible = visible;
       if (visible) {
         active.add(entry.tile.id);
@@ -114,6 +190,10 @@ export class TileStreamer {
       if (safelyDistant && !this.gpuReleased.has(entry.object)) {
         releaseObjectGpuResources(entry.object);
         this.gpuReleased.add(entry.object);
+        if (!entry.detail) {
+          this.activatedBaseTiles.delete(entry.tile.id);
+          this.baseActivationFrame.delete(entry.tile.id);
+        }
       }
     }
     const signature = [...active].sort().join("|");
