@@ -80,8 +80,8 @@ const roadGraph: RoadGraph = {
 function createDocument() {
   return createWorldSeedIr({
     metadata: { schemaVersion: "1.0", generator: "WorldSeed 0.9.1" },
-    manifest,
-    roadGraph,
+    manifest: structuredClone(manifest),
+    roadGraph: structuredClone(roadGraph),
     spawnPoints: {
       schemaVersion: "1.0",
       vehicles: [{ id: "vehicle:test", position: { x: 10, y: 0, z: 10 } }],
