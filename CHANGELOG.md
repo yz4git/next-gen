@@ -10,6 +10,8 @@
 - Incremental geometry now uses impacted `artifact:geometry:*` nodes when dependency data is available, so spawn-only changes can reuse existing tile GLBs; collider regeneration is also skipped unless building dependencies are impacted.
 - Added an in-app **Incremental patch** export flow that reads a previous Three.js kit ZIP locally in the browser and emits the current-world patch.
 - Added portable `worldseed-build-state.json` baselines containing the IR index, dependency graph, and geometry index; full kits and patches bundle the next state, the app can download it separately without exact-origin metadata, and Incremental patch now prefers this small JSON over reopening a large previous kit ZIP.
+- Added **Patch Preview** before incremental export, showing stable-object changes, geometry rebuild/reuse counts, affected artifacts, removed tiles, and estimated uncompressed payload size; the preview recomputes when exact-origin export changes.
+- Full-export build states now retain measured per-tile GLB byte lengths so later patch-size estimates can scale from real previous payloads instead of geometry heuristics alone.
 - Starter-kit exports now route structured data through the IR, emit deterministic JSON key ordering, and include `worldseed-ir.json` while preserving all existing schema v1 filenames and semantics.
 - Added an explicit IR migration boundary plus regression tests for round-tripping, deterministic serialization, and unsupported versions.
 - Added 300 m chunked IR exports with a lightweight spatial index, tile-local semantic objects, road graph subsets, spawn data, boundary-aware chunk selection, and a storage-agnostic lazy chunk reader.
