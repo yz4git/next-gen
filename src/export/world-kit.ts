@@ -246,7 +246,7 @@ export async function exportStarterKit(
 }
 
 export function createWorldSeedPatchPreview(
-  group: THREE.Object3D,
+  group: THREE.Group,
   data: WorldData,
   stats: WorldStats,
   style: WorldStyle,
