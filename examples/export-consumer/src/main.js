@@ -213,15 +213,18 @@ async function applyIncrementalPatch(archive, patchManifest, fileName) {
   for (const upload of uploadJobs.values()) disposeObject(upload.scene);
   uploadJobs.clear();
 
-  const invalidateIds = new Set([
+  const fullInvalidateIds = new Set([
     ...(geometryPatch.regenerated || []).map((entry) => entry.id),
     ...(geometryPatch.removed || []).map((entry) => entry.id),
+  ]);
+  const batchRefreshIds = new Set([
     ...(geometryPatch.regeneratedBatches || []).map((entry) => entry.tileId),
     ...(geometryPatch.removedBatches || []).map((entry) => entry.tileId),
   ]);
-  for (const id of invalidateIds) {
+  for (const id of fullInvalidateIds) {
     unloadGeometryTile(id, "detail");
     unloadGeometryTile(id, "base");
+    batchRefreshIds.delete(id);
   }
 
   const mergedArchive = { ...activeArchive };
@@ -247,6 +250,8 @@ async function applyIncrementalPatch(archive, patchManifest, fileName) {
   activeArchive = mergedArchive;
   activeGeometryIndex = nextGeometryIndex;
   activeIrIndex = nextIrIndex;
+
+  await hotSwapLoadedGeometryBatches(batchRefreshIds);
 
   activeMetadata = readJson(archive, "worldseed.json", true) ?? activeMetadata;
   activeObjects = readJson(archive, "worldseed-objects.json", true) ?? activeObjects;
@@ -286,7 +291,7 @@ async function applyIncrementalPatch(archive, patchManifest, fileName) {
   status.textContent =
     "Applied " + fileName
     + " · " + regenerated + " geometry tiles regenerated"
-    + (regeneratedBatches ? " · " + regeneratedBatches + " sub-batches replaced" : "")
+    + (regeneratedBatches ? " · " + regeneratedBatches + " sub-batches hot-swapped" : "")
     + (removed ? " · " + removed + " tile removals" : "")
     + (removedBatches ? " · " + removedBatches + " sub-batch removals" : "")
     + " · revision " + (nextIrIndex.revisionHash || "unknown");
@@ -473,6 +478,23 @@ async function runGeometryTileLoad(job, generation, estimatedParseMs) {
   }
 }
 
+async function hotSwapLoadedGeometryBatches(tileIds) {
+  if (!activeGeometryIndex || tileIds.size === 0) return;
+  const nextById = new Map((activeGeometryIndex.tiles || []).map((tile) => [tile.id, tile]));
+  for (const id of tileIds) {
+    const tile = nextById.get(id);
+    if (!tile) {
+      unloadGeometryTile(id, "detail");
+      unloadGeometryTile(id, "base");
+      continue;
+    }
+    const base = loadedBaseTiles.get(id);
+    if (base) await reconcileGeometryBatches(base, tile, "base");
+    const detail = loadedDetailTiles.get(id);
+    if (detail) await reconcileGeometryBatches(detail, tile, "detail");
+  }
+}
+
 async function reconcileGeometryBatches(scene, tile, kind) {
   const batches = Array.isArray(tile.batches)
     ? tile.batches.filter((batch) => Boolean(batch.detail) === (kind === "detail"))
@@ -480,32 +502,40 @@ async function reconcileGeometryBatches(scene, tile, kind) {
   if (!batches) return;
 
   const expected = new Map(batches.map((batch) => [batch.id, batch]));
-  let retired = null;
-  const retire = (object) => {
+  let retired = scene.children.find((child) => child.userData?.worldseedRetiredBatches === true) ?? null;
+  if (retired) scene.remove(retired);
+
+  const ensureRetired = () => {
     if (!retired) {
       retired = new THREE.Group();
       retired.name = "Retired WorldSeed batches";
+      retired.userData.worldseedRetiredBatches = true;
       retired.visible = false;
-      scene.add(retired);
     }
-    retired.add(object);
+    return retired;
   };
 
   const existing = [];
   scene.traverse((object) => {
-    if (object === scene || object === retired) return;
+    if (object === scene) return;
     const batchId = object.userData?.worldseedBatchId;
     if (typeof batchId === "string") existing.push({ object, batchId });
   });
 
-  const replaced = new Set();
   for (const { object, batchId } of existing) {
     const descriptor = expected.get(batchId);
-    if (!descriptor || descriptor.path) {
-      if (object.parent) retire(object);
-      if (descriptor?.path) replaced.add(batchId);
+    const shouldRetire = !descriptor || descriptor.path;
+    if (!shouldRetire || !object.parent) continue;
+
+    if (object.userData?.worldseedBatchOverride === true) {
+      object.parent.remove(object);
+      disposeObject(object);
+    } else {
+      ensureRetired().add(object);
     }
   }
+
+  if (retired) scene.add(retired);
 
   for (const batch of batches) {
     if (!batch.path) continue;
@@ -513,11 +543,11 @@ async function reconcileGeometryBatches(scene, tile, kind) {
     if (!overrideBytes) {
       throw new Error("Missing geometry batch override " + batch.path);
     }
+    await new Promise((resolve) => requestAnimationFrame(resolve));
     const override = await loader.parseAsync(exactArrayBuffer(overrideBytes), "");
     override.scene.userData.worldseedBatchOverride = true;
     override.scene.userData.worldseedBatchId = batch.id;
     scene.add(override.scene);
-    replaced.add(batch.id);
   }
 }
 
