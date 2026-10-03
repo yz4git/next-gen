@@ -27,6 +27,18 @@ export const WORLDSEED_BUILD_STATE_FORMAT = "worldseed-build-state" as const;
 export const WORLDSEED_GEOMETRY_INDEX_VERSION = "1" as const;
 export const WORLDSEED_GEOMETRY_RECIPE_VERSION = "1" as const;
 
+export interface WorldSeedGeometryBatchDescriptor {
+  id: string;
+  layer: string;
+  detail: boolean;
+  featureIds: string[];
+  dependencyIds: string[];
+  objectCount: number;
+  vertexCount: number;
+  geometryByteLength: number;
+  materialCount: number;
+}
+
 export interface WorldSeedGeometryTileDescriptor {
   id: string;
   path: string;
@@ -47,6 +59,7 @@ export interface WorldSeedGeometryTileDescriptor {
   objectCount: number;
   detailObjectCount: number;
   layers: string[];
+  batches?: WorldSeedGeometryBatchDescriptor[];
 }
 
 export interface WorldSeedGeometryIndex {
@@ -600,12 +613,16 @@ async function createGlb(group: THREE.Group, includeExactOrigin: boolean): Promi
   }
 }
 
-export function createGeometryTileGroups(root: THREE.Object3D): {
+export function createGeometryTileGroups(
+  root: THREE.Object3D,
+  dependencyGraph?: WorldSeedIrDependencyGraph,
+): {
   index: WorldSeedGeometryIndex;
   tiles: WorldSeedGeometryTileGroup[];
 } {
   root.updateMatrixWorld(true);
   const rootInverse = root.matrixWorld.clone().invert();
+  const dependencyLookup = geometryDependencyLookup(dependencyGraph);
   const grouped = new Map<string, {
     tile: { id: string; x: number; z: number; centerX: number; centerZ: number; size: number };
     baseObjects: THREE.Object3D[];
@@ -673,6 +690,10 @@ export function createGeometryTileGroups(root: THREE.Object3D): {
           ...geometryUploadStats(group),
           ...(detailGroup ? prefixDetailGeometryStats(geometryUploadStats(detailGroup)) : {}),
           layers: [...bucket.layers].sort(),
+          batches: [
+            ...geometryBatchDescriptors(bucket.baseObjects, false, dependencyLookup),
+            ...geometryBatchDescriptors(bucket.detailObjects, true, dependencyLookup),
+          ].sort((first, second) => first.id.localeCompare(second.id)),
         },
         group,
         ...(detailGroup ? { detailGroup } : {}),
@@ -938,6 +959,119 @@ function geometryUploadStats(root: THREE.Object3D): {
     geometryByteLength,
     materialCount: materials.size,
   };
+}
+
+function geometryDependencyLookup(
+  graph?: WorldSeedIrDependencyGraph,
+): Map<string, string[]> {
+  const lookup = new Map<string, string[]>();
+  if (!graph) return lookup;
+  for (const node of graph.nodes) {
+    if (node.kind !== "semantic") continue;
+    const layer = node.metadata?.["layer"];
+    const sourceId = node.metadata?.["sourceId"];
+    if (typeof layer !== "string" || typeof sourceId !== "string") continue;
+    const key = layer + "|" + sourceId;
+    const values = lookup.get(key) ?? [];
+    values.push(node.id);
+    lookup.set(key, values);
+  }
+  for (const values of lookup.values()) values.sort();
+  return lookup;
+}
+
+function geometryBatchDescriptors(
+  objects: THREE.Object3D[],
+  detail: boolean,
+  dependencyLookup: Map<string, string[]>,
+): WorldSeedGeometryBatchDescriptor[] {
+  const grouped = new Map<string, THREE.Object3D[]>();
+  for (let index = 0; index < objects.length; index += 1) {
+    const object = objects[index]!;
+    const layer = typeof object.userData["worldseedLayer"] === "string"
+      ? object.userData["worldseedLayer"]
+      : "unknown";
+    const featureIds = stringArray(object.userData["featureIds"]);
+    const rawBatchId = object.userData["worldseedBatchId"];
+    const batchId = typeof rawBatchId === "string" && rawBatchId.length > 0
+      ? rawBatchId
+      : [
+        "legacy",
+        layer,
+        detail ? "detail" : "base",
+        featureIds.join(",") || object.name || String(index),
+      ].join(":");
+    const members = grouped.get(batchId) ?? [];
+    members.push(object);
+    grouped.set(batchId, members);
+  }
+
+  return [...grouped.entries()].map(([id, members]) => {
+    const layer = members
+      .map((object) => object.userData["worldseedLayer"])
+      .find((value): value is string => typeof value === "string") ?? "unknown";
+    const featureIds = [...new Set(members.flatMap((object) => stringArray(object.userData["featureIds"])))].sort();
+    const dependencyIds = [...new Set(
+      featureIds.flatMap((featureId) => dependencyLookup.get(layer + "|" + featureId) ?? []),
+    )].sort();
+    const stats = geometryUploadStatsForObjects(members);
+    return {
+      id,
+      layer,
+      detail,
+      featureIds,
+      dependencyIds,
+      objectCount: members.length,
+      ...stats,
+    };
+  });
+}
+
+function geometryUploadStatsForObjects(objects: THREE.Object3D[]): {
+  vertexCount: number;
+  geometryByteLength: number;
+  materialCount: number;
+} {
+  const geometries = new Set<string>();
+  const materials = new Set<string>();
+  let vertexCount = 0;
+  let geometryByteLength = 0;
+
+  for (const root of objects) {
+    root.traverse((object) => {
+      const mesh = object as THREE.Mesh;
+      const geometry = mesh.geometry;
+      if (geometry?.isBufferGeometry && !geometries.has(geometry.uuid)) {
+        geometries.add(geometry.uuid);
+        const position = geometry.getAttribute("position");
+        if (position) vertexCount += position.count;
+        for (const attribute of Object.values(geometry.attributes)) {
+          const source = attribute as unknown as {
+            array?: { byteLength: number };
+            data?: { array?: { byteLength: number } };
+          };
+          const array = source.array ?? source.data?.array;
+          if (array) geometryByteLength += array.byteLength;
+        }
+        const index = geometry.getIndex();
+        if (index?.array && "byteLength" in index.array) geometryByteLength += index.array.byteLength;
+      }
+      const material = mesh.material;
+      if (Array.isArray(material)) {
+        for (const item of material) if (item?.uuid) materials.add(item.uuid);
+      } else if (material?.uuid) {
+        materials.add(material.uuid);
+      }
+    });
+  }
+
+  return { vertexCount, geometryByteLength, materialCount: materials.size };
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === "string")
+    : [];
 }
 
 function estimateGeometryTilePayloadBytes(
