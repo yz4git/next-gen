@@ -239,3 +239,19 @@ The scheduler then predicts the next tile's upload overhead:
 The final delay is the stricter of the legacy vertex/byte/material threshold result and the learned-cost prediction. The learned predictor is not used until at least two samples exist, so startup behavior remains conservative and deterministic.
 
 If two light scenes attach in one frame, their upload hints are combined and learned as one frame-level sample, matching the single observed frame-time result.
+
+
+### GPU cost confidence and outliers
+
+The learned milliseconds-per-equivalent-MB model carries an explicit confidence value.
+
+- confidence starts at 0
+- each accepted sample raises confidence toward 1.0
+- six accepted samples reach full confidence
+- predictions blend the conservative 1.6 ms/equivalent-MB default with the learned rate according to confidence
+
+After two accepted samples, a new rate is treated as an outlier when it is more than 3× or less than one-third of the current learned rate. The first such sample is held out rather than changing the model or GPU threshold scale, and confidence is reduced slightly.
+
+A second outlier is accepted only when it points in the same direction as the first one. This lets sustained thermal throttling or a real performance recovery update the model while preventing unrelated high/low spikes from masquerading as repeated evidence. Accepted repeated outliers are also clamped to at most 2× or 0.5× the current rate and use a smaller EMA weight.
+
+Because threshold-scale learning is skipped for a rejected GPU-cost sample, a one-off GC pause or Safari scheduling stall cannot simultaneously distort both the continuous cost predictor and the discrete upload threshold scale.
