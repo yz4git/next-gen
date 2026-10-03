@@ -376,6 +376,7 @@ export class WorldRenderer {
     const frameTimeMs = Math.max(0, frameNow - this.lastAnimationAt);
     this.lastAnimationAt = frameNow;
     this.frameTimeScheduler = updateFrameTimeSchedulerState(this.frameTimeScheduler, frameTimeMs);
+    this.tileStreamer?.observeFrameTime(frameTimeMs);
     this.tileStreamer?.setOptionalWorkAllowed(optionalStreamingWorkAllowed(this.frameTimeScheduler));
 
     const delta = Math.min(this.clock.getDelta(), 0.05);
