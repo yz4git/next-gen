@@ -350,8 +350,12 @@ function geometryUploadStats(root: THREE.Object3D): {
       const position = geometry.getAttribute("position");
       if (position) vertexCount += position.count;
       for (const attribute of Object.values(geometry.attributes)) {
-        const array = "array" in attribute ? attribute.array : attribute.data.array;
-        geometryByteLength += array.byteLength;
+        const source = attribute as unknown as {
+          array?: { byteLength: number };
+          data?: { array?: { byteLength: number } };
+        };
+        const array = source.array ?? source.data?.array;
+        if (array) geometryByteLength += array.byteLength;
       }
       const index = geometry.getIndex();
       if (index?.array && "byteLength" in index.array) geometryByteLength += index.array.byteLength;
