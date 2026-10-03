@@ -461,11 +461,16 @@ export function createWorldSeedIrDependencyGraph(
         ? tileForPoint(x, z, tileSizeMeters).id
         : undefined;
       const edgeId = typeof record["edgeId"] === "string" ? record["edgeId"] : undefined;
+      const routeId = typeof record["routeId"] === "string" ? record["routeId"] : undefined;
+      const dependencies = [
+        ...(edgeId ? ["road-edge:" + edgeId] : []),
+        ...(routeId ? ["drive-route:" + stableIdPart(routeId)] : []),
+      ];
       nodes.set(id, dependencyNode(
         id,
         "spawn",
         record,
-        edgeId ? ["road-edge:" + edgeId] : [],
+        dependencies,
         chunkId,
         { category },
       ));
@@ -503,6 +508,15 @@ export function createWorldSeedIrDependencyGraph(
       { artifact: "geometry" },
     ));
   }
+
+  nodes.set("artifact:world-metadata", dependencyNode(
+    "artifact:world-metadata",
+    "artifact",
+    document.metadata,
+    [],
+    undefined,
+    { artifact: "world-metadata" },
+  ));
 
   const semanticDependencies = document.semantic.objects
     .map((object) => stableSemanticObjectId(object))
@@ -827,12 +841,16 @@ export function encodeWorldSeedIrPatchFiles(
     files["spawn-points.json"] = serializeCanonicalJson(document.navigation.spawnPoints);
   }
 
-  if (patch.globalChanged) {
+  if (
+    legacyFallback
+    || (!dependencyDiff && patch.globalChanged)
+    || impactedArtifacts.has("artifact:world-metadata")
+  ) {
     files["worldseed.json"] = serializeCanonicalJson(document.metadata);
   }
   if (
-    patch.globalChanged
-    || legacyFallback
+    legacyFallback
+    || (!dependencyDiff && patch.globalChanged)
     || impactedArtifacts.has("artifact:drive-route")
   ) {
     files["drive-route.json"] = serializeCanonicalJson(document.navigation.driveRoute);
