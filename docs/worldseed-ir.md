@@ -409,3 +409,21 @@ Before applying it, the consumer requires the loaded IR `revisionHash` to equal 
 When accepted, the consumer cancels stale tile jobs, fully invalidates only whole-tile changes, removes obsolete tile/batch paths, merges patch files, swaps the IR/geometry indexes, refreshes terrain and structured-data overlays when included, and restarts streaming. Recipe-v2 batch-only changes are hot-swapped directly into already-loaded base/detail scenes; only changed batch IDs are parsed/replaced, while the full tile and unrelated batches remain alive.
 
 This turns the REDox-style IR from an internal normalization layer into a dependency graph for reproducible partial world updates.
+
+### Safe patch preflight and staged geometry updates
+
+The standalone consumer now validates patch/index revision links, tile and batch IDs,
+and required GLB paths against a merged archive **before** canceling tile jobs or
+modifying a visible scene. A ZIP missing an override is rejected with the prior
+revision still loaded.
+
+When changed sub-batches are already visible, their replacement GLBs are parsed
+off-scene first. Terrain replacements are parsed before the commit as well.
+Only after staging succeeds does the consumer apply the new indexes and reconcile
+visible tiles. A failed GLB parse leaves the previous geometry visible.
+
+Original baked batch nodes are retained in a hidden group when overridden.
+If a later patch removes the override and the baked batch still exists in the
+tile descriptor, the original nodes return to their recorded parent rather than
+remaining hidden and creating holes after a patch-chain revert.
+

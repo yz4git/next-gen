@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added standalone-consumer patch preflight to verify revision chains and all referenced tile/batch assets before mutating live scenes; pre-parse visible sub-batch GLBs and terrain so truncated files cannot partially hot-swap the street.
+- Fixed in-place geometry reverts: previously overridden baked sub-batches are restored when a follow-on patch removes their overrides, preserving their original hierarchy.
+
 - Added a REDox-inspired, dependency-free WorldSeed IR v1 that normalizes metadata, semantic objects, road graphs, spawn points, and drive routes behind one versioned intermediate representation.
 - Added deterministic per-chunk IR content hashes plus global, geometry-global, and revision hashes for dependency-aware incremental builds.
 - Added minimal IR patch manifests/files and IR-driven geometry patch planning so unchanged 300 m tile GLBs can be reused instead of regenerated.

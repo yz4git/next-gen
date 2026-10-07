@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { unzipSync, strFromU8 } from "fflate";
+import { prepareWorldSeedPatch } from "./patch-validation.js";
 
 const canvas = document.querySelector("#world");
 const drop = document.querySelector("#drop");
@@ -114,7 +115,6 @@ addEventListener("drop", (e) => {
 
 async function importZip(file) {
   status.textContent = "Reading export contract…";
-  const generation = ++importGeneration;
   try {
     const archive = unzipSync(new Uint8Array(await file.arrayBuffer()));
     const incrementalPatch = readJson(archive, "worldseed.patch.json", true);
@@ -122,6 +122,7 @@ async function importZip(file) {
       await applyIncrementalPatch(archive, incrementalPatch, file.name);
       return;
     }
+    const generation = ++importGeneration;
 
     const metadata = readJson(archive, "worldseed.json");
     const objects = readJson(archive, "worldseed-objects.json");
@@ -173,116 +174,118 @@ async function importZip(file) {
 }
 
 async function applyIncrementalPatch(archive, patchManifest, fileName) {
-  if (
-    patchManifest.format !== "worldseed-incremental-patch"
-    || !["1", "2"].includes(patchManifest.version)
-  ) {
-    throw new Error("Unsupported WorldSeed incremental patch");
-  }
   if (!activeArchive || !activeGeometryIndex || !activeIrIndex) {
     throw new Error("Load the matching full WorldSeed export before applying a patch");
   }
-  if (
-    patchManifest.fromRevisionHash
-    && activeIrIndex.revisionHash !== patchManifest.fromRevisionHash
-  ) {
-    throw new Error(
-      "Patch base revision mismatch: expected "
-      + patchManifest.fromRevisionHash
-      + ", loaded "
-      + (activeIrIndex.revisionHash || "unknown"),
-    );
-  }
 
   const irPatch = readJson(archive, patchManifest.irPatchPath || "worldseed-ir.patch.json");
-  const geometryPatch = readJson(
-    archive,
-    patchManifest.geometryPatchPath || "worldseed-tiles.patch.json",
-  );
+  const geometryPatch = readJson(archive, patchManifest.geometryPatchPath || "worldseed-tiles.patch.json");
   const nextIrIndex = readJson(archive, "worldseed-ir.index.json");
   const nextGeometryIndex = readJson(archive, "worldseed-tiles.index.json");
+  // Check ALL referenced GLBs and revision links before any live scene mutation.
+  const preparedPatch = prepareWorldSeedPatch({
+    currentArchive: activeArchive,
+    currentIrIndex: activeIrIndex,
+    currentGeometryIndex: activeGeometryIndex,
+    archive,
+    patchManifest,
+    irPatch,
+    geometryPatch,
+    nextIrIndex,
+    nextGeometryIndex,
+  });
 
-  if (irPatch.toRevisionHash && nextIrIndex.revisionHash !== irPatch.toRevisionHash) {
-    throw new Error("Patch IR index revision does not match patch manifest");
+  const nextMetadata = readJson(archive, "worldseed.json", true) ?? activeMetadata;
+  const nextObjects = readJson(archive, "worldseed-objects.json", true) ?? activeObjects;
+  const nextGraph = readJson(archive, "road-graph.json", true) ?? activeGraph;
+  const nextSpawns = readJson(archive, "spawn-points.json", true) ?? activeSpawns;
+  const nextRoute = archive["drive-route.json"]
+    ? readJson(archive, "drive-route.json", true)
+    : activeRoute;
+  checkContract(nextMetadata, nextObjects, nextGraph, nextSpawns, nextRoute);
+
+  // GLTF parsing can fail on a truncated ZIP even when the named file exists.
+  // Stage all visible overrides and terrain, keeping the current scene intact
+  // until every parse succeeds. A rejected patch remains retryable.
+  const staged = new Map();
+  let nextTerrain = null;
+  try {
+    for (const id of preparedPatch.batchRefreshIds) {
+      const tile = nextGeometryIndex.tiles.find((entry) => entry.id === id);
+      if (!tile) continue;
+      const targets = preparedPatch.batchTargets.get(id);
+      for (const [kind, loaded] of [["base", loadedBaseTiles], ["detail", loadedDetailTiles]]) {
+        const scene = loaded.get(id);
+        if (!scene) continue;
+        const overrides = await parseGeometryBatchOverrides(
+          tile,
+          kind,
+          targets,
+          preparedPatch.mergedArchive,
+        );
+        staged.set(kind + ":" + id, { scene, tile, targets, overrides });
+      }
+    }
+    if (archive["terrain.glb"]) {
+      const parsed = await loader.parseAsync(exactArrayBuffer(archive["terrain.glb"]), "");
+      nextTerrain = parsed.scene;
+    }
+  } catch (error) {
+    for (const entry of staged.values()) {
+      for (const object of entry.overrides.values()) disposeObject(object);
+    }
+    if (nextTerrain) disposeObject(nextTerrain);
+    throw error;
   }
 
+  // Commit: no awaits from this point until all scene and revision changes land.
   importGeneration += 1;
   desiredJobs.clear();
   queuedJobs.clear();
   pendingJobs.clear();
   for (const upload of uploadJobs.values()) disposeObject(upload.scene);
   uploadJobs.clear();
-
-  const fullInvalidateIds = new Set([
-    ...(geometryPatch.regenerated || []).map((entry) => entry.id),
-    ...(geometryPatch.removed || []).map((entry) => entry.id),
-  ]);
-  const batchRefreshIds = new Set([
-    ...(geometryPatch.regeneratedBatches || []).map((entry) => entry.tileId),
-    ...(geometryPatch.removedBatches || []).map((entry) => entry.tileId),
-  ]);
-  for (const id of fullInvalidateIds) {
+  for (const id of preparedPatch.fullInvalidateIds) {
     unloadGeometryTile(id, "detail");
     unloadGeometryTile(id, "base");
-    batchRefreshIds.delete(id);
   }
 
-  const mergedArchive = { ...activeArchive };
-  for (const removal of geometryPatch.removed || []) {
-    for (const path of removal.paths || []) delete mergedArchive[path];
-  }
-  const previousTiles = new Map((activeGeometryIndex.tiles || []).map((tile) => [tile.id, tile]));
-  const previousBatchPath = (entry) => {
-    const tile = previousTiles.get(entry.tileId);
-    const batch = tile?.batches?.find((candidate) =>
-      candidate.id === entry.id && Boolean(candidate.detail) === Boolean(entry.detail));
-    return batch?.path ?? null;
-  };
-  for (const entry of [
-    ...(geometryPatch.regeneratedBatches || []),
-    ...(geometryPatch.removedBatches || []),
-  ]) {
-    const oldPath = previousBatchPath(entry);
-    if (oldPath) delete mergedArchive[oldPath];
-  }
-  for (const [path, bytes] of Object.entries(archive)) mergedArchive[path] = bytes;
-
-  activeArchive = mergedArchive;
+  activeArchive = preparedPatch.mergedArchive;
   activeGeometryIndex = nextGeometryIndex;
   activeIrIndex = nextIrIndex;
 
-  await hotSwapLoadedGeometryBatches(batchRefreshIds, geometryPatch);
-
-  activeMetadata = readJson(archive, "worldseed.json", true) ?? activeMetadata;
-  activeObjects = readJson(archive, "worldseed-objects.json", true) ?? activeObjects;
-  activeGraph = readJson(archive, "road-graph.json", true) ?? activeGraph;
-  activeSpawns = readJson(archive, "spawn-points.json", true) ?? activeSpawns;
-  if (archive["drive-route.json"]) {
-    activeRoute = readJson(archive, "drive-route.json", true);
+  for (const [key, entry] of staged) {
+    const live = key.startsWith("detail:") ? loadedDetailTiles : loadedBaseTiles;
+    if (live.get(entry.tile.id) === entry.scene) {
+      applyGeometryBatchOverrides(
+        entry.scene, entry.tile, key.startsWith("detail:") ? "detail" : "base",
+        entry.targets, entry.overrides,
+      );
+    } else {
+      for (const object of entry.overrides.values()) disposeObject(object);
+    }
   }
 
-  if (archive["terrain.glb"]) {
+  activeMetadata = nextMetadata;
+  activeObjects = nextObjects;
+  activeGraph = nextGraph;
+  activeSpawns = nextSpawns;
+  activeRoute = nextRoute;
+
+  if (nextTerrain) {
     if (activeTerrainScene) {
       imported.remove(activeTerrainScene);
       disposeObject(activeTerrainScene);
     }
-    const terrainGltf = await loader.parseAsync(exactArrayBuffer(archive["terrain.glb"]), "");
-    activeTerrainScene = terrainGltf.scene;
+    activeTerrainScene = nextTerrain;
     imported.add(activeTerrainScene);
   }
 
-  if (
-    archive["road-graph.json"]
-    || archive["spawn-points.json"]
-    || archive["drive-route.json"]
-  ) {
+  if (archive["road-graph.json"] || archive["spawn-points.json"] || archive["drive-route.json"]) {
     rebuildDataOverlays(activeGraph, activeSpawns, activeRoute);
   }
-
   updateStreamedGeometry(true);
-  if (activeMetadata && activeObjects && activeGraph && activeSpawns) {
-    writeDetails(activeMetadata, activeObjects, activeGraph, activeSpawns, activeRoute);
-  }
+  writeDetails(activeMetadata, activeObjects, activeGraph, activeSpawns, activeRoute);
 
   const regenerated = geometryPatch.regenerated?.length ?? 0;
   const removed = geometryPatch.removed?.length ?? 0;
@@ -478,44 +481,43 @@ async function runGeometryTileLoad(job, generation, estimatedParseMs) {
   }
 }
 
-async function hotSwapLoadedGeometryBatches(tileIds, geometryPatch) {
-  if (!activeGeometryIndex || tileIds.size === 0) return;
-  const nextById = new Map((activeGeometryIndex.tiles || []).map((tile) => [tile.id, tile]));
-  const targetsByTile = new Map();
-  for (const entry of [
-    ...(geometryPatch.regeneratedBatches || []),
-    ...(geometryPatch.removedBatches || []),
-  ]) {
-    const targets = targetsByTile.get(entry.tileId) ?? new Set();
-    targets.add(entry.id);
-    targetsByTile.set(entry.tileId, targets);
-  }
-
-  for (const id of tileIds) {
-    const tile = nextById.get(id);
-    if (!tile) {
-      unloadGeometryTile(id, "detail");
-      unloadGeometryTile(id, "base");
-      continue;
+// Parse off-scene so an invalid override cannot first remove valid buildings.
+async function parseGeometryBatchOverrides(tile, kind, targetBatchIds, sourceArchive) {
+  const result = new Map();
+  try {
+    for (const batch of tile.batches ?? []) {
+      if (Boolean(batch.detail) !== (kind === "detail")) continue;
+      if (targetBatchIds && !targetBatchIds.has(batch.id)) continue;
+      if (!batch.path) continue;
+      const bytes = sourceArchive[batch.path];
+      if (!bytes) throw new Error("Missing geometry batch override " + batch.path);
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const parsed = await loader.parseAsync(exactArrayBuffer(bytes), "");
+      parsed.scene.userData.worldseedBatchOverride = true;
+      parsed.scene.userData.worldseedBatchId = batch.id;
+      result.set(batch.id, parsed.scene);
     }
-    const targets = targetsByTile.get(id) ?? null;
-    const base = loadedBaseTiles.get(id);
-    if (base) await reconcileGeometryBatches(base, tile, "base", targets);
-    const detail = loadedDetailTiles.get(id);
-    if (detail) await reconcileGeometryBatches(detail, tile, "detail", targets);
+    return result;
+  } catch (error) {
+    for (const object of result.values()) disposeObject(object);
+    throw error;
   }
 }
 
 async function reconcileGeometryBatches(scene, tile, kind, targetBatchIds = null) {
+  if (!Array.isArray(tile.batches)) return;
+  const prepared = await parseGeometryBatchOverrides(tile, kind, targetBatchIds, activeArchive);
+  applyGeometryBatchOverrides(scene, tile, kind, targetBatchIds, prepared);
+}
+
+function applyGeometryBatchOverrides(scene, tile, kind, targetBatchIds, prepared) {
   const batches = Array.isArray(tile.batches)
     ? tile.batches.filter((batch) => Boolean(batch.detail) === (kind === "detail"))
     : null;
   if (!batches) return;
-
   const expected = new Map(batches.map((batch) => [batch.id, batch]));
   let retired = scene.children.find((child) => child.userData?.worldseedRetiredBatches === true) ?? null;
   if (retired) scene.remove(retired);
-
   const ensureRetired = () => {
     if (!retired) {
       retired = new THREE.Group();
@@ -532,35 +534,45 @@ async function reconcileGeometryBatches(scene, tile, kind, targetBatchIds = null
     const batchId = object.userData?.worldseedBatchId;
     if (typeof batchId === "string") existing.push({ object, batchId });
   });
-
   for (const { object, batchId } of existing) {
     if (targetBatchIds && !targetBatchIds.has(batchId)) continue;
     const descriptor = expected.get(batchId);
     const shouldRetire = !descriptor || descriptor.path;
     if (!shouldRetire || !object.parent) continue;
-
     if (object.userData?.worldseedBatchOverride === true) {
       object.parent.remove(object);
       disposeObject(object);
     } else {
+      // Keep the original baked geometry for a later patch that removes the
+      // override. Preserve its parent so nested local transforms restore.
+      object.userData.worldseedOriginalParent = object.parent;
       ensureRetired().add(object);
     }
   }
 
-  if (retired) scene.add(retired);
+  // A patch can revert a batch back to its original baked GLB. Without this,
+  // the retired originals stayed hidden forever and left holes in the city.
+  if (retired) {
+    for (const object of [...retired.children]) {
+      const batchId = object.userData?.worldseedBatchId;
+      if (typeof batchId !== "string") continue;
+      if (targetBatchIds && !targetBatchIds.has(batchId)) continue;
+      if (!expected.has(batchId) || expected.get(batchId).path) continue;
+      const originalParent = object.userData.worldseedOriginalParent;
+      const parent = originalParent instanceof THREE.Object3D
+        ? originalParent : scene;
+      parent.add(object);
+      delete object.userData.worldseedOriginalParent;
+    }
+    scene.add(retired);
+  }
 
   for (const batch of batches) {
     if (targetBatchIds && !targetBatchIds.has(batch.id)) continue;
     if (!batch.path) continue;
-    const overrideBytes = activeArchive?.[batch.path];
-    if (!overrideBytes) {
-      throw new Error("Missing geometry batch override " + batch.path);
-    }
-    await new Promise((resolve) => requestAnimationFrame(resolve));
-    const override = await loader.parseAsync(exactArrayBuffer(overrideBytes), "");
-    override.scene.userData.worldseedBatchOverride = true;
-    override.scene.userData.worldseedBatchId = batch.id;
-    scene.add(override.scene);
+    const replacement = prepared.get(batch.id);
+    if (!replacement) throw new Error("Unprepared geometry batch override " + batch.path);
+    scene.add(replacement);
   }
 }
 
