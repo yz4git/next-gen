@@ -2,7 +2,11 @@ import "./styles.css";
 import { DEFAULT_CENTER, DEFAULT_RADIUS, MAX_PLATEAU_FILE_BYTES, MAX_RADIUS, MIN_RADIUS } from "./config";
 import { clearWorldSeedCache } from "./data/cache";
 import { createDemoWorld } from "./data/demo";
-import { buildCity, type BuiltCity } from "./generation/city-builder";
+import { buildCity, createLiveBuildingBatchReplacements, type BuiltCity } from "./generation/city-builder";
+import { resolveBuildingHeight } from "./generation/height";
+import { planLiveBuildingGrowth } from "./generation/live-mutation";
+import { createWorldManifest } from "./semantic/manifest";
+import type { BuildingFeature } from "./types";
 import { createDriveRoute } from "./generation/road-graph";
 import { formatCoordinate, parseCoordinateInput } from "./geo/coordinates";
 import { clearDriveBestTimes, DriveController, type DriveButton } from "./interaction/drive-controller";
@@ -71,6 +75,9 @@ let requestedRouteSeed: number | null = null;
 let currentRouteSeed = 1;
 let currentRoute: DriveRoute | null = null;
 let initialModeApplied = false;
+let mutationSerial = 0;
+const mutationOriginals = new Map<string, BuildingFeature>();
+const mutatedBuildingIds = new Set<string>();
 
 hydrateFromUrl();
 bindUi();
@@ -182,6 +189,11 @@ async function renderData(nextData: WorldData, live: boolean): Promise<void> {
     built.group.clear();
     return;
   }
+  if (nextData !== data) {
+    mutationSerial = 0;
+    mutationOriginals.clear();
+    mutatedBuildingIds.clear();
+  }
   data = nextData;
   city = built;
   renderer.setCity(built.group, nextData.radius);
@@ -202,6 +214,7 @@ async function renderData(nextData: WorldData, live: boolean): Promise<void> {
   driveButton.title = drive.isAvailable() ? "Drive this city" : "No drivable road network is available";
   if (explore.getMode() !== "orbit") explore.reset();
   updateWorldUi(nextData, built.stats);
+  updateLiveMutationUi();
   setBusy(false);
 }
 
@@ -293,6 +306,8 @@ function bindUi(): void {
   required("#export-kit").addEventListener("click", () => openExportDialog("kit"));
   required("#export-patch").addEventListener("click", () => required<HTMLInputElement>("#patch-base-file").click());
   required("#export-state").addEventListener("click", () => void runBuildStateExport());
+  required("#mutate-block").addEventListener("click", growLiveBlock);
+  required("#reset-mutations").addEventListener("click", resetLiveBlock);
   required<HTMLInputElement>("#patch-base-file").addEventListener("change", (event) => {
     const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
@@ -502,6 +517,109 @@ async function runExport(kind: ExportKind, includeExactOrigin: boolean): Promise
   } finally {
     setStatus(readyStatus(data), "ready");
   }
+}
+
+
+function disposeLiveMesh(mesh: import("three").Mesh): void {
+  mesh.geometry.dispose();
+  for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+    material.dispose();
+  }
+}
+
+/**
+ * Stage only impacted stable geometry sub-batches and atomically attach them.
+ * Collision footprints stay unchanged because only building height is edited.
+ */
+function applyLiveBuildingWorld(
+  nextData: WorldData,
+  changedIds: ReadonlySet<string>,
+): number {
+  if (!city || !data || changedIds.size === 0) return 0;
+  const replacements = createLiveBuildingBatchReplacements(city.group, nextData, changedIds);
+  if (replacements.length === 0) throw new Error("No building geometry matched the mutation");
+  // All geometry has been constructed, so the commit does not await work.
+  for (const { previous, replacement } of replacements) {
+    const parent = previous.parent;
+    if (!parent) throw new Error("Detached live sub-batch");
+    parent.add(replacement);
+    parent.remove(previous);
+  }
+  const triangles = (mesh: import("three").Mesh): number => {
+    const geometry = mesh.geometry;
+    return Math.floor((geometry.index?.count ?? geometry.getAttribute("position")?.count ?? 0) / 3);
+  };
+  city.stats.triangles += replacements.reduce(
+    (total, { previous, replacement }) => total + triangles(replacement) - triangles(previous), 0,
+  );
+  const changed = new Map(nextData.buildings.filter((feature) => changedIds.has(feature.id))
+    .map((feature) => [feature.id, resolveBuildingHeight(feature)]));
+  city.resolvedBuildings = city.resolvedBuildings.map((building) => changed.get(building.id) ?? building);
+  city.manifest = createWorldManifest(nextData, city.resolvedBuildings);
+  data = nextData;
+  for (const { previous } of replacements) disposeLiveMesh(previous);
+  renderer.refreshCityStreaming(nextData.radius);
+  updateWorldUi(nextData, city.stats);
+  return replacements.length;
+}
+
+function growLiveBlock(): void {
+  if (!city || !data) return;
+  const button = required<HTMLButtonElement>("#mutate-block");
+  button.disabled = true;
+  try {
+    const focus = renderer.orbit.target;
+    const plan = planLiveBuildingGrowth(data, city.manifest, {
+      x: focus.x, z: focus.z,
+    }, mutationSerial + 1);
+    const originals = new Map(data.buildings.map((feature) => [feature.id, feature]));
+    const batchCount = applyLiveBuildingWorld(plan.world, new Set(plan.changedIds));
+    for (const id of plan.changedIds) {
+      if (!mutationOriginals.has(id)) mutationOriginals.set(id, originals.get(id)!);
+      mutatedBuildingIds.add(id);
+    }
+    mutationSerial += 1;
+    updateLiveMutationUi();
+    toast(`LIVE PATCH · ${plan.changedIds.length} buildings / ${batchCount} batches / ${plan.tileIds.length} tiles`);
+    setStatus("Local evolution applied · original roads preserved", "ready");
+  } catch (error) {
+    showError(error instanceof Error ? error.message : "Could not mutate this block.");
+  } finally {
+    // Keep permanently unsupported PLATEAU mode disabled.
+    updateLiveMutationUi();
+  }
+}
+
+function resetLiveBlock(): void {
+  if (!city || !data || mutationOriginals.size === 0) return;
+  const originals = new Map(mutationOriginals);
+  const restored: WorldData = {
+    ...data,
+    buildings: data.buildings.map((feature) => originals.get(feature.id) ?? feature),
+  };
+  try {
+    const batchCount = applyLiveBuildingWorld(restored, new Set(mutatedBuildingIds));
+    mutationOriginals.clear();
+    mutatedBuildingIds.clear();
+    mutationSerial = 0;
+    updateLiveMutationUi();
+    setStatus("Local evolution reset", "ready");
+    toast(`Restored original city geometry · ${batchCount} batches`);
+  } catch (error) {
+    showError(error instanceof Error ? error.message : "Could not restore original buildings.");
+  }
+}
+
+function updateLiveMutationUi(): void {
+  const supported = Boolean(city && data && !data.plateau
+    && city.manifest.objects.some((object) => object.layer === "buildings"));
+  required<HTMLButtonElement>("#mutate-block").disabled = !supported;
+  required<HTMLButtonElement>("#reset-mutations").disabled = mutationOriginals.size === 0;
+  required("#mutation-status").textContent = !supported
+    ? data?.plateau ? "PLATEAU LOD meshes are protected (read-only)." : "Seed a world with buildings to evolve."
+    : mutationSerial > 0
+      ? `REV ${mutationSerial} · ${mutatedBuildingIds.size} buildings evolved · patch-ready for export`
+      : "Change only nearby building sub-batches. Roads and terrain stay intact.";
 }
 
 function updateWorldUi(world: WorldData, stats: WorldStats): void {
