@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import * as THREE from "three";
+import { createLiveBuildingBatchReplacements } from "../src/generation/city-builder";
 import { createDemoWorld } from "../src/data/demo";
 import { resolveBuildingHeight } from "../src/generation/height";
 import { planLiveBuildingGrowth } from "../src/generation/live-mutation";
@@ -55,5 +57,50 @@ describe("Live Evolution planner", () => {
       manifest, { x: 0, z: 0 }, 1,
     )).toThrow(/read-only/);
     expect(() => planLiveBuildingGrowth(world, { ...manifest, objects: [] }, { x: 0, z: 0 }, 1)).toThrow(/No mutable/);
+  });
+});
+
+describe("Live Evolution geometry patches", () => {
+  it("regenerates only touched building and roof meshes while leaving old ones intact", () => {
+    const world = fixture();
+    const grown = {
+      ...world,
+      buildings: world.buildings.map((item) => item.id === "a"
+        ? { ...item, height: 42, heightSource: "WorldSeed live evolution" }
+        : item),
+    };
+    const root = new THREE.Group();
+    const meshes: THREE.Mesh[] = [];
+    for (const layer of ["buildings", "roofs", "roads"]) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+      mesh.userData = { worldseedLayer: layer, featureIds: ["a"] };
+      root.add(mesh);
+      meshes.push(mesh);
+    }
+    const replacements = createLiveBuildingBatchReplacements(root, grown, new Set(["a"]));
+    expect(replacements).toHaveLength(2);
+    expect(replacements.map((entry) => entry.previous)).toEqual(meshes.slice(0, 2));
+    expect(root.children).toEqual(meshes);
+    for (const entry of replacements) {
+      expect(entry.replacement.userData.worldseedLayer).toBe(entry.previous.userData.worldseedLayer);
+      expect(entry.replacement.geometry.getAttribute("position").count).toBeGreaterThan(0);
+      entry.replacement.geometry.dispose();
+      for (const material of Array.isArray(entry.replacement.material)
+        ? entry.replacement.material : [entry.replacement.material]) material.dispose();
+    }
+    for (const mesh of meshes) {
+      mesh.geometry.dispose();
+      (mesh.material as THREE.Material).dispose();
+    }
+  });
+
+  it("does not classify generated heights as measured input", () => {
+    const world = fixture();
+    const source = world.buildings[0]!;
+    const grown = resolveBuildingHeight({
+      ...source, height: 45, heightSource: "WorldSeed live evolution",
+    });
+    expect(grown.resolvedHeight).toBe(45);
+    expect(grown.heightQuality).toBe("inferred");
   });
 });
