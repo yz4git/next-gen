@@ -556,6 +556,9 @@ function applyLiveBuildingWorld(
     .map((feature) => [feature.id, resolveBuildingHeight(feature)]));
   city.resolvedBuildings = city.resolvedBuildings.map((building) => changed.get(building.id) ?? building);
   city.manifest = createWorldManifest(nextData, city.resolvedBuildings);
+  city.stats.providedHeights = city.resolvedBuildings.filter((b) => b.heightQuality === "provided").length;
+  city.stats.levelHeights = city.resolvedBuildings.filter((b) => b.heightQuality === "levels").length;
+  city.stats.inferredHeights = city.resolvedBuildings.filter((b) => b.heightQuality === "inferred").length;
   data = nextData;
   for (const { previous } of replacements) disposeLiveMesh(previous);
   renderer.refreshCityStreaming(nextData.radius);
@@ -568,7 +571,10 @@ function growLiveBlock(): void {
   const button = required<HTMLButtonElement>("#mutate-block");
   button.disabled = true;
   try {
-    const focus = renderer.orbit.target;
+    // Orbit focus is meaningful in orbit mode; in walk/fly/drive/drone mode,
+    // target the player's actual camera position instead of a stale orbit point.
+    const focus = explore.getMode() === "orbit"
+      ? renderer.orbit.target : renderer.camera.position;
     const plan = planLiveBuildingGrowth(data, city.manifest, {
       x: focus.x, z: focus.z,
     }, mutationSerial + 1);
