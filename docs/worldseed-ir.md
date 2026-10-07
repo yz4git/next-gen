@@ -427,3 +427,21 @@ If a later patch removes the override and the baked batch still exists in the
 tile descriptor, the original nodes return to their recorded parent rather than
 remaining hidden and creating holes after a patch-chain revert.
 
+
+### Live Evolution Lab (native application)
+
+The app now exposes **Evolve near camera** and **Reset** controls. Each activation
+deterministically changes up to seven buildings near the orbit focus. The
+footprints stay unchanged, allowing the current collision index and road graph
+to remain authoritative while the building heights and rooftop geometry mutate.
+
+The underlying feature data and resolved semantic manifest update with the
+sub-batch geometry, so future build-state / incremental-patch exports include
+the evolved world. Only scene meshes with stable feature IDs intersecting the
+change set are rebuilt, preserving the rest of the street. The tile-streaming
+index is refreshed against the same city group without moving the camera.
+
+PLATEAU LOD1/LOD2 surfaces are explicitly protected: extruded footprint
+generation would otherwise destroy their higher fidelity. This is a
+manually-triggered local proof of concept; dynamic road topology mutation
+and automated time-based evolution are not implemented yet.

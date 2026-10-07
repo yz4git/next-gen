@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added WorldSeed Live Evolution Lab: camera-local deterministic building growth with targeted building/roof sub-batch rebuilding, Reset, and updated semantic/export state without resetting the existing road graph, terrain or viewpoint.
+
 - Added standalone-consumer patch preflight to verify revision chains and all referenced tile/batch assets before mutating live scenes; pre-parse visible sub-batch GLBs and terrain so truncated files cannot partially hot-swap the street.
 - Fixed in-place geometry reverts: previously overridden baked sub-batches are restored when a follow-on patch removes their overrides, preserving their original hierarchy.
 

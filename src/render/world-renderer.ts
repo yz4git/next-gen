@@ -150,6 +150,14 @@ export class WorldRenderer {
     }
   }
 
+  /** Reindex changed live sub-batches without resetting the city/camera. */
+  refreshCityStreaming(radius: number): void {
+    if (!this.currentCity) return;
+    this.tileStreamer = new TileStreamer(this.currentCity, radius);
+    this.tileStreamer.setAdaptiveBudget(this.adaptiveStreaming.budget);
+    if (this.streamingListener) this.tileStreamer.onChange(this.streamingListener);
+  }
+
   frameCity(radius: number): void {
     const distance = Math.max(175, radius * 0.92);
     this.camera.position.set(distance * 0.9, distance * 0.63, distance * 0.9);

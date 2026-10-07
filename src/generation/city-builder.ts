@@ -1183,3 +1183,91 @@ function collectStats(
 function nextFrame(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
+
+/**
+ * Rebuild only existing building/roof sub-batches containing changed features.
+ * Ground, roads, collision footprints and all other sub-batches are preserved.
+ * PLATEAU high fidelity surfaces must remain read-only.
+ */
+export function createLiveBuildingBatchReplacements(
+  group: THREE.Group,
+  world: WorldData,
+  changedIds: ReadonlySet<string>,
+): Array<{ previous: THREE.Mesh; replacement: THREE.Mesh }> {
+  if (world.plateau) throw new Error("PLATEAU surfaces cannot be morphed with footprint extrusion");
+  const features = new Map(world.buildings.map((feature) => [feature.id, resolveBuildingHeight(feature)]));
+  const targets: THREE.Mesh[] = [];
+  group.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const layer = object.userData["worldseedLayer"];
+    if (layer !== "buildings" && layer !== "roofs") return;
+    const ids = object.userData["featureIds"] as string[] | undefined;
+    if (ids?.some((id) => changedIds.has(id))) targets.push(object);
+  });
+
+  const staged: Array<{ previous: THREE.Mesh; replacement: THREE.Mesh }> = [];
+  try {
+    for (const previous of targets) {
+      const layer = previous.userData["worldseedLayer"] as "buildings" | "roofs";
+      const ids = previous.userData["featureIds"] as string[];
+      const geometries: THREE.BufferGeometry[] = [];
+      for (const id of ids) {
+        const building = features.get(id);
+        if (!building) throw new Error("Missing building feature for live sub-batch: " + id);
+        for (const polygon of building.polygons) {
+          const outer = ringToLocal(polygon[0], world);
+          if (outer.length < 3) continue;
+          const centroid = polygonCentroid(outer);
+          if (Math.hypot(centroid.x, centroid.z) > world.radius + 60) continue;
+          const shape = polygonToShape(polygon, world);
+          if (!shape) continue;
+          const ground = elevationAt(world.terrain, centroid.x, centroid.z);
+          const roof = resolveRoof(building, building.resolvedHeight);
+          const roofBase = Math.max(
+            building.resolvedMinHeight + 0.8,
+            building.resolvedHeight - roof.height,
+          );
+          if (layer === "buildings") {
+            const geometry = new THREE.ExtrudeGeometry(shape, {
+              depth: Math.max(0.8, roofBase - building.resolvedMinHeight),
+              bevelEnabled: false,
+              curveSegments: 1,
+              steps: 1,
+            });
+            geometry.rotateX(-Math.PI / 2);
+            geometry.translate(0, building.resolvedMinHeight + ground, 0);
+            geometry.computeVertexNormals();
+            geometries.push(normalizeMergeGeometry(geometry));
+          } else {
+            const geometry = createRoofGeometry(
+              shape, outer, ground + roofBase,
+              ground + building.resolvedHeight, roof.profile,
+            );
+            if (geometry) geometries.push(normalizeMergeGeometry(geometry));
+          }
+        }
+      }
+      const merged = mergeGeometries(geometries, false);
+      for (const geometry of geometries) geometry.dispose();
+      if (!merged) throw new Error("Live sub-batch has no rebuildable geometry");
+      const material = Array.isArray(previous.material)
+        ? previous.material.map((item) => item.clone())
+        : previous.material.clone();
+      const replacement = new THREE.Mesh(merged, material);
+      replacement.name = previous.name;
+      replacement.userData = { ...previous.userData };
+      replacement.castShadow = previous.castShadow;
+      replacement.receiveShadow = previous.receiveShadow;
+      replacement.renderOrder = previous.renderOrder;
+      staged.push({ previous, replacement });
+    }
+    return staged;
+  } catch (error) {
+    for (const { replacement } of staged) {
+      replacement.geometry.dispose();
+      for (const material of Array.isArray(replacement.material)
+        ? replacement.material : [replacement.material]) material.dispose();
+    }
+    throw error;
+  }
+}

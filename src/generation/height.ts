@@ -22,7 +22,8 @@ export function resolveBuildingHeight(building: BuildingFeature): ResolvedBuildi
       ...building,
       resolvedHeight: clamp(providedHeight, 2.4, 360),
       resolvedMinHeight: Math.min(providedMinHeight, providedHeight - 1),
-      heightQuality: "provided",
+      // Procedural runtime mutations are not measured source heights.
+      heightQuality: building.heightSource === "WorldSeed live evolution" ? "inferred" : "provided",
     };
   }
 
