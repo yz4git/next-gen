@@ -54,7 +54,7 @@ describe("standalone incremental patch preflight", () => {
     const input = fixture();
     const result = prepareWorldSeedPatch(input);
     expect([...result.batchRefreshIds]).toEqual(["0:0"]);
-    expect([...result.batchTargets.get("0:0")]).toEqual(["buildings:0:0:0:sb0"]);
+    expect([...(result.batchTargets.get("0:0") ?? [])]).toEqual(["buildings:0:0:0:sb0"]);
     expect(result.mergedArchive["batch.glb"]).toBe(bytes);
     expect(input.currentArchive["batch.glb"]).toBeUndefined();
   });
