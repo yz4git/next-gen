@@ -384,3 +384,17 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
+
+/* Live Evolution Lab — tap-friendly and intentionally compact on iPhone. */
+.mutation-section { padding-top: 18px; }
+.mutation-copy { margin: 9px 0 10px; color: #9ba8a0; font-size: 10px; line-height: 1.55; }
+.mutation-actions { display: flex; gap: 7px; }
+.mutation-actions button {
+  flex: 1; min-height: 39px; border: 1px solid #454f45; border-radius: 8px;
+  background: #202821; color: #e8f0e1; font-size: 9px; font-weight: 850;
+  cursor: pointer; touch-action: manipulation;
+}
+.mutation-actions button:first-child { background: #b8f34b; color: #19220f; border-color: #b8f34b; }
+.mutation-actions button:last-child { flex: 0 0 74px; }
+.mutation-actions button:disabled { opacity: .4; cursor: default; }
+.mutation-status { margin: 7px 0 0; color: #98b07e; font-size: 9px; line-height: 1.45; min-height: 26px; }
