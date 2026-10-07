@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { prepareWorldSeedPatch } from "../examples/export-consumer/src/patch-validation.js";
 
 const bytes = new Uint8Array([1, 2, 3]);
-function fixture() {
+function fixture(): any {
   const batch = {
     id: "buildings:0:0:0:sb0", detail: false,
     layer: "buildings", featureIds: ["a"], dependencyIds: [],
