@@ -2,6 +2,24 @@
 
 WorldSeed is intended to be useful outside the browser UI. A generated seed can be exported as geometry plus structured local-meter gameplay data so another project can treat the city as an input asset rather than a screenshot.
 
+## Choose an integration path
+
+| Developer | Start with | Next step |
+| --- | --- | --- |
+| **Game / Three.js** | `city.glb` + `colliders.glb` + `spawn-points.json` | Load the city mesh, place actors at spawn points, then add collisions |
+| **Simulation / routing** | `road-graph.json` + `worldseed-objects.json` | Build a road-network query or semantic-object overlay |
+| **GIS / DCC / other engines** | `city.glb` + `worldseed.json` + `ATTRIBUTION.md` | Import the geometry, inspect local-meter axes and retain source attribution |
+
+**Fastest reproducible example:** [download the v0.9.1 synthetic export and open it in the standalone consumer](TRY_WORLDSEED.md#option-a--prebuilt-zips-recommended). It requires no WorldSeed generator source, location input, or API key.
+
+**Integration checklist**
+
+1. Verify the export's schema version against [schema compatibility](SCHEMA_VERSIONING.md).
+2. Use local-meter axes: X east, Y up, Z south. Do not assume a globally georeferenced origin exists.
+3. Use `worldseed-objects.json` for semantic identity instead of guessing from GLB mesh names.
+4. Preserve `ATTRIBUTION.md` and check the source-data terms before redistributing exports.
+5. Share a reproducible public integration or report an interoperability issue; see [Issue #20](https://github.com/yz4git/next-gen/issues/20).
+
 ## Export bundle
 
 The starter-kit ZIP currently contains:
