@@ -2,27 +2,31 @@
   <img src="public/worldseed-mark.svg" width="84" alt="WorldSeed mark" />
   <h1>WorldSeed</h1>
   <p><strong>Turn open geospatial data into playable, exportable 3D worlds.</strong></p>
-  <p>Three.js · terrain-aware roads · arcade driving · GLB + road graphs + colliders + spawn points + JSON Schema</p>
+  <p>Explore a city in the browser, then reuse its GLB geometry, road graph, colliders, spawn points and semantic JSON in your own project.</p>
   <p>
-    <a href="https://yz4git.github.io/next-gen/demo/"><strong>Live demo</strong></a>
+    <a href="https://yz4git.github.io/next-gen/demo/"><strong>▶ Explore the live demo</strong></a>
     ·
-    <a href="https://github.com/yz4git/next-gen/releases/latest"><strong>Latest release</strong></a>
+    <a href="docs/TRY_WORLDSEED.md"><strong>Try an export in 5 minutes</strong></a>
     ·
-    <a href="docs/TRY_WORLDSEED.md"><strong>Try it in 5 minutes</strong></a>
-    ·
-    <a href="docs/SCHEMA_VERSIONING.md"><strong>Schema v1</strong></a>
-    ·
-    <a href="https://github.com/yz4git/next-gen/issues/19"><strong>Early adopters wanted</strong></a>
+    <a href="docs/REUSE.md"><strong>Build with the export</strong></a>
   </p>
+  <p><sub>Three.js · OpenStreetMap / Overture Maps · GLB / glTF · JSON Schema v1 · MIT-licensed code</sub></p>
 </div>
 
-![WorldSeed live Tokyo Tower world generated from open geospatial data](docs/worldseed-preview.png)
+[![WorldSeed live Tokyo Tower world generated from open geospatial data](docs/worldseed-preview.png)](https://yz4git.github.io/next-gen/demo/)
 
-*Live Tokyo Tower seed rendered by the production WebGL build from open geospatial data.*
+*Actual WorldSeed WebGL render of a Tokyo Tower seed. Click the image to open the demo. Live map generation uses external open-data providers; the first-run synthetic demo does not need a geographic coordinate.*
 
-WorldSeed turns a WGS84 latitude and longitude into a local-meter, browser-generated 3D world. Paste coordinates (or a Google Maps URL containing coordinates), choose a 100–1,000 m radius, and immediately orbit, walk, fly, or drive through the result.
+### Choose your path
 
-Google Maps is only treated as an optional coordinate-input format. WorldSeed does not request, scrape, trace, or derive geometry from Google Maps. World geometry comes from public open-data providers.
+| I want to… | Start here | What I get |
+| --- | --- | --- |
+| **See what WorldSeed looks like** | [Explore the live demo](https://yz4git.github.io/next-gen/demo/) | Orbit, walk, fly or drive through a generated world |
+| **Test the export without installing WorldSeed** | [Five-minute ZIP trial](docs/TRY_WORLDSEED.md) | A synthetic city export opened in an independent consumer |
+| **Build a game or Three.js app** | [Game-development integration guide](docs/REUSE.md#choose-an-integration-path) | GLB meshes, collision geometry, spawn points and roads |
+| **Use GIS or simulation data** | [Semantic-data integration guide](docs/REUSE.md#choose-an-integration-path) | Local-meter semantic objects, provenance and versioned schemas |
+
+**No account or API key is required for the synthetic export trial.** Running the standalone consumer requires a local HTTP server; the live demo is browser-based. [Download v0.9.1 assets](https://github.com/yz4git/next-gen/releases/tag/v0.9.1) · [Schema v1](docs/SCHEMA_VERSIONING.md) · [Report an integration](https://github.com/yz4git/next-gen/issues/19).
 
 ## Why WorldSeed
 
