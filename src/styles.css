@@ -398,3 +398,15 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 .mutation-actions button:last-child { flex: 0 0 74px; }
 .mutation-actions button:disabled { opacity: .4; cursor: default; }
 .mutation-status { margin: 7px 0 0; color: #98b07e; font-size: 9px; line-height: 1.45; min-height: 26px; }
+
+
+/* First-visit guidance: visible in the seed panel without blocking the WebGL canvas. */
+.visitor-start { margin: 18px 18px 0; padding: 15px; border: 1px solid rgba(184,243,75,.35); border-radius: 12px; background: linear-gradient(135deg, #20301b, #151c16); }
+.visitor-start__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #d4ff98; font-size: 11px; letter-spacing: .06em; }
+.visitor-start__head button { border: 0; background: transparent; color: #d4ff98; font-size: 22px; cursor: pointer; min-width: 32px; min-height: 32px; }
+.visitor-start p { font-size: 12px; line-height: 1.5; color: #dce5d9; margin: 8px 0 12px; }
+.visitor-start__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.visitor-start__actions button, .visitor-start__actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; text-decoration: none; cursor: pointer; }
+.visitor-start__actions button { background: #b8f34b; color: #14200d; border: 1px solid #b8f34b; }
+.visitor-start__actions a { color: #e7f6d3; background: #293729; border: 1px solid #526c45; }
+@media (max-width: 700px) { .visitor-start { margin: 10px 12px 0; padding: 12px; } }
