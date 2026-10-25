@@ -218,7 +218,21 @@ async function renderData(nextData: WorldData, live: boolean): Promise<void> {
   setBusy(false);
 }
 
+function bindVisitorStart(): void {
+  const panel = document.querySelector<HTMLElement>(".visitor-start");
+  if (!panel) return;
+  document.querySelector<HTMLButtonElement>("#visitor-start-dismiss")?.addEventListener("click", () => {
+    panel.hidden = true;
+  });
+  document.querySelector<HTMLButtonElement>("#visitor-start-explore")?.addEventListener("click", () => {
+    panel.hidden = true;
+    setWorldPanelOpen(false);
+    setMode("orbit");
+  });
+}
+
 function bindUi(): void {
+  bindVisitorStart();
   required<HTMLFormElement>("#seed-form").addEventListener("submit", (event) => {
     event.preventDefault();
     void generateRealWorld();
